@@ -1,20 +1,7 @@
-
 import { _decorator, resources, Prefab, AudioClip, assert, assetManager } from "cc";
 import { ResourceManager } from "./framework/ResourceManager";
 
-export enum uiName {
-  settingPanel = "settingPanel", //设置
-  puzzleOriginalPanel = "puzzleOriginalPanel", //拼图原始图片
-  puzzleTimeOverPanel = "puzzleTimeOverPanel", //时间耗尽面板
-  unLockTipPanel = "unLockTipPanel", //解锁提示面板
-  puzzlePassPanel = "puzzlePassPanel", //拼图通过面板
-  selectLevelPanel = "selectLevelPanel", //选择关卡面板
-  puzzleStoryPanel = "puzzleStoryPanel", //拼图故事面板
-  tipsPanel = "tipsPanel", //提示面板
-  puzzleChapterLoadPanel = "puzzleChapterLoadPanel", //拼图章节加载面板
-}
-
-
+export enum uiName {}
 
 export default class gamePrefabMgr {
   private static __instance: gamePrefabMgr;
@@ -61,8 +48,6 @@ export default class gamePrefabMgr {
       }
     }
 
-
-
     for (const key in uiName) {
       if (Object.prototype.hasOwnProperty.call(uiName, key)) {
         const uiname = (uiName as any)[key];
@@ -79,7 +64,6 @@ export default class gamePrefabMgr {
         this.checkLoadComplete();
       }
     }
-  
   }
 
   /**
