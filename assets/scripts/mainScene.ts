@@ -1,4 +1,4 @@
-import { _decorator, Button, Component, Label, Node } from "cc";
+import { _decorator, Button, Component, director, Label } from "cc";
 const { ccclass, property } = _decorator;
 
 @ccclass("mainScene")
@@ -16,7 +16,7 @@ export class mainScene extends Component {
     this.startBtn.node.on("click", this.startGame, this);
   }
   startGame() {
-    console.log("start game");
+    director.loadScene("GameScene");
   }
   start() {}
 
