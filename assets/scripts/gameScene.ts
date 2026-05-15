@@ -86,6 +86,8 @@ const COLOR_NAMES = [
 
 const STORAGE_LEVEL_KEY = "gem_sort_level";
 const MAX_TRAY_SLOTS = 12;
+const DESIGN_WIDTH = 750;
+const DESIGN_HEIGHT = 1334;
 
 @ccclass("gameScene")
 export class gameScene extends Component {
@@ -120,11 +122,19 @@ export class gameScene extends Component {
   private traySlots: TraySlotState[] = [];
   private selectedBlocks: BlockState[] = [];
 
-  private readonly maxCellSize = 57.6;
-  private cellSize = 57.6;
-  private cellStep = 47.2;
+  private readonly maxCellSize = 54;
+  private readonly boardMaxWidth = 360;
+  private readonly boardMaxHeight = 430;
+  private readonly boardCellGap = 0;
+  private readonly boardTileOverlap = 2;
+  private readonly boardBlockIconScale = 0.78;
+  private readonly boardCenterY = 125;
+  private cellSize = 54;
+  private cellStep = 54;
   private boardOrigin = new Vec3();
-  private trayCellSize = 57.6;
+  private readonly traySlotSize = 38;
+  private readonly traySlotGap = -12;
+  private readonly trayY = -285;
   private inputLocked = false;
   private blockIdSeed = 0;
 
@@ -145,12 +155,12 @@ export class gameScene extends Component {
   }
 
   private async prepareScene() {
-    this.root = this.createNode("GameRoot", this.node, 750, 1334);
-    this.boardRoot = this.createNode("BoardRoot", this.root, 750, 760);
-    this.tileRoot = this.createNode("TileRoot", this.boardRoot, 750, 760);
-    this.trayRoot = this.createNode("TrayRoot", this.root, 750, 120);
-    this.blockRoot = this.createNode("BlockRoot", this.root, 750, 1334);
-    this.hudRoot = this.createNode("HudRoot", this.root, 750, 1334);
+    this.root = this.createNode("GameRoot", this.node, DESIGN_WIDTH, DESIGN_HEIGHT);
+    this.boardRoot = this.createNode("BoardRoot", this.root, DESIGN_WIDTH, 760);
+    this.tileRoot = this.createNode("TileRoot", this.boardRoot, DESIGN_WIDTH, 760);
+    this.trayRoot = this.createNode("TrayRoot", this.root, DESIGN_WIDTH, 120);
+    this.blockRoot = this.createNode("BlockRoot", this.root, DESIGN_WIDTH, DESIGN_HEIGHT);
+    this.hudRoot = this.createNode("HudRoot", this.root, DESIGN_WIDTH, DESIGN_HEIGHT);
 
     this.levelLabel = this.createLabel("LevelLabel", this.hudRoot, "", 36);
     this.levelLabel.node.setPosition(0, 575);
@@ -327,14 +337,16 @@ export class gameScene extends Component {
 
   private buildBoard() {
     const { rows, cols } = this.levelData;
-    const maxBoardWidth = 430;
-    const maxBoardHeight = 500;
-    this.cellSize = Math.min(this.maxCellSize, maxBoardWidth / cols, maxBoardHeight / rows);
-    this.cellStep = this.cellSize * 0.82;
+    this.cellSize = Math.min(
+      this.maxCellSize,
+      (this.boardMaxWidth - (cols - 1) * this.boardCellGap) / cols,
+      (this.boardMaxHeight - (rows - 1) * this.boardCellGap) / rows,
+    );
+    this.cellStep = this.cellSize + this.boardCellGap;
 
     const width = (cols - 1) * this.cellStep;
     const height = (rows - 1) * this.cellStep;
-    this.boardOrigin.set(-width / 2, 185 + height / 2, 0);
+    this.boardOrigin.set(-width / 2, this.boardCenterY + height / 2, 0);
 
     this.tiles = [];
     for (let r = 0; r < rows; r++) {
@@ -365,13 +377,14 @@ export class gameScene extends Component {
   }
 
   private buildTray() {
-    const startX = -((MAX_TRAY_SLOTS - 1) * this.trayCellSize) / 2;
-    const y = -335;
+    const step = this.traySlotSize + this.traySlotGap;
+    const startX = -((MAX_TRAY_SLOTS - 1) * step) / 2;
+    const y = this.trayY;
     this.traySlots = [];
 
     for (let i = 0; i < MAX_TRAY_SLOTS; i++) {
       const node = this.createTraySlotNode(i);
-      node.setPosition(startX + i * this.trayCellSize, y);
+      node.setPosition(startX + i * step, y);
 
       const slot: TraySlotState = { index: i, node, block: null };
       this.traySlots.push(slot);
@@ -405,8 +418,8 @@ export class gameScene extends Component {
       visualRoot,
       "Normal",
       this.blockFrames.get(color),
-      this.cellSize,
-      this.cellSize,
+      this.getBoardBlockIconSize(),
+      this.getBoardBlockIconSize(),
       ["IconView"],
     ).getComponent(Sprite);
 
@@ -414,8 +427,8 @@ export class gameScene extends Component {
       visualRoot,
       "Collapsed",
       this.collapsedFrames.get(color) || this.blockFrames.get(color),
-      this.cellSize,
-      this.cellSize,
+      this.getBoardBlockIconSize(),
+      this.getBoardBlockIconSize(),
       ["IconCollapsed"],
     ).getComponent(Sprite);
     collapsed.node.active = false;
@@ -665,7 +678,7 @@ export class gameScene extends Component {
     for (const block of blocks) {
       block.selected = true;
       block.node.setScale(
-        block.location === "tray" ? new Vec3(0.72, 0.72, 1) : new Vec3(1.08, 1.08, 1),
+        block.location === "tray" ? this.getTrayBlockScale(true) : new Vec3(1.08, 1.08, 1),
       );
       if (block.selectedFx) block.selectedFx.node.active = true;
       block.node.setSiblingIndex(9999);
@@ -675,7 +688,7 @@ export class gameScene extends Component {
   private unselectAll() {
     for (const block of this.selectedBlocks) {
       block.selected = false;
-      block.node.setScale(block.location === "tray" ? new Vec3(0.62, 0.62, 1) : Vec3.ONE);
+      block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
       if (block.selectedFx) block.selectedFx.node.active = false;
     }
     this.selectedBlocks = [];
@@ -686,7 +699,7 @@ export class gameScene extends Component {
     block.collapsed = !!tile && tile.color === block.color;
     block.normalSprite.node.active = !block.collapsed;
     block.collapsedSprite.node.active = block.collapsed;
-    block.node.setScale(block.location === "tray" ? new Vec3(0.62, 0.62, 1) : Vec3.ONE);
+    block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
 
     if (block.collapsed && animate) {
       tween(block.node)
@@ -919,36 +932,38 @@ export class gameScene extends Component {
   }
 
   private createTileNode(color: number, row: number, col: number): Node {
+    const size = this.getBoardTileSize();
     const node = this.createPrefabOrNode(
       this.tilePrefab,
       `Tile_${row}_${col}`,
       this.tileRoot,
-      this.cellSize * 0.96,
-      this.cellSize * 0.96,
+      size,
+      size,
     );
     const view = this.findDeepChild(node, "View") || node;
     this.applySprite(
       view,
       this.tileFrames.get(color),
-      this.cellSize * 0.96,
-      this.cellSize * 0.96,
+      size,
+      size,
       new Color(255, 255, 255, 60),
     );
     return node;
   }
 
   private createEmptyBlockNode(row: number, col: number): Node {
+    const size = this.getBoardTileSize();
     return this.createPrefabOrNode(
       this.emptyBlockPrefab,
       `EmptyBlock_${row}_${col}`,
       this.tileRoot,
-      this.cellSize * 0.96,
-      this.cellSize * 0.96,
+      size,
+      size,
     );
   }
 
   private createTraySlotNode(index: number): Node {
-    const size = this.trayCellSize;
+    const size = this.traySlotSize;
     const node = this.createPrefabOrNode(
       this.traySlotPrefab,
       `TraySlot_${index}`,
@@ -965,6 +980,19 @@ export class gameScene extends Component {
       new Color(255, 255, 255, 95),
     );
     return node;
+  }
+
+  private getTrayBlockScale(selected: boolean): Vec3 {
+    const scale = (this.traySlotSize / this.cellSize) * (selected ? 1.12 : 1);
+    return new Vec3(scale, scale, 1);
+  }
+
+  private getBoardTileSize(): number {
+    return this.cellSize + this.boardTileOverlap;
+  }
+
+  private getBoardBlockIconSize(): number {
+    return this.cellSize * this.boardBlockIconScale;
   }
 
   private createPrefabOrNode(

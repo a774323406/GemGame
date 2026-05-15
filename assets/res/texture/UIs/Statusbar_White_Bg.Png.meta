@@ -11,7 +11,7 @@
     "6c48a": {
       "importer": "texture",
       "uuid": "c4bc0c35-f289-4757-b031-89c08ca7805a@6c48a",
-      "displayName": "Statusbar_White_Bg.Png",
+      "displayName": "Statusbar_White_Bg",
       "id": "6c48a",
       "name": "texture",
       "userData": {
@@ -35,7 +35,7 @@
     "f9941": {
       "importer": "sprite-frame",
       "uuid": "c4bc0c35-f289-4757-b031-89c08ca7805a@f9941",
-      "displayName": "Statusbar_White_Bg.Png",
+      "displayName": "Statusbar_White_Bg",
       "id": "f9941",
       "name": "spriteFrame",
       "userData": {

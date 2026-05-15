@@ -11,7 +11,7 @@ export class loadScene extends Component {
   fakeProgress: number = 0;
   private progressTimer: number = null;
   private startTime: number = 0;
-  private constDuration: number = 3; // 固定时长3秒
+  private constDuration: number = 1; // 固定时长3秒
 
   start() {
     this.startTime = Date.now(); // 记录开始时间
