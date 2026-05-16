@@ -19,6 +19,7 @@ import {
   VerticalTextAlignment,
 } from "cc";
 import { ResourceManager } from "./framework/ResourceManager";
+import { ToolId, ToolInventory } from "./ToolInventory";
 
 const { ccclass, property } = _decorator;
 
@@ -128,9 +129,6 @@ export class gameScene extends Component {
   @property
   public magicAreaCols = 3;
 
-  @property
-  public magicFrameScale = 0.38;
-
   private root: Node = null;
   private boardRoot: Node = null;
   private tileRoot: Node = null;
@@ -167,6 +165,10 @@ export class gameScene extends Component {
   private magicSelecting = false;
   private magicAreaNode: Node = null;
   private magicAreaCenter = { row: 0, col: 0 };
+  private magicAreaDragOffset = new Vec3();
+  private magicAreaDragStart = new Vec3();
+  private magicAreaDidDrag = false;
+  private magicAreaStartCenter: { row: number; col: number } | null = null;
   private inputLocked = false;
   private blockIdSeed = 0;
 
@@ -478,7 +480,6 @@ export class gameScene extends Component {
     if (this.inputLocked) return;
 
     if (this.magicSelecting) {
-      if (block.location === "board") this.moveMagicAreaTo(block.row, block.col);
       return;
     }
 
@@ -520,7 +521,6 @@ export class gameScene extends Component {
     if (this.inputLocked || !tile || !tile.node.active) return;
     if (tile.color <= 0) return;
     if (this.magicSelecting) {
-      this.moveMagicAreaTo(tile.row, tile.col);
       return;
     }
     if (tile.block || this.selectedBlocks.length === 0) return;
@@ -781,20 +781,35 @@ export class gameScene extends Component {
 
   private onMagicClicked() {
     if (this.inputLocked) return;
-    this.showRewardAdThenRun(() => {
-      this.magicUses++;
+    this.prepareTool("magic", () => {
+      this.magicUses = ToolInventory.getCount("magic");
       this.enterMagicSelectMode();
     });
   }
 
   private onBrushClicked() {
-    this.showRewardAdThenRun(() => this.cleanTray());
+    this.prepareTool("brush", () => {
+      if (this.cleanTray()) ToolInventory.consume("brush");
+    });
   }
 
   private onMagnetClicked() {
-    this.showRewardAdThenRun(() => {
+    this.prepareTool("magnet", () => {
       const blocks = this.blocks.filter((b) => !b.collapsed).slice(0, 12);
-      this.collapseBlocks(blocks);
+      if (this.collapseBlocks(blocks)) ToolInventory.consume("magnet");
+    });
+  }
+
+  private prepareTool(tool: ToolId, onReady: () => void) {
+    if (this.inputLocked) return;
+    if (ToolInventory.has(tool)) {
+      onReady();
+      return;
+    }
+
+    this.showRewardAdThenRun(() => {
+      ToolInventory.add(tool);
+      onReady();
     });
   }
 
@@ -806,12 +821,14 @@ export class gameScene extends Component {
 
   private enterMagicSelectMode() {
     this.unselectAll();
+    this.magicUses = ToolInventory.getCount("magic");
     this.magicSelecting = this.magicUses > 0;
     if (!this.magicSelecting) return;
     this.showMessage("Drag Area");
     this.ensureMagicAreaNode();
     const center = this.getDefaultMagicAreaCenter();
     if (!center) return;
+    this.magicAreaStartCenter = { row: center.row, col: center.col };
     this.moveMagicAreaTo(center.row, center.col);
     this.magicAreaNode.active = true;
   }
@@ -821,20 +838,35 @@ export class gameScene extends Component {
 
     const tiles = this.getMagicAreaTiles(row, col);
     if (tiles.length === 0) return;
+    if (this.isMagicAreaAlreadySorted(tiles)) {
+      this.resetMagicAreaToStart();
+      return;
+    }
+
+    if (!this.sortMagicArea(tiles)) {
+      this.resetMagicAreaToStart();
+      return;
+    }
+
+    if (!ToolInventory.consume("magic")) {
+      this.resetMagicAreaToStart();
+      return;
+    }
 
     this.magicSelecting = false;
-    this.magicUses--;
+    this.magicUses = ToolInventory.getCount("magic");
     this.messageLabel.node.active = false;
     if (this.magicAreaNode) this.magicAreaNode.active = false;
-    this.sortMagicArea(tiles);
   }
 
   private getMagicAreaTiles(row: number, col: number): TileState[] {
     const tiles: TileState[] = [];
-    const rowStart = row - Math.floor((this.magicAreaRows - 1) / 2);
-    const colStart = col - Math.floor((this.magicAreaCols - 1) / 2);
-    for (let r = rowStart; r < rowStart + this.magicAreaRows; r++) {
-      for (let c = colStart; c < colStart + this.magicAreaCols; c++) {
+    const rows = this.getMagicAreaRows();
+    const cols = this.getMagicAreaCols();
+    const rowStart = row - Math.floor((rows - 1) / 2);
+    const colStart = col - Math.floor((cols - 1) / 2);
+    for (let r = rowStart; r < rowStart + rows; r++) {
+      for (let c = colStart; c < colStart + cols; c++) {
         const tile = this.tiles[r]?.[c];
         if (tile && tile.color > 0) tiles.push(tile);
       }
@@ -848,9 +880,9 @@ export class gameScene extends Component {
       return;
     }
 
-    this.magicAreaNode = this.createNode("MagicArea", this.tileRoot, 1, 1);
+    this.magicAreaNode = this.createNode("MagicArea", this.getMagicAreaParent(), 1, 1);
     this.magicAreaNode.addComponent(Sprite);
-    this.magicAreaNode.on(Node.EventType.TOUCH_START, this.onMagicAreaTouchMove, this);
+    this.magicAreaNode.on(Node.EventType.TOUCH_START, this.onMagicAreaTouchStart, this);
     this.magicAreaNode.on(Node.EventType.TOUCH_MOVE, this.onMagicAreaTouchMove, this);
     this.magicAreaNode.on(Node.EventType.TOUCH_END, this.onMagicAreaTouchEnd, this);
     this.magicAreaNode.on(Node.EventType.TOUCH_CANCEL, this.onMagicAreaTouchEnd, this);
@@ -859,49 +891,85 @@ export class gameScene extends Component {
 
   private drawMagicAreaNode() {
     if (!this.magicAreaNode) return;
-    const width = this.getMagicFrameWidth();
-    const height = this.getMagicFrameHeight();
-    this.magicAreaNode.getComponent(UITransform).setContentSize(width, height);
+    const width = this.getMagicAreaWidth();
+    const height = this.getMagicAreaHeight();
 
     const sprite = this.magicAreaNode.getComponent(Sprite);
+    sprite.enabled = true;
     sprite.spriteFrame = this.wandSelectionFrame;
+    sprite.type = Sprite.Type.SLICED;
     sprite.sizeMode = Sprite.SizeMode.CUSTOM;
     sprite.color = this.wandSelectionFrame ? Color.WHITE : new Color(255, 255, 255, 85);
+
+    this.magicAreaNode.getComponent(UITransform).setContentSize(width, height);
   }
 
   private getMagicAreaWidth(): number {
-    return (this.magicAreaCols - 1) * this.cellStep + this.getBoardTileSize();
+    return this.getMagicAreaCols() * this.cellStep;
   }
 
   private getMagicAreaHeight(): number {
-    return (this.magicAreaRows - 1) * this.cellStep + this.getBoardTileSize();
+    return this.getMagicAreaRows() * this.cellStep;
   }
 
-  private getMagicFrameWidth(): number {
-    return this.getMagicAreaWidth() * this.magicFrameScale;
+  private getMagicAreaRows(): number {
+    return this.clampMagicAreaSize(this.magicAreaRows);
   }
 
-  private getMagicFrameHeight(): number {
-    return this.getMagicAreaHeight() * this.magicFrameScale;
+  private getMagicAreaCols(): number {
+    return this.clampMagicAreaSize(this.magicAreaCols);
+  }
+
+  private clampMagicAreaSize(value: number): number {
+    return Math.min(3, Math.max(1, Math.floor(Number(value) || 3)));
+  }
+
+  private onMagicAreaTouchStart(event: EventTouch) {
+    event.propagationStopped = true;
+    if (!this.magicSelecting || !this.magicAreaNode) return;
+    const local = this.getTouchPositionInMagicAreaParent(event);
+    if (!local) return;
+    const pos = this.magicAreaNode.position;
+    this.magicAreaDragStart.set(pos);
+    this.magicAreaDidDrag = false;
+    this.magicAreaDragOffset.set(pos.x - local.x, pos.y - local.y, 0);
   }
 
   private onMagicAreaTouchMove(event: EventTouch) {
-    if (!this.magicSelecting) return;
-    const tile = this.findNearestTileAtTouch(event);
-    if (tile) this.moveMagicAreaTo(tile.row, tile.col);
+    event.propagationStopped = true;
+    if (!this.magicSelecting || !this.magicAreaNode) return;
+    const local = this.getTouchPositionInMagicAreaParent(event);
+    if (!local) return;
+
+    const target = new Vec3(local.x + this.magicAreaDragOffset.x, local.y + this.magicAreaDragOffset.y, 0);
+    this.magicAreaNode.setPosition(this.clampMagicAreaPosition(target));
+    this.magicAreaNode.setSiblingIndex(9999);
+    const dx = this.magicAreaNode.position.x - this.magicAreaDragStart.x;
+    const dy = this.magicAreaNode.position.y - this.magicAreaDragStart.y;
+    if (dx * dx + dy * dy > 16) this.magicAreaDidDrag = true;
   }
 
   private onMagicAreaTouchEnd(event: EventTouch) {
-    if (!this.magicSelecting) return;
-    const tile = this.findNearestTileAtTouch(event);
-    if (tile) this.moveMagicAreaTo(tile.row, tile.col);
-    this.castMagicAt(this.magicAreaCenter.row, this.magicAreaCenter.col);
+    event.propagationStopped = true;
+    if (!this.magicSelecting || !this.magicAreaNode) return;
+    this.onMagicAreaTouchMove(event);
+    if (!this.magicAreaDidDrag) return;
+
+    const tile = this.findNearestTileAtPosition(this.getMagicAreaPositionInTileRoot());
+    if (!tile) return;
+    this.moveMagicAreaTo(tile.row, tile.col);
+    this.castMagicAt(tile.row, tile.col);
   }
 
   private moveMagicAreaTo(row: number, col: number) {
     if (!this.magicAreaNode) return;
     this.magicAreaCenter = { row, col };
-    this.magicAreaNode.setPosition(this.getTilePosition(row, col));
+    const tile = this.tiles[row]?.[col];
+    if (tile) {
+      this.magicAreaNode.setPosition(this.getNodePositionInParent(tile.node, this.magicAreaNode.parent));
+    } else {
+      this.magicAreaNode.setPosition(this.getTilePosition(row, col));
+    }
     this.magicAreaNode.setSiblingIndex(9999);
   }
 
@@ -914,12 +982,23 @@ export class gameScene extends Component {
     return null;
   }
 
-  private sortMagicArea(tiles: TileState[]) {
+  private isMagicAreaAlreadySorted(tiles: TileState[]): boolean {
+    return tiles.length > 0 && tiles.every((tile) => !!tile.block && tile.block.color === tile.color);
+  }
+
+  private resetMagicAreaToStart() {
+    if (!this.magicAreaStartCenter) return;
+    this.moveMagicAreaTo(this.magicAreaStartCenter.row, this.magicAreaStartCenter.col);
+    this.magicAreaDidDrag = false;
+    this.showMessage("Drag Area");
+  }
+
+  private sortMagicArea(tiles: TileState[]): boolean {
     const area = new Set(tiles);
     const candidates = tiles
       .map((tile) => tile.block)
       .filter((block): block is BlockState => !!block && block.location === "board");
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) return false;
 
     this.inputLocked = true;
     this.unselectAll();
@@ -967,6 +1046,11 @@ export class gameScene extends Component {
       operations++;
     }
 
+    if (operations === 0) {
+      this.inputLocked = false;
+      return false;
+    }
+
     this.scheduleOnce(
       () => {
         this.inputLocked = false;
@@ -974,11 +1058,12 @@ export class gameScene extends Component {
       },
       0.35 + operations * 0.04,
     );
+    return true;
   }
 
-  private cleanTray() {
+  private cleanTray(): boolean {
     const trayBlocks = this.traySlots.map((slot) => slot.block).filter((block): block is BlockState => !!block);
-    if (trayBlocks.length === 0) return;
+    if (trayBlocks.length === 0) return false;
 
     let moved = 0;
     for (const block of trayBlocks) {
@@ -987,18 +1072,25 @@ export class gameScene extends Component {
       this.moveBlockToTile(block, tile, moved * 0.05);
       moved++;
     }
+    if (moved === 0) return false;
+
     this.unselectAll(false);
     this.scheduleOnce(() => this.checkWin(), 0.35 + moved * 0.05);
+    return true;
   }
 
-  private collapseBlocks(blocks: BlockState[]) {
-    if (blocks.length === 0) return;
+  private collapseBlocks(blocks: BlockState[]): boolean {
+    if (blocks.length === 0) return false;
     this.inputLocked = true;
     let operations = 0;
 
     for (const block of blocks) {
       if (!block || block.collapsed) continue;
       if (this.makeCollapse(block, operations * 0.05)) operations++;
+    }
+    if (operations === 0) {
+      this.inputLocked = false;
+      return false;
     }
 
     this.unselectAll();
@@ -1010,6 +1102,7 @@ export class gameScene extends Component {
       },
       0.45 + operations * 0.05,
     );
+    return true;
   }
 
   private makeCollapse(block: BlockState, delay = 0): boolean {
@@ -1090,21 +1183,97 @@ export class gameScene extends Component {
   }
 
   private getNodePositionInBlockRoot(node: Node): Vec3 {
-    const sourceTransform = node.getComponent(UITransform);
-    const blockTransform = this.blockRoot?.getComponent(UITransform);
-    if (!sourceTransform || !blockTransform) {
+    return this.getNodePositionInParent(node, this.blockRoot);
+  }
+
+  private getNodePositionInParent(node: Node, parent: Node | null): Vec3 {
+    const sourceTransform = node?.getComponent(UITransform);
+    const parentTransform = parent?.getComponent(UITransform);
+    if (!sourceTransform || !parentTransform) {
       return node.position.clone();
     }
 
     const worldPosition = sourceTransform.convertToWorldSpaceAR(Vec3.ZERO);
-    return blockTransform.convertToNodeSpaceAR(worldPosition);
+    return parentTransform.convertToNodeSpaceAR(worldPosition);
+  }
+
+  private getTouchPositionInTileRoot(event: EventTouch): Vec3 | null {
+    if (!this.tileRoot) return null;
+    const location = event.getUILocation();
+    return this.tileRoot.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
+  }
+
+  private getMagicAreaParent(): Node {
+    return this.hudRoot || this.tileRoot || this.node;
+  }
+
+  private getTouchPositionInMagicAreaParent(event: EventTouch): Vec3 | null {
+    const parent = this.magicAreaNode?.parent || this.getMagicAreaParent();
+    const transform = parent?.getComponent(UITransform);
+    if (!transform) return null;
+    const location = event.getUILocation();
+    return transform.convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
+  }
+
+  private getMagicAreaPositionInTileRoot(): Vec3 {
+    if (!this.magicAreaNode || !this.tileRoot) return Vec3.ZERO.clone();
+    const sourceTransform = this.magicAreaNode.getComponent(UITransform);
+    const tileTransform = this.tileRoot.getComponent(UITransform);
+    if (!sourceTransform || !tileTransform) return this.magicAreaNode.position.clone();
+
+    const worldPosition = sourceTransform.convertToWorldSpaceAR(Vec3.ZERO);
+    return tileTransform.convertToNodeSpaceAR(worldPosition);
+  }
+
+  private findNearestTileAtPosition(position: Readonly<Vec3>): TileState | null {
+    let nearest: TileState | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) continue;
+        const dx = position.x - tile.node.position.x;
+        const dy = position.y - tile.node.position.y;
+        const distance = dx * dx + dy * dy;
+        if (distance < nearestDistance) {
+          nearest = tile;
+          nearestDistance = distance;
+        }
+      }
+    }
+
+    return nearest;
+  }
+
+  private clampMagicAreaPosition(position: Vec3): Vec3 {
+    const parent = this.magicAreaNode?.parent || this.getMagicAreaParent();
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) continue;
+        const tilePosition = this.getNodePositionInParent(tile.node, parent);
+        minX = Math.min(minX, tilePosition.x);
+        maxX = Math.max(maxX, tilePosition.x);
+        minY = Math.min(minY, tilePosition.y);
+        maxY = Math.max(maxY, tilePosition.y);
+      }
+    }
+
+    if (!Number.isFinite(minX)) return position;
+    position.x = Math.min(maxX, Math.max(minX, position.x));
+    position.y = Math.min(maxY, Math.max(minY, position.y));
+    return position;
   }
 
   private findTileAtTouch(event: EventTouch): TileState | null {
     if (!this.tileRoot) return null;
 
-    const location = event.getUILocation();
-    const local = this.tileRoot.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
+    const local = this.getTouchPositionInTileRoot(event);
+    if (!local) return null;
     const half = this.cellSize * 0.5;
 
     for (const row of this.tiles) {
@@ -1121,27 +1290,8 @@ export class gameScene extends Component {
   }
 
   private findNearestTileAtTouch(event: EventTouch): TileState | null {
-    if (!this.tileRoot) return null;
-
-    const location = event.getUILocation();
-    const local = this.tileRoot.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
-    let nearest: TileState | null = null;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-
-    for (const row of this.tiles) {
-      for (const tile of row) {
-        if (!tile || tile.color <= 0) continue;
-        const dx = local.x - tile.node.position.x;
-        const dy = local.y - tile.node.position.y;
-        const distance = dx * dx + dy * dy;
-        if (distance < nearestDistance) {
-          nearest = tile;
-          nearestDistance = distance;
-        }
-      }
-    }
-
-    return nearest;
+    const local = this.getTouchPositionInTileRoot(event);
+    return local ? this.findNearestTileAtPosition(local) : null;
   }
 
   private moveNode(node: Node, position: Vec3, duration: number, delay = 0, onComplete?: () => void) {
@@ -1159,7 +1309,9 @@ export class gameScene extends Component {
 
   private clearBoard() {
     this.magicSelecting = false;
+    if (this.magicAreaNode?.isValid) this.magicAreaNode.destroy();
     this.magicAreaNode = null;
+    this.magicAreaStartCenter = null;
     this.tileRoot?.destroyAllChildren();
     this.blockRoot?.destroyAllChildren();
     this.clearTraySlots();

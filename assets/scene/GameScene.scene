@@ -1515,6 +1515,8 @@
     "magnetBtn": {
       "__id__": 29
     },
+    "magicAreaRows": 3,
+    "magicAreaCols": 3,
     "_id": "5fH9A0tGFEZJ2fSm3W6DLv"
   },
   {
