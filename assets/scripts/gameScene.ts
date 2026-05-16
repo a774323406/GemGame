@@ -88,6 +88,16 @@ const STORAGE_LEVEL_KEY = "gem_sort_level";
 const MAX_TRAY_SLOTS = 12;
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
+const CONNECTED_DIRECTIONS: Array<[number, number]> = [
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+];
 
 @ccclass("gameScene")
 export class gameScene extends Component {
@@ -105,6 +115,21 @@ export class gameScene extends Component {
 
   @property(Prefab)
   public traySlotPrefab: Prefab = null;
+  @property(Button)
+  public magicBtn: Button = null;
+  @property(Button)
+  public clearBtn: Button = null;
+  @property(Button)
+  public magnetBtn: Button = null;
+
+  @property
+  public magicAreaRows = 3;
+
+  @property
+  public magicAreaCols = 3;
+
+  @property
+  public magicFrameScale = 0.38;
 
   private root: Node = null;
   private boardRoot: Node = null;
@@ -128,13 +153,20 @@ export class gameScene extends Component {
   private readonly boardCellGap = 0;
   private readonly boardTileOverlap = 2;
   private readonly boardBlockIconScale = 0.78;
+  private readonly selectedBoardLift = 12;
+  private readonly selectedBoardScale = 1.06;
+  private readonly selectedTrayLift = 10;
   private readonly boardCenterY = 125;
   private cellSize = 54;
   private cellStep = 54;
   private boardOrigin = new Vec3();
   private readonly traySlotSize = 38;
-  private readonly traySlotGap = -12;
+  private readonly traySlotGap = 0;
   private readonly trayY = -285;
+  private magicUses = 0;
+  private magicSelecting = false;
+  private magicAreaNode: Node = null;
+  private magicAreaCenter = { row: 0, col: 0 };
   private inputLocked = false;
   private blockIdSeed = 0;
 
@@ -143,14 +175,12 @@ export class gameScene extends Component {
   private collapsedFrames = new Map<number, SpriteFrame>();
   private selectFrame: SpriteFrame = null;
   private traySlotFrame: SpriteFrame = null;
+  private wandSelectionFrame: SpriteFrame = null;
 
   protected async start() {
     await this.prepareScene();
     await this.loadAssets();
-    this.levelIndex = Math.max(
-      1,
-      Number(sys.localStorage.getItem(STORAGE_LEVEL_KEY) || this.startLevel),
-    );
+    this.levelIndex = Math.max(1, Number(sys.localStorage.getItem(STORAGE_LEVEL_KEY) || this.startLevel));
     await this.loadLevel(this.levelIndex);
   }
 
@@ -158,7 +188,10 @@ export class gameScene extends Component {
     this.root = this.createNode("GameRoot", this.node, DESIGN_WIDTH, DESIGN_HEIGHT);
     this.boardRoot = this.createNode("BoardRoot", this.root, DESIGN_WIDTH, 760);
     this.tileRoot = this.createNode("TileRoot", this.boardRoot, DESIGN_WIDTH, 760);
-    this.trayRoot = this.createNode("TrayRoot", this.root, DESIGN_WIDTH, 120);
+    this.trayRoot = this.node.getChildByName("trayBG") || this.createNode("TrayRoot", this.root, DESIGN_WIDTH, 120);
+    if (this.trayRoot.parent === this.root) {
+      this.trayRoot.setPosition(0, this.trayY);
+    }
     this.blockRoot = this.createNode("BlockRoot", this.root, DESIGN_WIDTH, DESIGN_HEIGHT);
     this.hudRoot = this.createNode("HudRoot", this.root, DESIGN_WIDTH, DESIGN_HEIGHT);
 
@@ -170,20 +203,24 @@ export class gameScene extends Component {
     this.messageLabel.node.active = false;
 
     this.node.on(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
-    this.bindBoosterButtons();
+    if (this.magicBtn || this.clearBtn || this.magnetBtn) {
+      this.bindToolButtons();
+    } else {
+      this.bindBoosterButtons();
+    }
+  }
+
+  private bindToolButtons() {
+    this.magicBtn?.node.on("click", this.onMagicClicked, this);
+    this.clearBtn?.node.on("click", this.onBrushClicked, this);
+    this.magnetBtn?.node.on("click", this.onMagnetClicked, this);
   }
 
   private bindBoosterButtons() {
     const bottom = this.node.getChildByName("bottom");
-    const buttons = bottom
-      ? bottom.children.filter((child) => child.getComponent(Button))
-      : [];
+    const buttons = bottom ? bottom.children.filter((child) => child.getComponent(Button)) : [];
 
-    const binds = [
-      () => this.onMagicClicked(),
-      () => this.onBrushClicked(),
-      () => this.onMagnetClicked(),
-    ];
+    const binds = [() => this.onMagicClicked(), () => this.onBrushClicked(), () => this.onMagnetClicked()];
     const names = ["Magic", "Brush", "Magnet"];
 
     for (let i = 0; i < Math.min(buttons.length, binds.length); i++) {
@@ -200,11 +237,10 @@ export class gameScene extends Component {
     await ResourceManager.ins.loadBundle("res");
     await this.loadDefaultPrefabs();
 
-    const select = await this.tryLoadSprite(
-      "texture/Tiles/Tiles/gem_select_fx",
-    );
+    const select = await this.tryLoadSprite("texture/Tiles/Tiles/gem_select_fx");
     this.selectFrame = select;
     this.traySlotFrame = await this.tryLoadSprite("texture/Trays/TraySlot");
+    this.wandSelectionFrame = await this.tryLoadSprite("Images/WandSelectionFrame");
 
     for (let color = 1; color < COLOR_NAMES.length; color++) {
       const name = COLOR_NAMES[color];
@@ -246,11 +282,7 @@ export class gameScene extends Component {
     const candidates = [`${path}/spriteFrame`, path];
     for (const candidate of candidates) {
       try {
-        return await ResourceManager.ins.loadBundleAsset(
-          "res",
-          candidate,
-          SpriteFrame,
-        );
+        return await ResourceManager.ins.loadBundleAsset("res", candidate, SpriteFrame);
       } catch {
         // Try the next Cocos asset path shape.
       }
@@ -284,11 +316,7 @@ export class gameScene extends Component {
 
   private async loadLevelData(levelIndex: number): Promise<LevelData | null> {
     try {
-      const asset = await ResourceManager.ins.loadBundleAsset(
-        "res",
-        `Levels/Level${levelIndex}_Complete`,
-        TextAsset,
-      );
+      const asset = await ResourceManager.ins.loadBundleAsset("res", `Levels/Level${levelIndex}_Complete`, TextAsset);
       return this.parseLevel(asset.text);
     } catch (err) {
       console.warn(`[gameScene] Level ${levelIndex} load failed`, err);
@@ -319,11 +347,7 @@ export class gameScene extends Component {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .map((line) =>
-        line
-          .split(/\s+/)
-          .map((part) => Math.max(0, Math.min(19, Number(part) || 0))),
-      );
+      .map((line) => line.split(/\s+/).map((part) => Math.max(0, Math.min(19, Number(part) || 0))));
   }
 
   private normalizeMatrix(matrix: Matrix, rows: number, cols: number) {
@@ -354,10 +378,7 @@ export class gameScene extends Component {
       for (let c = 0; c < cols; c++) {
         const color = this.levelData.complete[r][c];
         const pos = this.getTilePosition(r, c);
-        const tileNode =
-          color > 0
-            ? this.createTileNode(color, r, c)
-            : this.createEmptyBlockNode(r, c);
+        const tileNode = color > 0 ? this.createTileNode(color, r, c) : this.createEmptyBlockNode(r, c);
         tileNode.setPosition(pos);
 
         const tile: TileState = { row: r, col: c, color, node: tileNode, block: null };
@@ -379,7 +400,7 @@ export class gameScene extends Component {
   private buildTray() {
     const step = this.traySlotSize + this.traySlotGap;
     const startX = -((MAX_TRAY_SLOTS - 1) * step) / 2;
-    const y = this.trayY;
+    const y = 0;
     this.traySlots = [];
 
     for (let i = 0; i < MAX_TRAY_SLOTS; i++) {
@@ -456,6 +477,16 @@ export class gameScene extends Component {
   private onBlockClicked(block: BlockState) {
     if (this.inputLocked) return;
 
+    if (this.magicSelecting) {
+      if (block.location === "board") this.moveMagicAreaTo(block.row, block.col);
+      return;
+    }
+
+    if (block.selected) {
+      this.unselectAll();
+      return;
+    }
+
     if (block.location === "tray") {
       this.selectTrayRun(block);
       return;
@@ -488,6 +519,10 @@ export class gameScene extends Component {
   private onTileClicked(tile: TileState) {
     if (this.inputLocked || !tile || !tile.node.active) return;
     if (tile.color <= 0) return;
+    if (this.magicSelecting) {
+      this.moveMagicAreaTo(tile.row, tile.col);
+      return;
+    }
     if (tile.block || this.selectedBlocks.length === 0) return;
 
     const matchingBlocks = this.selectedBlocks.filter((b) => b.color === tile.color);
@@ -498,28 +533,35 @@ export class gameScene extends Component {
     if (count <= 0) return;
 
     this.inputLocked = true;
+    const movingBlocks = new Set<BlockState>();
     for (let i = 0; i < count; i++) {
+      movingBlocks.add(matchingBlocks[i]);
       this.moveBlockToTile(matchingBlocks[i], targets[i], i * 0.04);
     }
-    this.unselectAll();
-    this.scheduleOnce(() => {
-      this.inputLocked = false;
-      this.checkWin();
-    }, 0.35 + count * 0.04);
+    this.unselectAfterMove(movingBlocks);
+    this.scheduleOnce(
+      () => {
+        this.inputLocked = false;
+        this.checkWin();
+      },
+      0.35 + count * 0.04,
+    );
   }
 
   private moveBoardBlocksToTray(blocks: BlockState[], startSlotIndex: number) {
     const slots = this.collectEmptyTraySlots(startSlotIndex, blocks.length);
-    if (slots.length < blocks.length) {
+    if (slots.length === 0) {
       this.showMessage("Tray Full");
       return;
     }
 
-    const count = blocks.length;
+    const count = Math.min(blocks.length, slots.length);
     this.inputLocked = true;
+    const movingBlocks = new Set<BlockState>();
     for (let i = 0; i < count; i++) {
       const block = blocks[i];
       const slot = slots[i];
+      movingBlocks.add(block);
       const tile = this.tiles[block.row]?.[block.col];
       if (tile?.block === block) tile.block = null;
 
@@ -530,13 +572,16 @@ export class gameScene extends Component {
       slot.block = block;
       this.updateCollapse(block, false);
       block.node.setSiblingIndex(9999);
-      this.moveNode(block.node, slot.node.position, 0.22, i * 0.04);
+      this.moveNode(block.node, this.getNodePositionInBlockRoot(slot.node), 0.22, i * 0.04);
     }
 
-    this.unselectAll();
-    this.scheduleOnce(() => {
-      this.inputLocked = false;
-    }, 0.32 + count * 0.04);
+    this.unselectAfterMove(movingBlocks);
+    this.scheduleOnce(
+      () => {
+        this.inputLocked = false;
+      },
+      0.32 + count * 0.04,
+    );
   }
 
   private moveBlockToTile(block: BlockState, tile: TileState, delay = 0) {
@@ -552,7 +597,7 @@ export class gameScene extends Component {
     block.location = "board";
     block.row = tile.row;
     block.col = tile.col;
-    this.moveNode(block.node, tile.node.position, 0.24, delay, () => {
+    this.moveNode(block.node, this.getNodePositionInBlockRoot(tile.node), 0.24, delay, () => {
       this.updateCollapse(block, true);
     });
     block.node.setSiblingIndex(9999);
@@ -571,18 +616,14 @@ export class gameScene extends Component {
     b.row = ar;
     b.col = ac;
 
-    this.moveNode(a.node, tileB.node.position, 0.24, 0, () => this.updateCollapse(a, true));
-    this.moveNode(b.node, tileA.node.position, 0.24, 0, () => this.updateCollapse(b, true));
+    this.moveNode(a.node, this.getNodePositionInBlockRoot(tileB.node), 0.24, 0, () => this.updateCollapse(a, true));
+    this.moveNode(b.node, this.getNodePositionInBlockRoot(tileA.node), 0.24, 0, () => this.updateCollapse(b, true));
   }
 
-  private collectEmptyTraySlots(start: number, maxCount: number): TraySlotState[] {
+  private collectEmptyTraySlots(_start: number, maxCount: number): TraySlotState[] {
     const result: TraySlotState[] = [];
-    const preferredStart = Math.max(0, start);
 
-    for (let i = preferredStart; i < this.traySlots.length && result.length < maxCount; i++) {
-      if (!this.traySlots[i].block) result.push(this.traySlots[i]);
-    }
-    for (let i = 0; i < preferredStart && result.length < maxCount; i++) {
+    for (let i = 0; i < this.traySlots.length && result.length < maxCount; i++) {
       if (!this.traySlots[i].block) result.push(this.traySlots[i]);
     }
     return result;
@@ -601,7 +642,7 @@ export class gameScene extends Component {
       slot.block = block;
       block.slot = slot;
       block.node.setSiblingIndex(9999);
-      this.moveNode(block.node, slot.node.position, 0.16);
+      this.moveNode(block.node, this.getNodePositionInBlockRoot(slot.node), 0.16);
     }
   }
 
@@ -616,19 +657,22 @@ export class gameScene extends Component {
       if (visited.has(key)) continue;
       visited.add(key);
 
-      const tile = this.tiles[r]?.[c];
-      const block = tile?.block;
-      if (!block || block.collapsed || block.color !== color) continue;
+      const block = this.getSelectableBlock(r, c, color);
+      if (!block) continue;
       result.push(block);
 
-      for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-          if (dr !== 0 || dc !== 0) queue.push([r + dr, c + dc]);
-        }
+      for (const [dr, dc] of CONNECTED_DIRECTIONS) {
+        queue.push([r + dr, c + dc]);
       }
     }
 
     return result;
+  }
+
+  private getSelectableBlock(row: number, col: number, color: number): BlockState | null {
+    const block = this.tiles[row]?.[col]?.block;
+    if (!block || block.collapsed || block.color !== color) return null;
+    return block;
   }
 
   private getConnectedEmptyTiles(row: number, col: number, color: number): TileState[] {
@@ -646,10 +690,8 @@ export class gameScene extends Component {
       if (!tile || tile.block || tile.color !== color) continue;
       result.push(tile);
 
-      for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-          if (dr !== 0 || dc !== 0) queue.push([r + dr, c + dc]);
-        }
+      for (const [dr, dc] of CONNECTED_DIRECTIONS) {
+        queue.push([r + dr, c + dc]);
       }
     }
 
@@ -677,21 +719,49 @@ export class gameScene extends Component {
     this.selectedBlocks = blocks;
     for (const block of blocks) {
       block.selected = true;
-      block.node.setScale(
-        block.location === "tray" ? this.getTrayBlockScale(true) : new Vec3(1.08, 1.08, 1),
-      );
-      if (block.selectedFx) block.selectedFx.node.active = true;
+      block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(true) : this.getSelectedBoardScale());
+      if (block.location === "board") {
+        block.node.setPosition(this.getRaisedBoardBlockPosition(block));
+      } else if (block.location === "tray" && block.slot) {
+        block.node.setPosition(this.getRaisedTrayBlockPosition(block.slot));
+      }
+      if (block.selectedFx) block.selectedFx.node.active = false;
       block.node.setSiblingIndex(9999);
     }
   }
 
-  private unselectAll() {
+  private unselectAll(resetPosition = true) {
     for (const block of this.selectedBlocks) {
       block.selected = false;
       block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
+      if (!resetPosition) {
+        if (block.selectedFx) block.selectedFx.node.active = false;
+        continue;
+      }
+      this.resetBlockPosition(block);
       if (block.selectedFx) block.selectedFx.node.active = false;
     }
     this.selectedBlocks = [];
+  }
+
+  private unselectAfterMove(movingBlocks: Set<BlockState>) {
+    for (const block of this.selectedBlocks) {
+      block.selected = false;
+      block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
+      if (!movingBlocks.has(block)) {
+        this.resetBlockPosition(block);
+      }
+      if (block.selectedFx) block.selectedFx.node.active = false;
+    }
+    this.selectedBlocks = [];
+  }
+
+  private resetBlockPosition(block: BlockState) {
+    if (block.location === "board") {
+      block.node.setPosition(this.getTilePosition(block.row, block.col));
+    } else if (block.location === "tray" && block.slot) {
+      block.node.setPosition(this.getNodePositionInBlockRoot(block.slot.node));
+    }
   }
 
   private updateCollapse(block: BlockState, animate: boolean) {
@@ -710,12 +780,10 @@ export class gameScene extends Component {
   }
 
   private onMagicClicked() {
+    if (this.inputLocked) return;
     this.showRewardAdThenRun(() => {
-      const targets = this.selectedBlocks.length
-        ? [...this.selectedBlocks]
-        : this.blocks.filter((b) => !b.collapsed).slice(0, 6);
-      this.unselectAll();
-      this.collapseBlocks(targets);
+      this.magicUses++;
+      this.enterMagicSelectMode();
     });
   }
 
@@ -736,10 +804,180 @@ export class gameScene extends Component {
     action();
   }
 
+  private enterMagicSelectMode() {
+    this.unselectAll();
+    this.magicSelecting = this.magicUses > 0;
+    if (!this.magicSelecting) return;
+    this.showMessage("Drag Area");
+    this.ensureMagicAreaNode();
+    const center = this.getDefaultMagicAreaCenter();
+    if (!center) return;
+    this.moveMagicAreaTo(center.row, center.col);
+    this.magicAreaNode.active = true;
+  }
+
+  private castMagicAt(row: number, col: number) {
+    if (!this.magicSelecting || this.magicUses <= 0) return;
+
+    const tiles = this.getMagicAreaTiles(row, col);
+    if (tiles.length === 0) return;
+
+    this.magicSelecting = false;
+    this.magicUses--;
+    this.messageLabel.node.active = false;
+    if (this.magicAreaNode) this.magicAreaNode.active = false;
+    this.sortMagicArea(tiles);
+  }
+
+  private getMagicAreaTiles(row: number, col: number): TileState[] {
+    const tiles: TileState[] = [];
+    const rowStart = row - Math.floor((this.magicAreaRows - 1) / 2);
+    const colStart = col - Math.floor((this.magicAreaCols - 1) / 2);
+    for (let r = rowStart; r < rowStart + this.magicAreaRows; r++) {
+      for (let c = colStart; c < colStart + this.magicAreaCols; c++) {
+        const tile = this.tiles[r]?.[c];
+        if (tile && tile.color > 0) tiles.push(tile);
+      }
+    }
+    return tiles;
+  }
+
+  private ensureMagicAreaNode() {
+    if (this.magicAreaNode) {
+      this.drawMagicAreaNode();
+      return;
+    }
+
+    this.magicAreaNode = this.createNode("MagicArea", this.tileRoot, 1, 1);
+    this.magicAreaNode.addComponent(Sprite);
+    this.magicAreaNode.on(Node.EventType.TOUCH_START, this.onMagicAreaTouchMove, this);
+    this.magicAreaNode.on(Node.EventType.TOUCH_MOVE, this.onMagicAreaTouchMove, this);
+    this.magicAreaNode.on(Node.EventType.TOUCH_END, this.onMagicAreaTouchEnd, this);
+    this.magicAreaNode.on(Node.EventType.TOUCH_CANCEL, this.onMagicAreaTouchEnd, this);
+    this.drawMagicAreaNode();
+  }
+
+  private drawMagicAreaNode() {
+    if (!this.magicAreaNode) return;
+    const width = this.getMagicFrameWidth();
+    const height = this.getMagicFrameHeight();
+    this.magicAreaNode.getComponent(UITransform).setContentSize(width, height);
+
+    const sprite = this.magicAreaNode.getComponent(Sprite);
+    sprite.spriteFrame = this.wandSelectionFrame;
+    sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    sprite.color = this.wandSelectionFrame ? Color.WHITE : new Color(255, 255, 255, 85);
+  }
+
+  private getMagicAreaWidth(): number {
+    return (this.magicAreaCols - 1) * this.cellStep + this.getBoardTileSize();
+  }
+
+  private getMagicAreaHeight(): number {
+    return (this.magicAreaRows - 1) * this.cellStep + this.getBoardTileSize();
+  }
+
+  private getMagicFrameWidth(): number {
+    return this.getMagicAreaWidth() * this.magicFrameScale;
+  }
+
+  private getMagicFrameHeight(): number {
+    return this.getMagicAreaHeight() * this.magicFrameScale;
+  }
+
+  private onMagicAreaTouchMove(event: EventTouch) {
+    if (!this.magicSelecting) return;
+    const tile = this.findNearestTileAtTouch(event);
+    if (tile) this.moveMagicAreaTo(tile.row, tile.col);
+  }
+
+  private onMagicAreaTouchEnd(event: EventTouch) {
+    if (!this.magicSelecting) return;
+    const tile = this.findNearestTileAtTouch(event);
+    if (tile) this.moveMagicAreaTo(tile.row, tile.col);
+    this.castMagicAt(this.magicAreaCenter.row, this.magicAreaCenter.col);
+  }
+
+  private moveMagicAreaTo(row: number, col: number) {
+    if (!this.magicAreaNode) return;
+    this.magicAreaCenter = { row, col };
+    this.magicAreaNode.setPosition(this.getTilePosition(row, col));
+    this.magicAreaNode.setSiblingIndex(9999);
+  }
+
+  private getDefaultMagicAreaCenter(): TileState | null {
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (tile && tile.color > 0) return tile;
+      }
+    }
+    return null;
+  }
+
+  private sortMagicArea(tiles: TileState[]) {
+    const area = new Set(tiles);
+    const candidates = tiles
+      .map((tile) => tile.block)
+      .filter((block): block is BlockState => !!block && block.location === "board");
+    if (candidates.length === 0) return;
+
+    this.inputLocked = true;
+    this.unselectAll();
+
+    let operations = 0;
+    for (const tile of tiles) {
+      if (tile.block?.color === tile.color) {
+        this.updateCollapse(tile.block, true);
+        continue;
+      }
+
+      const match = candidates.find((block) => {
+        if (block.color !== tile.color || block.collapsed) return false;
+        const currentTile = this.tiles[block.row]?.[block.col];
+        return currentTile && area.has(currentTile);
+      });
+      if (!match) continue;
+
+      const fromTile = this.tiles[match.row]?.[match.col];
+      if (!fromTile || !area.has(fromTile)) continue;
+
+      const occupant = tile.block;
+      fromTile.block = occupant;
+      tile.block = match;
+
+      match.row = tile.row;
+      match.col = tile.col;
+      match.location = "board";
+      match.slot = null;
+      this.updateCollapse(match, false);
+      this.moveNode(match.node, this.getNodePositionInBlockRoot(tile.node), 0.22, operations * 0.04, () => {
+        this.updateCollapse(match, true);
+      });
+
+      if (occupant) {
+        occupant.row = fromTile.row;
+        occupant.col = fromTile.col;
+        occupant.location = "board";
+        occupant.slot = null;
+        this.updateCollapse(occupant, false);
+        this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromTile.node), 0.22, operations * 0.04, () => {
+          this.updateCollapse(occupant, true);
+        });
+      }
+      operations++;
+    }
+
+    this.scheduleOnce(
+      () => {
+        this.inputLocked = false;
+        this.checkWin();
+      },
+      0.35 + operations * 0.04,
+    );
+  }
+
   private cleanTray() {
-    const trayBlocks = this.traySlots
-      .map((slot) => slot.block)
-      .filter((block): block is BlockState => !!block);
+    const trayBlocks = this.traySlots.map((slot) => slot.block).filter((block): block is BlockState => !!block);
     if (trayBlocks.length === 0) return;
 
     let moved = 0;
@@ -749,7 +987,7 @@ export class gameScene extends Component {
       this.moveBlockToTile(block, tile, moved * 0.05);
       moved++;
     }
-    this.unselectAll();
+    this.unselectAll(false);
     this.scheduleOnce(() => this.checkWin(), 0.35 + moved * 0.05);
   }
 
@@ -764,11 +1002,14 @@ export class gameScene extends Component {
     }
 
     this.unselectAll();
-    this.scheduleOnce(() => {
-      this.sortTrayBlocks();
-      this.inputLocked = false;
-      this.checkWin();
-    }, 0.45 + operations * 0.05);
+    this.scheduleOnce(
+      () => {
+        this.sortTrayBlocks();
+        this.inputLocked = false;
+        this.checkWin();
+      },
+      0.45 + operations * 0.05,
+    );
   }
 
   private makeCollapse(block: BlockState, delay = 0): boolean {
@@ -803,7 +1044,7 @@ export class gameScene extends Component {
     targetSlot.block = occupant;
     this.updateCollapse(occupant, false);
     occupant.node.setSiblingIndex(9999);
-    this.moveNode(occupant.node, targetSlot.node.position, 0.22, delay);
+    this.moveNode(occupant.node, this.getNodePositionInBlockRoot(targetSlot.node), 0.22, delay);
     this.moveBlockToTile(block, target, delay);
     return true;
   }
@@ -831,9 +1072,7 @@ export class gameScene extends Component {
 
   private checkWin() {
     if (!this.levelData || this.blocks.length === 0) return;
-    const complete = this.blocks.every(
-      (block) => block.location === "board" && block.collapsed,
-    );
+    const complete = this.blocks.every((block) => block.location === "board" && block.collapsed);
     if (!complete) return;
 
     this.inputLocked = true;
@@ -847,30 +1086,32 @@ export class gameScene extends Component {
   }
 
   private getTilePosition(row: number, col: number): Vec3 {
-    return new Vec3(
-      this.boardOrigin.x + col * this.cellStep,
-      this.boardOrigin.y - row * this.cellStep,
-      0,
-    );
+    return new Vec3(this.boardOrigin.x + col * this.cellStep, this.boardOrigin.y - row * this.cellStep, 0);
+  }
+
+  private getNodePositionInBlockRoot(node: Node): Vec3 {
+    const sourceTransform = node.getComponent(UITransform);
+    const blockTransform = this.blockRoot?.getComponent(UITransform);
+    if (!sourceTransform || !blockTransform) {
+      return node.position.clone();
+    }
+
+    const worldPosition = sourceTransform.convertToWorldSpaceAR(Vec3.ZERO);
+    return blockTransform.convertToNodeSpaceAR(worldPosition);
   }
 
   private findTileAtTouch(event: EventTouch): TileState | null {
     if (!this.tileRoot) return null;
 
     const location = event.getUILocation();
-    const local = this.tileRoot
-      .getComponent(UITransform)
-      .convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
+    const local = this.tileRoot.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
     const half = this.cellSize * 0.5;
 
     for (const row of this.tiles) {
       for (const tile of row) {
         if (!tile || tile.color <= 0) continue;
         const pos = tile.node.position;
-        if (
-          Math.abs(local.x - pos.x) <= half &&
-          Math.abs(local.y - pos.y) <= half
-        ) {
+        if (Math.abs(local.x - pos.x) <= half && Math.abs(local.y - pos.y) <= half) {
           return tile;
         }
       }
@@ -879,13 +1120,31 @@ export class gameScene extends Component {
     return null;
   }
 
-  private moveNode(
-    node: Node,
-    position: Vec3,
-    duration: number,
-    delay = 0,
-    onComplete?: () => void,
-  ) {
+  private findNearestTileAtTouch(event: EventTouch): TileState | null {
+    if (!this.tileRoot) return null;
+
+    const location = event.getUILocation();
+    const local = this.tileRoot.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
+    let nearest: TileState | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) continue;
+        const dx = local.x - tile.node.position.x;
+        const dy = local.y - tile.node.position.y;
+        const distance = dx * dx + dy * dy;
+        if (distance < nearestDistance) {
+          nearest = tile;
+          nearestDistance = distance;
+        }
+      }
+    }
+
+    return nearest;
+  }
+
+  private moveNode(node: Node, position: Vec3, duration: number, delay = 0, onComplete?: () => void) {
     tween(node)
       .delay(delay)
       .to(duration, { position: position.clone() }, { easing: "quadOut" })
@@ -899,14 +1158,23 @@ export class gameScene extends Component {
   }
 
   private clearBoard() {
+    this.magicSelecting = false;
+    this.magicAreaNode = null;
     this.tileRoot?.destroyAllChildren();
     this.blockRoot?.destroyAllChildren();
-    this.trayRoot?.destroyAllChildren();
+    this.clearTraySlots();
     this.tiles = [];
     this.blocks = [];
     this.traySlots = [];
     this.selectedBlocks = [];
     this.blockIdSeed = 0;
+  }
+
+  private clearTraySlots() {
+    if (!this.trayRoot) return;
+    for (const child of [...this.trayRoot.children]) {
+      if (child.name.startsWith("TraySlot_")) child.destroy();
+    }
   }
 
   private createNode(name: string, parent: Node, width: number, height: number): Node {
@@ -917,13 +1185,7 @@ export class gameScene extends Component {
     return node;
   }
 
-  private createSpriteNode(
-    name: string,
-    parent: Node,
-    frame: SpriteFrame | null,
-    width: number,
-    height: number,
-  ): Node {
+  private createSpriteNode(name: string, parent: Node, frame: SpriteFrame | null, width: number, height: number): Node {
     const node = this.createNode(name, parent, width, height);
     const sprite = node.addComponent(Sprite);
     sprite.spriteFrame = frame;
@@ -933,58 +1195,44 @@ export class gameScene extends Component {
 
   private createTileNode(color: number, row: number, col: number): Node {
     const size = this.getBoardTileSize();
-    const node = this.createPrefabOrNode(
-      this.tilePrefab,
-      `Tile_${row}_${col}`,
-      this.tileRoot,
-      size,
-      size,
-    );
+    const node = this.createPrefabOrNode(this.tilePrefab, `Tile_${row}_${col}`, this.tileRoot, size, size);
     const view = this.findDeepChild(node, "View") || node;
-    this.applySprite(
-      view,
-      this.tileFrames.get(color),
-      size,
-      size,
-      new Color(255, 255, 255, 60),
-    );
+    this.applySprite(view, this.tileFrames.get(color), size, size, new Color(255, 255, 255, 60));
     return node;
   }
 
   private createEmptyBlockNode(row: number, col: number): Node {
     const size = this.getBoardTileSize();
-    return this.createPrefabOrNode(
-      this.emptyBlockPrefab,
-      `EmptyBlock_${row}_${col}`,
-      this.tileRoot,
-      size,
-      size,
-    );
+    return this.createPrefabOrNode(this.emptyBlockPrefab, `EmptyBlock_${row}_${col}`, this.tileRoot, size, size);
   }
 
   private createTraySlotNode(index: number): Node {
     const size = this.traySlotSize;
-    const node = this.createPrefabOrNode(
-      this.traySlotPrefab,
-      `TraySlot_${index}`,
-      this.trayRoot,
-      size,
-      size,
-    );
+    const node = this.createPrefabOrNode(this.traySlotPrefab, `TraySlot_${index}`, this.trayRoot, size, size);
     const view = this.findDeepChild(node, "View") || node;
-    this.applySprite(
-      view,
-      this.traySlotFrame,
-      size,
-      size,
-      new Color(255, 255, 255, 95),
-    );
+    this.applySprite(view, this.traySlotFrame, size, size, new Color(255, 255, 255, 95));
     return node;
   }
 
   private getTrayBlockScale(selected: boolean): Vec3 {
     const scale = (this.traySlotSize / this.cellSize) * (selected ? 1.12 : 1);
     return new Vec3(scale, scale, 1);
+  }
+
+  private getSelectedBoardScale(): Vec3 {
+    return new Vec3(this.selectedBoardScale, this.selectedBoardScale, 1);
+  }
+
+  private getRaisedBoardBlockPosition(block: BlockState): Vec3 {
+    const pos = this.getTilePosition(block.row, block.col);
+    pos.y += this.selectedBoardLift;
+    return pos;
+  }
+
+  private getRaisedTrayBlockPosition(slot: TraySlotState): Vec3 {
+    const pos = this.getNodePositionInBlockRoot(slot.node);
+    pos.y += this.selectedTrayLift;
+    return pos;
   }
 
   private getBoardTileSize(): number {
@@ -995,13 +1243,7 @@ export class gameScene extends Component {
     return this.cellSize * this.boardBlockIconScale;
   }
 
-  private createPrefabOrNode(
-    prefab: Prefab | null,
-    name: string,
-    parent: Node,
-    width: number,
-    height: number,
-  ): Node {
+  private createPrefabOrNode(prefab: Prefab | null, name: string, parent: Node, width: number, height: number): Node {
     const node = prefab ? instantiate(prefab) : new Node(name);
     node.name = name;
     parent.addChild(node);
@@ -1042,13 +1284,7 @@ export class gameScene extends Component {
     return node;
   }
 
-  private applySprite(
-    node: Node,
-    frame: SpriteFrame | null,
-    width: number,
-    height: number,
-    fallbackColor: Color,
-  ) {
+  private applySprite(node: Node, frame: SpriteFrame | null, width: number, height: number, fallbackColor: Color) {
     let transform = node.getComponent(UITransform);
     if (!transform) transform = node.addComponent(UITransform);
     transform.setContentSize(width, height);
