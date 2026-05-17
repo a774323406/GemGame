@@ -131,6 +131,7 @@ export class gameScene extends Component {
 
   private root: Node = null;
   private boardRoot: Node = null;
+  private boardBaseRoot: Node = null;
   private tileRoot: Node = null;
   private blockRoot: Node = null;
   private trayRoot: Node = null;
@@ -146,10 +147,11 @@ export class gameScene extends Component {
   private selectedBlocks: BlockState[] = [];
 
   private readonly maxCellSize = 54;
-  private readonly boardMaxWidth = 360;
-  private readonly boardMaxHeight = 430;
+  private readonly boardMaxWidth = 650;
+  private readonly boardMaxHeight = 620;
   private readonly boardCellGap = 0;
   private readonly boardTileOverlap = 2;
+  private readonly boardBasePadding = 7;
   private readonly boardBlockIconScale = 0.78;
   private readonly selectedBoardLift = 12;
   private readonly selectedBoardScale = 1.06;
@@ -158,7 +160,8 @@ export class gameScene extends Component {
   private cellSize = 54;
   private cellStep = 54;
   private boardOrigin = new Vec3();
-  private readonly traySlotSize = 38;
+  private readonly trayMaxWidth = 670;
+  private traySlotSize = 38;
   private readonly traySlotGap = 0;
   private readonly trayY = -285;
   private magicUses = 0;
@@ -189,6 +192,7 @@ export class gameScene extends Component {
   private async prepareScene() {
     this.root = this.createNode("GameRoot", this.node, DESIGN_WIDTH, DESIGN_HEIGHT);
     this.boardRoot = this.createNode("BoardRoot", this.root, DESIGN_WIDTH, 760);
+    this.boardBaseRoot = this.createNode("BoardBaseRoot", this.boardRoot, DESIGN_WIDTH, 760);
     this.tileRoot = this.createNode("TileRoot", this.boardRoot, DESIGN_WIDTH, 760);
     this.trayRoot = this.node.getChildByName("trayBG") || this.createNode("TrayRoot", this.root, DESIGN_WIDTH, 120);
     if (this.trayRoot.parent === this.root) {
@@ -382,6 +386,10 @@ export class gameScene extends Component {
         const pos = this.getTilePosition(r, c);
         const tileNode = color > 0 ? this.createTileNode(color, r, c) : this.createEmptyBlockNode(r, c);
         tileNode.setPosition(pos);
+        if (color > 0) {
+          const baseNode = this.createBoardBaseNode(r, c);
+          baseNode.setPosition(pos);
+        }
 
         const tile: TileState = { row: r, col: c, color, node: tileNode, block: null };
         this.tiles[r][c] = tile;
@@ -400,6 +408,7 @@ export class gameScene extends Component {
   }
 
   private buildTray() {
+    this.traySlotSize = this.getTraySlotSize();
     const step = this.traySlotSize + this.traySlotGap;
     const startX = -((MAX_TRAY_SLOTS - 1) * step) / 2;
     const y = 0;
@@ -994,10 +1003,7 @@ export class gameScene extends Component {
   }
 
   private sortMagicArea(tiles: TileState[]): boolean {
-    const area = new Set(tiles);
-    const candidates = tiles
-      .map((tile) => tile.block)
-      .filter((block): block is BlockState => !!block && block.location === "board");
+    const candidates = this.blocks.filter((block) => block.location === "board" || block.location === "tray");
     if (candidates.length === 0) return false;
 
     this.inputLocked = true;
@@ -1012,16 +1018,24 @@ export class gameScene extends Component {
 
       const match = candidates.find((block) => {
         if (block.color !== tile.color || block.collapsed) return false;
+        if (block.location === "tray") return !!block.slot;
+
         const currentTile = this.tiles[block.row]?.[block.col];
-        return currentTile && area.has(currentTile);
+        return currentTile && currentTile !== tile;
       });
       if (!match) continue;
 
-      const fromTile = this.tiles[match.row]?.[match.col];
-      if (!fromTile || !area.has(fromTile)) continue;
+      const fromTile = match.location === "board" ? this.tiles[match.row]?.[match.col] : null;
+      const fromSlot = match.location === "tray" ? match.slot : null;
+      if (match.location === "board" && (!fromTile || fromTile === tile)) continue;
+      if (match.location === "tray" && !fromSlot) continue;
 
       const occupant = tile.block;
-      fromTile.block = occupant;
+      if (fromTile) {
+        fromTile.block = occupant;
+      } else if (fromSlot) {
+        fromSlot.block = occupant;
+      }
       tile.block = match;
 
       match.row = tile.row;
@@ -1034,14 +1048,23 @@ export class gameScene extends Component {
       });
 
       if (occupant) {
-        occupant.row = fromTile.row;
-        occupant.col = fromTile.col;
-        occupant.location = "board";
-        occupant.slot = null;
-        this.updateCollapse(occupant, false);
-        this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromTile.node), 0.22, operations * 0.04, () => {
-          this.updateCollapse(occupant, true);
-        });
+        if (fromTile) {
+          occupant.row = fromTile.row;
+          occupant.col = fromTile.col;
+          occupant.location = "board";
+          occupant.slot = null;
+          this.updateCollapse(occupant, false);
+          this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromTile.node), 0.22, operations * 0.04, () => {
+            this.updateCollapse(occupant, true);
+          });
+        } else if (fromSlot) {
+          occupant.row = -1;
+          occupant.col = -1;
+          occupant.location = "tray";
+          occupant.slot = fromSlot;
+          this.updateCollapse(occupant, false);
+          this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromSlot.node), 0.22, operations * 0.04);
+        }
       }
       operations++;
     }
@@ -1312,6 +1335,7 @@ export class gameScene extends Component {
     if (this.magicAreaNode?.isValid) this.magicAreaNode.destroy();
     this.magicAreaNode = null;
     this.magicAreaStartCenter = null;
+    this.boardBaseRoot?.destroyAllChildren();
     this.tileRoot?.destroyAllChildren();
     this.blockRoot?.destroyAllChildren();
     this.clearTraySlots();
@@ -1358,6 +1382,14 @@ export class gameScene extends Component {
     return this.createPrefabOrNode(this.emptyBlockPrefab, `EmptyBlock_${row}_${col}`, this.tileRoot, size, size);
   }
 
+  private createBoardBaseNode(row: number, col: number): Node {
+    const size = this.getBoardBaseSize();
+    const node = this.createPrefabOrNode(this.traySlotPrefab, `BoardBase_${row}_${col}`, this.boardBaseRoot, size, size);
+    const view = this.findDeepChild(node, "View") || node;
+    this.applySprite(view, this.traySlotFrame, size, size, new Color(255, 255, 255, 95));
+    return node;
+  }
+
   private createTraySlotNode(index: number): Node {
     const size = this.traySlotSize;
     const node = this.createPrefabOrNode(this.traySlotPrefab, `TraySlot_${index}`, this.trayRoot, size, size);
@@ -1387,8 +1419,16 @@ export class gameScene extends Component {
     return pos;
   }
 
+  private getTraySlotSize(): number {
+    return Math.min(this.getBoardTileSize(), this.trayMaxWidth / MAX_TRAY_SLOTS);
+  }
+
   private getBoardTileSize(): number {
     return this.cellSize + this.boardTileOverlap;
+  }
+
+  private getBoardBaseSize(): number {
+    return this.cellStep + this.boardBasePadding;
   }
 
   private getBoardBlockIconSize(): number {
