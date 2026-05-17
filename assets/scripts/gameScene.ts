@@ -62,6 +62,19 @@ interface BlockState {
   slot: TraySlotState | null;
 }
 
+interface CachedGameAssets {
+  tilePrefab: Prefab | null;
+  blockPrefab: Prefab | null;
+  emptyBlockPrefab: Prefab | null;
+  traySlotPrefab: Prefab | null;
+  selectFrame: SpriteFrame | null;
+  traySlotFrame: SpriteFrame | null;
+  wandSelectionFrame: SpriteFrame | null;
+  tileFrames: Map<number, SpriteFrame>;
+  blockFrames: Map<number, SpriteFrame>;
+  collapsedFrames: Map<number, SpriteFrame>;
+}
+
 const COLOR_NAMES = [
   "",
   "Blue",
@@ -102,6 +115,9 @@ const CONNECTED_DIRECTIONS: Array<[number, number]> = [
 
 @ccclass("gameScene")
 export class gameScene extends Component {
+  private static assetsLoadPromise: Promise<CachedGameAssets> | null = null;
+  private static levelDataCache = new Map<number, LevelData | null>();
+
   @property
   public startLevel = 1;
 
@@ -240,40 +256,72 @@ export class gameScene extends Component {
   }
 
   private async loadAssets() {
-    await ResourceManager.ins.loadBundle("res");
-    await this.loadDefaultPrefabs();
-
-    const select = await this.tryLoadSprite("texture/Tiles/Tiles/gem_select_fx");
-    this.selectFrame = select;
-    this.traySlotFrame = await this.tryLoadSprite("texture/Trays/TraySlot");
-    this.wandSelectionFrame = await this.tryLoadSprite("Images/WandSelectionFrame");
-
-    for (let color = 1; color < COLOR_NAMES.length; color++) {
-      const name = COLOR_NAMES[color];
-      const [tile, block, collapsed] = await Promise.all([
-        this.tryLoadSprite(`texture/Tiles/Holes/LayerBottom_${name}`),
-        this.tryLoadSprite(`texture/Tiles/Tiles/Gem_${name}_2`),
-        this.tryLoadSprite(`texture/Tiles/TilesCollapsed/Gem_${name}_3`),
-      ]);
-
-      if (tile) this.tileFrames.set(color, tile);
-      if (block) this.blockFrames.set(color, block);
-      if (collapsed) this.collapsedFrames.set(color, collapsed);
+    if (!gameScene.assetsLoadPromise) {
+      gameScene.assetsLoadPromise = this.loadSharedAssets();
     }
+
+    const assets = await gameScene.assetsLoadPromise;
+    if (!this.tilePrefab && assets.tilePrefab) this.tilePrefab = assets.tilePrefab;
+    if (!this.blockPrefab && assets.blockPrefab) this.blockPrefab = assets.blockPrefab;
+    if (!this.emptyBlockPrefab && assets.emptyBlockPrefab) this.emptyBlockPrefab = assets.emptyBlockPrefab;
+    if (!this.traySlotPrefab && assets.traySlotPrefab) this.traySlotPrefab = assets.traySlotPrefab;
+
+    this.selectFrame = assets.selectFrame;
+    this.traySlotFrame = assets.traySlotFrame;
+    this.wandSelectionFrame = assets.wandSelectionFrame;
+    this.tileFrames = assets.tileFrames;
+    this.blockFrames = assets.blockFrames;
+    this.collapsedFrames = assets.collapsedFrames;
   }
 
-  private async loadDefaultPrefabs() {
-    const [tile, block, traySlot] = await Promise.all([
+  private async loadSharedAssets(): Promise<CachedGameAssets> {
+    await ResourceManager.ins.loadBundle("res");
+
+    const [tilePrefab, blockPrefab, traySlotPrefab, emptyBlockPrefab, selectFrame, traySlotFrame, wandSelectionFrame, colorAssets] =
+      await Promise.all([
       this.tryLoadPrefab("prefab/Blocks/Tile"),
       this.tryLoadPrefab("prefab/Blocks/Block"),
       this.tryLoadPrefab("prefab/Blocks/TraySlot"),
+      this.tryLoadPrefab("prefab/Blocks/EmptyBlock"),
+      this.tryLoadSprite("texture/Tiles/Tiles/gem_select_fx"),
+      this.tryLoadSprite("texture/Trays/TraySlot"),
+      this.tryLoadSprite("Images/WandSelectionFrame"),
+      Promise.all(
+        COLOR_NAMES.map(async (name, color) => {
+          if (color === 0) return null;
+          const [tile, block, collapsed] = await Promise.all([
+            this.tryLoadSprite(`texture/Tiles/Holes/LayerBottom_${name}`),
+            this.tryLoadSprite(`texture/Tiles/Tiles/Gem_${name}_2`),
+            this.tryLoadSprite(`texture/Tiles/TilesCollapsed/Gem_${name}_3`),
+          ]);
+          return { color, tile, block, collapsed };
+        }),
+      ),
     ]);
-    const emptyBlock = await this.tryLoadPrefab("prefab/Blocks/EmptyBlock");
 
-    if (!this.tilePrefab && tile) this.tilePrefab = tile;
-    if (!this.blockPrefab && block) this.blockPrefab = block;
-    if (!this.emptyBlockPrefab && emptyBlock) this.emptyBlockPrefab = emptyBlock;
-    if (!this.traySlotPrefab && traySlot) this.traySlotPrefab = traySlot;
+    const tileFrames = new Map<number, SpriteFrame>();
+    const blockFrames = new Map<number, SpriteFrame>();
+    const collapsedFrames = new Map<number, SpriteFrame>();
+
+    for (const asset of colorAssets) {
+      if (!asset) continue;
+      if (asset.tile) tileFrames.set(asset.color, asset.tile);
+      if (asset.block) blockFrames.set(asset.color, asset.block);
+      if (asset.collapsed) collapsedFrames.set(asset.color, asset.collapsed);
+    }
+
+    return {
+      tilePrefab,
+      blockPrefab,
+      emptyBlockPrefab,
+      traySlotPrefab,
+      selectFrame,
+      traySlotFrame,
+      wandSelectionFrame,
+      tileFrames,
+      blockFrames,
+      collapsedFrames,
+    };
   }
 
   private async tryLoadPrefab(path: string): Promise<Prefab | null> {
@@ -321,11 +369,18 @@ export class gameScene extends Component {
   }
 
   private async loadLevelData(levelIndex: number): Promise<LevelData | null> {
+    if (gameScene.levelDataCache.has(levelIndex)) {
+      return gameScene.levelDataCache.get(levelIndex);
+    }
+
     try {
       const asset = await ResourceManager.ins.loadBundleAsset("res", `Levels/Level${levelIndex}_Complete`, TextAsset);
-      return this.parseLevel(asset.text);
+      const data = this.parseLevel(asset.text);
+      gameScene.levelDataCache.set(levelIndex, data);
+      return data;
     } catch (err) {
       console.warn(`[gameScene] Level ${levelIndex} load failed`, err);
+      gameScene.levelDataCache.set(levelIndex, null);
       return null;
     }
   }
