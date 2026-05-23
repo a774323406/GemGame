@@ -20,6 +20,7 @@ import {
 } from "cc";
 import { ResourceManager } from "./framework/ResourceManager";
 import { ToolId, ToolInventory } from "./ToolInventory";
+import { mapControl } from "./mapControl";
 
 const { ccclass, property } = _decorator;
 
@@ -99,7 +100,9 @@ const COLOR_NAMES = [
 ];
 
 const STORAGE_LEVEL_KEY = "gem_sort_level";
-const MAX_TRAY_SLOTS = 12;
+const TRAY_COLS = 12;
+const MAX_TRAY_ROWS = 3;
+const MAX_TRAY_SLOTS = TRAY_COLS * MAX_TRAY_ROWS;
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
 const CONNECTED_DIRECTIONS: Array<[number, number]> = [
@@ -138,7 +141,11 @@ export class gameScene extends Component {
   public clearBtn: Button = null;
   @property(Button)
   public magnetBtn: Button = null;
+  @property(mapControl)
+  public mapControl: mapControl = null;
 
+  @property(Button)
+  public addTrayBtn: Button = null; //添加tray槽
   @property
   public magicAreaRows = 3;
 
@@ -150,6 +157,7 @@ export class gameScene extends Component {
   private boardBaseRoot: Node = null;
   private tileRoot: Node = null;
   private blockRoot: Node = null;
+  private trayBgRoot: Node = null;
   private trayRoot: Node = null;
   private hudRoot: Node = null;
   private levelLabel: Label = null;
@@ -179,7 +187,12 @@ export class gameScene extends Component {
   private readonly trayMaxWidth = 670;
   private traySlotSize = 38;
   private readonly traySlotGap = 0;
+  private readonly trayRowGap = 4;
   private readonly trayY = -285;
+  private readonly trayBgPaddingX = 36;
+  private readonly trayBgPaddingY = 78;
+  private readonly trayAddButtonBottom = 16;
+  private activeTrayRows = 1;
   private magicUses = 0;
   private magicSelecting = false;
   private magicAreaNode: Node = null;
@@ -206,16 +219,61 @@ export class gameScene extends Component {
   }
 
   private async prepareScene() {
-    this.root = this.createNode("GameRoot", this.node, DESIGN_WIDTH, DESIGN_HEIGHT);
-    this.boardRoot = this.createNode("BoardRoot", this.root, DESIGN_WIDTH, 760);
-    this.boardBaseRoot = this.createNode("BoardBaseRoot", this.boardRoot, DESIGN_WIDTH, 760);
-    this.tileRoot = this.createNode("TileRoot", this.boardRoot, DESIGN_WIDTH, 760);
-    this.trayRoot = this.node.getChildByName("trayBG") || this.createNode("TrayRoot", this.root, DESIGN_WIDTH, 120);
-    if (this.trayRoot.parent === this.root) {
-      this.trayRoot.setPosition(0, this.trayY);
+    /**
+     * 现在 GameScene 只负责场景按钮 / 道具按钮 / 关卡流程。
+     * 棋盘视图相关节点统一由 mapControl 管理：
+     * GameRoot / BoardRoot / BoardBaseRoot / TileRoot / BlockRoot。
+     * HudRoot 仍由 gameScene 自己管理，避免关卡文字 / message 跟着棋盘拖动缩放。
+     */
+    if (!this.mapControl) {
+      this.mapControl = this.node.getComponentInChildren(mapControl);
     }
-    this.blockRoot = this.createNode("BlockRoot", this.root, DESIGN_WIDTH, DESIGN_HEIGHT);
-    this.hudRoot = this.createNode("HudRoot", this.root, DESIGN_WIDTH, DESIGN_HEIGHT);
+
+    /**
+     * 如果场景里没有手动挂 MapControl 节点，这里自动创建一个。
+     * 你也可以在编辑器里创建 MapControl 节点并拖到 gameScene 的 mapControl 属性上。
+     */
+    if (!this.mapControl) {
+      const mapNode = this.createNode("MapControl", this.node, DESIGN_WIDTH, DESIGN_HEIGHT);
+      this.mapControl = mapNode.addComponent(mapControl);
+      console.warn("[gameScene] 场景中没有找到 mapControl，已自动创建 MapControl 节点");
+    }
+
+    this.mapControl.init(DESIGN_WIDTH, DESIGN_HEIGHT);
+
+    this.root = this.mapControl.gameRoot;
+    this.boardRoot = this.mapControl.boardRoot;
+    this.boardBaseRoot = this.mapControl.boardBaseRoot;
+    this.tileRoot = this.mapControl.tileRoot;
+    this.blockRoot = this.mapControl.blockRoot;
+
+    /**
+     * HudRoot 不放进 mapControl / GameRoot。
+     * 否则 LevelLabel / MessageLabel 会跟着棋盘缩放和拖动。
+     */
+    this.hudRoot = this.node.getChildByName("HudRoot") || this.createNode("HudRoot", this.node, DESIGN_WIDTH, DESIGN_HEIGHT);
+
+    /**
+     * 托盘和底部按钮不放进 GameRoot。
+     * 这样双指缩放 / 拖动时，只会移动棋盘视图，底部道具栏不会跟着动。
+     *
+     * 层级建议：
+     * trayBG
+     *   trays        // 只放空白槽位和移动到托盘的钻石
+     *   addTrayBtn   // 增加一行空白槽按钮
+     */
+    this.trayBgRoot = this.node.getChildByName("trayBG") || this.createNode("trayBG", this.node, DESIGN_WIDTH, 120);
+    this.trayBgRoot.setPosition(0, this.trayY);
+
+    this.trayRoot = this.trayBgRoot.getChildByName("trays") || this.createNode("trays", this.trayBgRoot, this.trayMaxWidth, 120);
+    this.trayRoot.setPosition(0, 0);
+
+    if (!this.addTrayBtn) {
+      const addTrayBtnNode = this.trayBgRoot.getChildByName("addTrayBtn") || this.findDeepChild(this.trayBgRoot, "addTrayBtn");
+      this.addTrayBtn = addTrayBtnNode?.getComponent(Button) || null;
+    }
+
+    this.bindAddTrayButton();
 
     this.levelLabel = this.createLabel("LevelLabel", this.hudRoot, "", 36);
     this.levelLabel.node.setPosition(0, 575);
@@ -224,7 +282,12 @@ export class gameScene extends Component {
     this.messageLabel.node.setPosition(0, 0);
     this.messageLabel.node.active = false;
 
-    this.node.on(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
+    /**
+     * 棋盘点击只监听 mapControl 节点，不再监听整个 gameScene。
+     * 避免设置按钮、底部道具按钮等 UI 也触发棋盘逻辑。
+     */
+    this.mapControl.node.on(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
+
     if (this.magicBtn || this.clearBtn || this.magnetBtn) {
       this.bindToolButtons();
     } else {
@@ -236,6 +299,29 @@ export class gameScene extends Component {
     this.magicBtn?.node.on("click", this.onMagicClicked, this);
     this.clearBtn?.node.on("click", this.onBrushClicked, this);
     this.magnetBtn?.node.on("click", this.onMagnetClicked, this);
+  }
+
+  private bindAddTrayButton() {
+    if (!this.addTrayBtn) {
+      return;
+    }
+
+    this.addTrayBtn.node.off("click", this.onAddTrayClicked, this);
+    this.addTrayBtn.node.on("click", this.onAddTrayClicked, this);
+  }
+
+  private onAddTrayClicked() {
+    if (this.inputLocked) {
+      return;
+    }
+
+    if (this.activeTrayRows >= MAX_TRAY_ROWS) {
+      this.refreshTrayLayout();
+      return;
+    }
+
+    this.activeTrayRows++;
+    this.refreshTrayLayout();
   }
 
   private bindBoosterButtons() {
@@ -277,8 +363,7 @@ export class gameScene extends Component {
   private async loadSharedAssets(): Promise<CachedGameAssets> {
     await ResourceManager.ins.loadBundle("res");
 
-    const [tilePrefab, blockPrefab, traySlotPrefab, emptyBlockPrefab, selectFrame, traySlotFrame, wandSelectionFrame, colorAssets] =
-      await Promise.all([
+    const [tilePrefab, blockPrefab, traySlotPrefab, emptyBlockPrefab, selectFrame, traySlotFrame, wandSelectionFrame, colorAssets] = await Promise.all([
       this.tryLoadPrefab("prefab/Blocks/Tile"),
       this.tryLoadPrefab("prefab/Blocks/Block"),
       this.tryLoadPrefab("prefab/Blocks/TraySlot"),
@@ -422,11 +507,7 @@ export class gameScene extends Component {
 
   private buildBoard() {
     const { rows, cols } = this.levelData;
-    this.cellSize = Math.min(
-      this.maxCellSize,
-      (this.boardMaxWidth - (cols - 1) * this.boardCellGap) / cols,
-      (this.boardMaxHeight - (rows - 1) * this.boardCellGap) / rows,
-    );
+    this.cellSize = Math.min(this.maxCellSize, (this.boardMaxWidth - (cols - 1) * this.boardCellGap) / cols, (this.boardMaxHeight - (rows - 1) * this.boardCellGap) / rows);
     this.cellStep = this.cellSize + this.boardCellGap;
 
     const width = (cols - 1) * this.cellStep;
@@ -463,61 +544,126 @@ export class gameScene extends Component {
   }
 
   private buildTray() {
+    this.activeTrayRows = 1;
     this.traySlotSize = this.getTraySlotSize();
-    const step = this.traySlotSize + this.traySlotGap;
-    const startX = -((MAX_TRAY_SLOTS - 1) * step) / 2;
-    const y = 0;
     this.traySlots = [];
 
     for (let i = 0; i < MAX_TRAY_SLOTS; i++) {
       const node = this.createTraySlotNode(i);
-      node.setPosition(startX + i * step, y);
 
       const slot: TraySlotState = { index: i, node, block: null };
       this.traySlots.push(slot);
+
+      node.off(Node.EventType.TOUCH_END);
       node.on(Node.EventType.TOUCH_END, () => this.onTraySlotClicked(slot), this);
+    }
+
+    this.refreshTrayLayout();
+  }
+
+  /**
+   * 根据当前已经开启的托盘行数刷新：
+   * 1. 空白槽位显隐和位置
+   * 2. trayBG 背景尺寸
+   * 3. addTrayBtn 位置和显隐
+   * 4. 已经放入托盘的钻石位置
+   */
+  private refreshTrayLayout() {
+    if (!this.trayRoot) {
+      return;
+    }
+
+    this.activeTrayRows = Math.min(MAX_TRAY_ROWS, Math.max(1, this.activeTrayRows));
+
+    this.traySlotSize = this.getTraySlotSize();
+
+    const stepX = this.traySlotSize + this.traySlotGap;
+    const stepY = this.traySlotSize + this.trayRowGap;
+
+    const trayWidth = (TRAY_COLS - 1) * stepX + this.traySlotSize;
+    const trayHeight = (this.activeTrayRows - 1) * stepY + this.traySlotSize;
+
+    this.setNodeSize(this.trayRoot, trayWidth, trayHeight);
+
+    for (let i = 0; i < this.traySlots.length; i++) {
+      const slot = this.traySlots[i];
+      const row = Math.floor(i / TRAY_COLS);
+      const col = i % TRAY_COLS;
+      const active = row < this.activeTrayRows;
+
+      slot.node.active = active;
+
+      const x = -((TRAY_COLS - 1) * stepX) * 0.5 + col * stepX;
+      const y = ((this.activeTrayRows - 1) * stepY) * 0.5 - row * stepY;
+
+      slot.node.setPosition(x, y);
+
+      const view = this.findDeepChild(slot.node, "View") || slot.node;
+      this.applySprite(view, this.traySlotFrame, this.traySlotSize, this.traySlotSize, new Color(255, 255, 255, 95));
+
+      if (slot.block) {
+        slot.block.node.active = active;
+        slot.block.node.setPosition(this.getNodePositionInTrayRoot(slot.node));
+        slot.block.node.setScale(this.getTrayBlockScale(false));
+      }
+    }
+
+    this.refreshTrayBgSize(trayWidth, trayHeight);
+    this.refreshAddTrayButton();
+  }
+
+  private refreshTrayBgSize(trayWidth: number, trayHeight: number) {
+    if (!this.trayBgRoot) {
+      return;
+    }
+
+    const bgWidth = trayWidth + this.trayBgPaddingX;
+    const bgHeight = trayHeight + this.trayBgPaddingY;
+
+    this.setNodeSize(this.trayBgRoot, bgWidth, bgHeight);
+
+    const bgSprite = this.trayBgRoot.getComponent(Sprite);
+    if (bgSprite) {
+      bgSprite.sizeMode = Sprite.SizeMode.CUSTOM;
     }
   }
 
+  private refreshAddTrayButton() {
+    if (!this.addTrayBtn) {
+      return;
+    }
+
+    const isMaxRows = this.activeTrayRows >= MAX_TRAY_ROWS;
+    this.addTrayBtn.node.active = !isMaxRows;
+
+    if (isMaxRows || !this.trayBgRoot) {
+      return;
+    }
+
+    const bgTransform = this.trayBgRoot.getComponent(UITransform);
+    const bgHeight = bgTransform?.height || 0;
+
+    this.addTrayBtn.node.setPosition(0, -bgHeight * 0.5 + this.trayAddButtonBottom);
+  }
+
+  private isTraySlotActive(slot: TraySlotState): boolean {
+    return !!slot && Math.floor(slot.index / TRAY_COLS) < this.activeTrayRows;
+  }
+
   private createBlock(color: number, row: number, col: number, pos: Vec3): BlockState {
-    const node = this.createPrefabOrNode(
-      this.blockPrefab,
-      `Block_${this.blockIdSeed}`,
-      this.blockRoot,
-      this.cellSize,
-      this.cellSize,
-    );
+    const node = this.createPrefabOrNode(this.blockPrefab, `Block_${this.blockIdSeed}`, this.blockRoot, this.cellSize, this.cellSize);
     node.setPosition(pos);
 
     const visualRoot = this.ensureChildNode(node, "Root");
 
-    const selectedNode = this.ensureSpriteChild(
-      visualRoot,
-      "SelectedFx",
-      this.selectFrame,
-      this.cellSize,
-      this.cellSize,
-      ["Selection"],
-    );
+    const selectedNode = this.ensureSpriteChild(visualRoot, "SelectedFx", this.selectFrame, this.cellSize, this.cellSize, ["Selection"]);
     selectedNode.active = false;
 
-    const normal = this.ensureSpriteChild(
-      visualRoot,
-      "Normal",
-      this.blockFrames.get(color),
-      this.getBoardBlockIconSize(),
-      this.getBoardBlockIconSize(),
-      ["IconView"],
-    ).getComponent(Sprite);
+    const normal = this.ensureSpriteChild(visualRoot, "Normal", this.blockFrames.get(color), this.getBoardBlockIconSize(), this.getBoardBlockIconSize(), ["IconView"]).getComponent(Sprite);
 
-    const collapsed = this.ensureSpriteChild(
-      visualRoot,
-      "Collapsed",
-      this.collapsedFrames.get(color) || this.blockFrames.get(color),
-      this.getBoardBlockIconSize(),
-      this.getBoardBlockIconSize(),
-      ["IconCollapsed"],
-    ).getComponent(Sprite);
+    const collapsed = this.ensureSpriteChild(visualRoot, "Collapsed", this.collapsedFrames.get(color) || this.blockFrames.get(color), this.getBoardBlockIconSize(), this.getBoardBlockIconSize(), [
+      "IconCollapsed",
+    ]).getComponent(Sprite);
     collapsed.node.active = false;
 
     const block: BlockState = {
@@ -566,8 +712,11 @@ export class gameScene extends Component {
 
   private onTraySlotClicked(slot: TraySlotState) {
     if (this.inputLocked) return;
+    if (!this.isTraySlotActive(slot)) return;
+
     const boardBlocks = this.selectedBlocks.filter((b) => b.location === "board");
     if (boardBlocks.length === 0) return;
+
     this.moveBoardBlocksToTray(boardBlocks, slot.index);
   }
 
@@ -621,25 +770,43 @@ export class gameScene extends Component {
 
     const count = Math.min(blocks.length, slots.length);
     this.inputLocked = true;
+
     const movingBlocks = new Set<BlockState>();
+
     for (let i = 0; i < count; i++) {
       const block = blocks[i];
       const slot = slots[i];
+
       movingBlocks.add(block);
+
       const tile = this.tiles[block.row]?.[block.col];
-      if (tile?.block === block) tile.block = null;
+      if (tile?.block === block) {
+        tile.block = null;
+      }
+
+      /**
+       * 重点：
+       * 先从 blockRoot 切到 trayRoot。
+       * 这样托盘里的钻石不会再跟着 GameRoot 缩放 / 拖动。
+       */
+      this.changeParentKeepWorldPosition(block.node, this.trayRoot);
 
       block.location = "tray";
       block.row = -1;
       block.col = -1;
       block.slot = slot;
       slot.block = block;
+
       this.updateCollapse(block, false);
+
       block.node.setSiblingIndex(9999);
-      this.moveNode(block.node, this.getNodePositionInBlockRoot(slot.node), 0.22, i * 0.04);
+
+      const targetPos = this.getNodePositionInTrayRoot(slot.node);
+      this.moveNode(block.node, targetPos, 0.22, i * 0.04);
     }
 
     this.unselectAfterMove(movingBlocks);
+
     this.scheduleOnce(
       () => {
         this.inputLocked = false;
@@ -652,18 +819,31 @@ export class gameScene extends Component {
     if (block.location === "tray" && block.slot) {
       block.slot.block = null;
       block.slot = null;
+
+      /**
+       * 重点：
+       * 从托盘回棋盘，要切回 blockRoot。
+       * 这样钻石会重新跟着棋盘缩放 / 拖动。
+       */
+      this.changeParentKeepWorldPosition(block.node, this.blockRoot);
     } else if (block.location === "board") {
       const from = this.tiles[block.row]?.[block.col];
-      if (from?.block === block) from.block = null;
+      if (from?.block === block) {
+        from.block = null;
+      }
     }
 
     tile.block = block;
     block.location = "board";
     block.row = tile.row;
     block.col = tile.col;
-    this.moveNode(block.node, this.getNodePositionInBlockRoot(tile.node), 0.24, delay, () => {
+
+    const targetPos = this.getNodePositionInBlockRoot(tile.node);
+
+    this.moveNode(block.node, targetPos, 0.24, delay, () => {
       this.updateCollapse(block, true);
     });
+
     block.node.setSiblingIndex(9999);
   }
 
@@ -688,7 +868,15 @@ export class gameScene extends Component {
     const result: TraySlotState[] = [];
 
     for (let i = 0; i < this.traySlots.length && result.length < maxCount; i++) {
-      if (!this.traySlots[i].block) result.push(this.traySlots[i]);
+      const slot = this.traySlots[i];
+
+      if (!this.isTraySlotActive(slot)) {
+        continue;
+      }
+
+      if (!slot.block) {
+        result.push(slot);
+      }
     }
     return result;
   }
@@ -699,14 +887,24 @@ export class gameScene extends Component {
       .filter((block): block is BlockState => !!block)
       .sort((a, b) => a.color - b.color || a.id - b.id);
 
-    for (const slot of this.traySlots) slot.block = null;
+    for (const slot of this.traySlots) {
+      slot.block = null;
+    }
+
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i];
       const slot = this.traySlots[i];
+
       slot.block = block;
       block.slot = slot;
+      block.location = "tray";
+      block.row = -1;
+      block.col = -1;
+
+      this.changeParentKeepWorldPosition(block.node, this.trayRoot);
+
       block.node.setSiblingIndex(9999);
-      this.moveNode(block.node, this.getNodePositionInBlockRoot(slot.node), 0.16);
+      this.moveNode(block.node, this.getNodePositionInTrayRoot(slot.node), 0.16);
     }
   }
 
@@ -824,7 +1022,7 @@ export class gameScene extends Component {
     if (block.location === "board") {
       block.node.setPosition(this.getTilePosition(block.row, block.col));
     } else if (block.location === "tray" && block.slot) {
-      block.node.setPosition(this.getNodePositionInBlockRoot(block.slot.node));
+      block.node.setPosition(this.getNodePositionInTrayRoot(block.slot.node));
     }
   }
 
@@ -1097,6 +1295,8 @@ export class gameScene extends Component {
       match.col = tile.col;
       match.location = "board";
       match.slot = null;
+
+      this.changeParentKeepWorldPosition(match.node, this.blockRoot);
       this.updateCollapse(match, false);
       this.moveNode(match.node, this.getNodePositionInBlockRoot(tile.node), 0.22, operations * 0.04, () => {
         this.updateCollapse(match, true);
@@ -1117,8 +1317,11 @@ export class gameScene extends Component {
           occupant.col = -1;
           occupant.location = "tray";
           occupant.slot = fromSlot;
+
+          this.changeParentKeepWorldPosition(occupant.node, this.trayRoot);
+
           this.updateCollapse(occupant, false);
-          this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromSlot.node), 0.22, operations * 0.04);
+          this.moveNode(occupant.node, this.getNodePositionInTrayRoot(fromSlot.node), 0.22, operations * 0.04);
         }
       }
       operations++;
@@ -1213,9 +1416,12 @@ export class gameScene extends Component {
     occupant.col = -1;
     occupant.slot = targetSlot;
     targetSlot.block = occupant;
+
+    this.changeParentKeepWorldPosition(occupant.node, this.trayRoot);
+
     this.updateCollapse(occupant, false);
     occupant.node.setSiblingIndex(9999);
-    this.moveNode(occupant.node, this.getNodePositionInBlockRoot(targetSlot.node), 0.22, delay);
+    this.moveNode(occupant.node, this.getNodePositionInTrayRoot(targetSlot.node), 0.22, delay);
     this.moveBlockToTile(block, target, delay);
     return true;
   }
@@ -1274,7 +1480,37 @@ export class gameScene extends Component {
     const worldPosition = sourceTransform.convertToWorldSpaceAR(Vec3.ZERO);
     return parentTransform.convertToNodeSpaceAR(worldPosition);
   }
+  private changeParentKeepWorldPosition(node: Node, newParent: Node) {
+    if (!node || !newParent || node.parent === newParent) {
+      return;
+    }
 
+    const nodeTransform = node.getComponent(UITransform);
+    const parentTransform = newParent.getComponent(UITransform);
+
+    if (!nodeTransform || !parentTransform) {
+      node.parent = newParent;
+      return;
+    }
+
+    const worldPos = nodeTransform.convertToWorldSpaceAR(Vec3.ZERO);
+
+    node.parent = newParent;
+
+    const localPos = parentTransform.convertToNodeSpaceAR(worldPos);
+    node.setPosition(localPos);
+  }
+  private getNodePositionInTrayRoot(node: Node): Vec3 {
+    return this.getNodePositionInParent(node, this.trayRoot);
+  }
+
+  private getBlockTargetPosition(block: BlockState, targetNode: Node): Vec3 {
+    if (block.location === "tray") {
+      return this.getNodePositionInTrayRoot(targetNode);
+    }
+
+    return this.getNodePositionInBlockRoot(targetNode);
+  }
   private getTouchPositionInTileRoot(event: EventTouch): Vec3 | null {
     if (!this.tileRoot) return null;
     const location = event.getUILocation();
@@ -1282,7 +1518,11 @@ export class gameScene extends Component {
   }
 
   private getMagicAreaParent(): Node {
-    return this.hudRoot || this.tileRoot || this.node;
+    /**
+     * 魔法框是棋盘选择区域，必须跟着棋盘一起缩放 / 拖动。
+     * 所以不要放到 HudRoot。
+     */
+    return this.tileRoot || this.root || this.node;
   }
 
   private getTouchPositionInMagicAreaParent(event: EventTouch): Vec3 | null {
@@ -1393,6 +1633,7 @@ export class gameScene extends Component {
     this.boardBaseRoot?.destroyAllChildren();
     this.tileRoot?.destroyAllChildren();
     this.blockRoot?.destroyAllChildren();
+    this.activeTrayRows = 1;
     this.clearTraySlots();
     this.tiles = [];
     this.blocks = [];
@@ -1403,9 +1644,22 @@ export class gameScene extends Component {
 
   private clearTraySlots() {
     if (!this.trayRoot) return;
-    for (const child of [...this.trayRoot.children]) {
-      if (child.name.startsWith("TraySlot_")) child.destroy();
+
+    this.trayRoot.destroyAllChildren();
+  }
+
+  private setNodeSize(node: Node, width: number, height: number) {
+    if (!node) {
+      return;
     }
+
+    let transform = node.getComponent(UITransform);
+
+    if (!transform) {
+      transform = node.addComponent(UITransform);
+    }
+
+    transform.setContentSize(width, height);
   }
 
   private createNode(name: string, parent: Node, width: number, height: number): Node {
@@ -1469,13 +1723,13 @@ export class gameScene extends Component {
   }
 
   private getRaisedTrayBlockPosition(slot: TraySlotState): Vec3 {
-    const pos = this.getNodePositionInBlockRoot(slot.node);
+    const pos = this.getNodePositionInTrayRoot(slot.node);
     pos.y += this.selectedTrayLift;
     return pos;
   }
 
   private getTraySlotSize(): number {
-    return Math.min(this.getBoardTileSize(), this.trayMaxWidth / MAX_TRAY_SLOTS);
+    return Math.min(this.getBoardTileSize(), this.trayMaxWidth / TRAY_COLS);
   }
 
   private getBoardTileSize(): number {
@@ -1501,14 +1755,7 @@ export class gameScene extends Component {
     return node;
   }
 
-  private ensureSpriteChild(
-    parent: Node,
-    name: string,
-    frame: SpriteFrame | null,
-    width: number,
-    height: number,
-    aliases: string[] = [],
-  ): Node {
+  private ensureSpriteChild(parent: Node, name: string, frame: SpriteFrame | null, width: number, height: number, aliases: string[] = []): Node {
     let node = parent.getChildByName(name);
     if (!node) {
       for (const alias of aliases) {
