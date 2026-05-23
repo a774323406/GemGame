@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, director, instantiate, Prefab, UITransform, Widget, Canvas } from "cc";
+import { _decorator, Component, Node, director, instantiate, Prefab, UITransform, Widget, Canvas, Director } from "cc";
 import UIBase from "./UIBase";
 import gamePrefabMgr from "../../gamePrefabMgr";
 
@@ -82,14 +82,23 @@ export default class UIManager extends Component {
 
     UIManager._instance = this;
     director.addPersistRootNode(this.node);
+    director.off(Director.EVENT_AFTER_SCENE_LAUNCH, this.onAfterSceneLaunch, this);
+    director.on(Director.EVENT_AFTER_SCENE_LAUNCH, this.onAfterSceneLaunch, this);
 
     this.ensureSceneUIRoot();
   }
 
   onDestroy() {
+    director.off(Director.EVENT_AFTER_SCENE_LAUNCH, this.onAfterSceneLaunch, this);
+
     if (UIManager._instance === this) {
       UIManager._instance = null;
     }
+  }
+
+  private onAfterSceneLaunch() {
+    this.ensureSceneUIRoot();
+    this.rebindOpenedUIs();
   }
 
   /**
@@ -116,6 +125,11 @@ export default class UIManager extends Component {
 
     if (!canvas) {
       canvas = canvasNode.addComponent(Canvas);
+    }
+
+    const camera = canvas.cameraComponent;
+    if (camera) {
+      camera.priority = 1000;
     }
 
     /**
@@ -291,23 +305,48 @@ export default class UIManager extends Component {
   /**
    * 关闭 UI
    *
-   * 注意：
-   * 这里只是隐藏，不销毁。
+   * 普通 UI：
+   * - 如果 UIOpenAnimType = None，立即隐藏
+   * - 如果 UIOpenAnimType != None，先播关闭动画，动画结束后隐藏
+   *
+   * destroyOnClose = true 的 UI：
+   * - 先播关闭动画
+   * - 动画结束后再 destroy
+   *
+   * 说明：
+   * - 旧 Panel 里直接 this.onClose() 也可以继续用
+   * - 新逻辑主要是为了兼容 UIManager.close / closeAndDestroy 的销毁流程
    */
   public close(uiKey: string | number) {
     const node = this.openedMap.get(uiKey);
 
     if (!node || !node.isValid) {
+      this.openedMap.delete(uiKey);
+      this.openedLayerMap.delete(uiKey);
       return;
     }
 
     const ui = node.getComponent(UIBase);
 
     if (ui) {
-      ui.hide();
-    } else {
-      node.active = false;
+      ui.hide(() => {
+        if (!node || !node.isValid) {
+          this.openedMap.delete(uiKey);
+          this.openedLayerMap.delete(uiKey);
+          return;
+        }
+
+        if (ui.destroyOnClose) {
+          this.openedMap.delete(uiKey);
+          this.openedLayerMap.delete(uiKey);
+          node.destroy();
+        }
+      });
+
+      return;
     }
+
+    node.active = false;
   }
 
   /**
@@ -368,5 +407,69 @@ export default class UIManager extends Component {
     }
 
     return list;
+  }
+
+  /**
+   * 关闭并销毁 UI
+   *
+   * 用途：
+   * 一些带 VideoPlayer / WebView / 原生层的界面，
+   * 不适合隐藏复用，关闭时直接销毁更稳定。
+   *
+   * 说明：
+   * - 会先播放关闭动画
+   * - 动画结束后再 destroy
+   */
+  public closeAndDestroy(uiKey: string | number) {
+    const node = this.openedMap.get(uiKey);
+
+    if (!node || !node.isValid) {
+      this.openedMap.delete(uiKey);
+      this.openedLayerMap.delete(uiKey);
+      return;
+    }
+
+    const ui = node.getComponent(UIBase);
+
+    const destroyNode = () => {
+      if (!node || !node.isValid) {
+        this.openedMap.delete(uiKey);
+        this.openedLayerMap.delete(uiKey);
+        return;
+      }
+
+      this.openedMap.delete(uiKey);
+      this.openedLayerMap.delete(uiKey);
+      node.destroy();
+    };
+
+    if (ui) {
+      ui.hide(() => {
+        destroyNode();
+      });
+
+      return;
+    }
+
+    destroyNode();
+  }
+
+  /**
+   * 关闭所有 UI
+   */
+  public closeAll() {
+    this.openedMap.forEach((node) => {
+      this.close(node.name);
+    });
+  }
+  /**
+   * 关闭除了指定 UI 外的所有其他 UI
+   */
+  public closeOther(uiKey: string | number) {
+    this.openedMap.forEach((node) => {
+      if (node.name !== uiKey) {
+        this.close(node.name);
+      }
+    });
   }
 }

@@ -1,200 +1,281 @@
-import { _decorator, resources, Prefab, AudioClip, assert, assetManager } from "cc";
+import { Prefab, AudioClip } from "cc";
 import { ResourceManager } from "./framework/ResourceManager";
 
-export enum uiName {}
+export enum uiName {
+  settingPanel = "settingPanel",
+}
+
+export enum soundName {
+  bgm = "bgm",
+  buttonClick = "buttonClick",
+  fail = "fail",
+  levelBgm = "levelBgm",
+}
+
+type LoadTask = {
+  desc: string;
+  loader: () => Promise<void>;
+};
 
 export default class gamePrefabMgr {
   private static __instance: gamePrefabMgr;
-  // 单例访问器：首次获取时创建实例，后续统一返回同一实例
+
   public static get Instance() {
     if (this.__instance == null) {
       this.__instance = new gamePrefabMgr();
     }
+
     return this.__instance;
   }
+
   private inited = false;
-  jilv = 0; // 已加载资源计数
-  allResNum = 0; // 总资源数量
-  diffData_WenZi = null;
-  uiPre: { [key: string]: Prefab } = {}; // UI预制体缓存
-  soundRes: { [key: string]: AudioClip } = {}; // 音效资源缓存
-  private loadCompleteCallbacks: (() => void)[] = []; // 加载完成回调队列（支持多个回调）
-  // 初始化资源：遍历并预加载 UI 预制体与音效资源到内存缓存
-  public async Initial(onComplete?: () => void) {
+
+  /**
+   * 已完成数量
+   */
+  public jilv = 0;
+
+  /**
+   * 总加载数量
+   */
+  public allResNum = 0;
+
+  /**
+   * UI 预制体缓存
+   */
+  public uiPre: { [key: string]: Prefab } = {};
+
+  /**
+   * 音效缓存
+   */
+  public soundRes: { [key: string]: AudioClip } = {};
+
+  private loadCompleteCallbacks: (() => void)[] = [];
+
+  private loadTasks: LoadTask[] = [];
+
+  /**
+   * 初始化加载器状态
+   */
+  public resetLoadState() {
+    this.jilv = 0;
+    this.allResNum = 0;
+    this.loadTasks.length = 0;
+    this.loadCompleteCallbacks.length = 0;
+    this.inited = false;
+  }
+
+  /**
+   * 注册一个加载任务
+   */
+  private addTask(desc: string, loader: () => Promise<void>) {
+    this.loadTasks.push({
+      desc,
+      loader,
+    });
+
+    this.allResNum = this.loadTasks.length;
+  }
+
+  /**
+   * 通用 bundle 加载任务
+   *
+   * 以后你有其他 bundle，就在 loadScene 里面：
+   * await gamePrefabMgr.Instance.loadBundle("xxx");
+   */
+  public async loadBundle(bundleName: string) {
+    this.addTask(`加载 Bundle: ${bundleName}`, async () => {
+      await ResourceManager.ins.loadBundle(bundleName);
+    });
+
+    await this.runLatestTask();
+  }
+
+  /**
+   * 加载默认资源
+   *
+   * 这里会加载：
+   * 1. uiName 里的所有 UI prefab
+   * 2. soundName 里的所有音效
+   */
+  public async loadDefaultAssets(onComplete?: () => void) {
     if (this.inited) {
-      // 如果已经加载完成，直接调用回调
       if (onComplete) {
         if (this.isLoadComplete()) {
           onComplete();
         } else {
-          // 正在加载中，将回调加入队列
           this.loadCompleteCallbacks.push(onComplete);
         }
       }
       return;
     }
+
     this.inited = true;
-    // 将回调加入队列
+
     if (onComplete) {
       this.loadCompleteCallbacks.push(onComplete);
     }
-    this.jilv = 0;
-    this.allResNum = 0;
 
-    // 统计UI预制体数量
+    this.addUITasks("res");
+    this.addSoundTasks("res");
+
+    await this.runRemainTasks();
+
+    this.callLoadCompleteCallbacks();
+  }
+
+  /**
+   * 兼容你之前的 Initial 写法
+   */
+  public async Initial(onComplete?: () => void) {
+    await this.loadDefaultAssets(onComplete);
+  }
+
+  /**
+   * 添加 UI prefab 加载任务
+   */
+  private addUITasks(bundleName: string) {
     for (const key in uiName) {
-      if (Object.prototype.hasOwnProperty.call(uiName, key)) {
-        this.allResNum++;
+      if (!Object.prototype.hasOwnProperty.call(uiName, key)) {
+        continue;
       }
-    }
 
-    for (const key in uiName) {
-      if (Object.prototype.hasOwnProperty.call(uiName, key)) {
-        const uiname = (uiName as any)[key];
-        ResourceManager.ins.loadBundle("res");
-        let asset = await ResourceManager.ins.loadBundleAsset<Prefab>("res", "prefab/ui/" + uiname, Prefab);
+      const uiname = (uiName as any)[key] as string;
+      const path = "prefab/ui/" + uiname;
+
+      this.addTask(`加载 UI: ${uiname}`, async () => {
+        console.log("[gamePrefabMgr] 开始加载 UI =", uiname, "path =", path);
+
+        const asset = await ResourceManager.ins.loadBundleAsset<Prefab>(bundleName, path, Prefab);
+
         if (!asset) {
-          console.warn(`[gamePrefabMgr] UI资源为空: ${uiname}`);
-          this.jilv++;
-          this.checkLoadComplete();
-          return;
+          throw new Error(`[gamePrefabMgr] UI 资源为空: ${uiname}, path=${path}`);
         }
-        this.jilv++;
-        gamePrefabMgr.Instance.uiPre[uiname] = asset;
-        this.checkLoadComplete();
-      }
+
+        this.uiPre[uiname] = asset;
+
+        console.log("[gamePrefabMgr] UI加载成功 =", uiname);
+      });
     }
   }
 
   /**
-   * 检查资源是否全部加载完成
-   * 如果完成则调用所有队列中的回调函数
+   * 添加音效加载任务
+   *
+   * 你的目录是：
+   * assets/res/sound/bgm
+   * assets/res/sound/buttonClick
+   * assets/res/sound/fail
+   * assets/res/sound/levelBgm
+   *
+   * 所以路径就是：
+   * sound/bgm
+   * sound/buttonClick
+   * sound/fail
+   * sound/levelBgm
    */
-  private checkLoadComplete() {
-    if (this.jilv >= this.allResNum && this.allResNum > 0) {
-      // 调用所有等待中的回调
-      while (this.loadCompleteCallbacks.length > 0) {
-        let callback = this.loadCompleteCallbacks.shift();
-        if (callback) callback();
+  private addSoundTasks(bundleName: string) {
+    for (const key in soundName) {
+      if (!Object.prototype.hasOwnProperty.call(soundName, key)) {
+        continue;
+      }
+
+      const sname = (soundName as any)[key] as string;
+      const path = "sound/" + sname;
+
+      this.addTask(`加载音效: ${sname}`, async () => {
+        console.log("[gamePrefabMgr] 开始加载音效 =", sname, "path =", path);
+
+        const asset = await ResourceManager.ins.loadBundleAsset<AudioClip>(bundleName, path, AudioClip);
+
+        if (!asset) {
+          throw new Error(`[gamePrefabMgr] 音效资源为空: ${sname}, path=${path}`);
+        }
+
+        this.soundRes[sname] = asset;
+
+        console.log("[gamePrefabMgr] 音效加载成功 =", sname);
+      });
+    }
+  }
+
+  /**
+   * 执行最新添加的一个任务
+   *
+   * 用于：
+   * await gamePrefabMgr.Instance.loadBundle("res");
+   * await gamePrefabMgr.Instance.loadBundle("xxx");
+   */
+  private async runLatestTask() {
+    const task = this.loadTasks[this.loadTasks.length - 1];
+
+    if (!task) {
+      return;
+    }
+
+    await this.runTask(task);
+  }
+
+  /**
+   * 执行还没执行的任务
+   */
+  private async runRemainTasks() {
+    while (this.jilv < this.loadTasks.length) {
+      const task = this.loadTasks[this.jilv];
+
+      if (!task) {
+        break;
+      }
+
+      await this.runTask(task);
+    }
+  }
+
+  /**
+   * 执行单个任务
+   */
+  private async runTask(task: LoadTask) {
+    console.log("[gamePrefabMgr]", task.desc);
+
+    try {
+      await task.loader();
+    } catch (err) {
+      console.error("[gamePrefabMgr] 加载失败:", task.desc, err);
+      throw err;
+    } finally {
+      this.jilv++;
+      this.allResNum = this.loadTasks.length;
+      console.log("[gamePrefabMgr] 进度:", this.jilv, "/", this.allResNum);
+    }
+  }
+
+  private callLoadCompleteCallbacks() {
+    while (this.loadCompleteCallbacks.length > 0) {
+      const callback = this.loadCompleteCallbacks.shift();
+
+      if (callback) {
+        callback();
       }
     }
   }
 
   /**
    * 获取资源加载进度
-   * @returns 加载进度百分比 (0-100)
+   *
+   * 返回 0 - 100
    */
   public getLoadProgress(): number {
-    if (this.allResNum === 0) return 0;
+    if (this.allResNum <= 0) {
+      return 0;
+    }
+
     return Math.floor((this.jilv / this.allResNum) * 100);
   }
 
   /**
-   * 检查所有资源是否加载完成
-   * @returns 是否加载完成
+   * 是否加载完成
    */
   public isLoadComplete(): boolean {
-    return this.jilv >= this.allResNum && this.allResNum > 0;
+    return this.allResNum > 0 && this.jilv >= this.allResNum;
   }
 }
-
-/**
- * 注意：已把原脚本注释，由于脚本变动过大，转换的时候可能有遗落，需要自行手动转换
- */
-// /**
-//  * 资源管理
-//  * 涉及到ui,prefab ，音效等资源可以在这里预加载
-//  *
-//  */
-//
-// import Define from "./Define";
-//
-// export enum uiPreName {
-//     addEngry = 'addEngry',      //增加体力
-//     addGold = 'addGold',        //增加金币 元宝
-//     addTiShi = 'addTiShi',      //增加提示道具
-//     //GameOver = 'GameOver',          //游戏over
-//     timeOver ='timeOver',           //时间耗尽
-//     selectkuang = 'selectkuang',    //找茬选答案 框
-//     cha = 'cha',                    //叉号
-//     texiao = 'texiao',              //粒子特效
-//     pausepanel = 'pausepanel',      //暂停
-//     setsoundpanel = 'setsoundpanel',    //设置
-//     checkoutPanel = 'checkoutPanel', //关卡
-//     taskPanel = 'taskPanel',        //任务界面
-//     check_item2 = 'check_item2',
-// }
-//
-// export enum soundName {
-//     // game_bg0 = 'game_bg0',        //主音乐
-//     // game_bg1 = 'game_bg1',
-//     // game_bg2 = 'game_bg2',
-//     // game_bg3 = 'game_bg3',
-//     main_bg = 'main_bg',
-//     answerright = 'answerright',
-//     error = 'error',
-//     fail = 'fail',
-//     win = 'win',
-//     hit = 'hit',
-//     click = 'click',
-// }
-//
-// export default class gamePrefabMgr {
-//
-//     private static __instance: gamePrefabMgr;
-//     public static get Instance() {
-//         if (null == this.__instance) {
-//             this.__instance = new gamePrefabMgr();
-//         }
-//         return this.__instance;
-//     }
-//
-//     jilv = 0
-//     allResNum = 0
-//     diffData_WenZi = null
-//     uiPre = []
-//     soundRes = []
-//
-//     public Initial() {
-//         //this.isloadOver = !1
-//         this.jilv = 0
-//         var self = this
-//
-//         //ui数量
-//         for (const key in uiPreName) {
-//             if (Object.prototype.hasOwnProperty.call(uiPreName, key)) {
-//                 this.allResNum ++
-//             }
-//         }
-//         //音效资源数
-//         for (const key in soundName) {
-//             if (Object.prototype.hasOwnProperty.call(soundName, key)) {
-//                 this.allResNum ++
-//             }
-//         }
-//
-//         //加载ui
-//         for (const key in uiPreName) {
-//             if (Object.prototype.hasOwnProperty.call(uiPreName, key)) {
-//                 let uiname = uiPreName[key]
-//                 cc.resources.load('prefab/Ui/'+uiname, cc.Prefab, (err, assert)=>{
-//                     if(err) return console.log('err=', err)
-//                     self.jilv++
-//                     gamePrefabMgr.Instance.uiPre[uiname] = assert as cc.Prefab
-//                 })
-//             }
-//         }
-//
-//         //加载音乐
-//         for (const key in soundName) {
-//             if (Object.prototype.hasOwnProperty.call(soundName, key)) {
-//                 let uiname = soundName[key]
-//                 cc.resources.load('Sound/'+uiname , (err, assert)=>{
-//                     if(err) return console.log('err=', err)
-//                     self.jilv++
-//                     gamePrefabMgr.Instance.soundRes[uiname] = assert
-//                 })
-//             }
-//         }
-//     }
-// }

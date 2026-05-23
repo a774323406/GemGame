@@ -1,5 +1,7 @@
-import { _decorator, Component, Node, ProgressBar, resources, ScrollBar, director } from "cc";
-import { ResourceManager } from "./framework/ResourceManager";
+import { _decorator, Component, ProgressBar, director } from "cc";
+import AudioManager from "./framework/AudioManager";
+import gamePrefabMgr from "./gamePrefabMgr";
+
 const { ccclass, property } = _decorator;
 
 @ccclass("loadScene")
@@ -7,53 +9,116 @@ export class loadScene extends Component {
   @property(ProgressBar)
   public loading: ProgressBar = null;
 
-  isloadOver: boolean = false;
-  fakeProgress: number = 0;
-  private progressTimer: number = null;
-  private startTime: number = 0;
-  private constDuration: number = 1; // 固定时长3秒
+  private progressTimer: any = null;
+  private currentProgress: number = 0;
+  private targetProgress: number = 0;
+  private hasEnteredMainScene: boolean = false;
 
   start() {
-    this.startTime = Date.now(); // 记录开始时间
+    if (this.loading) {
+      this.loading.progress = 0;
+    }
 
-    // 启动进度条计时器
-    this.progressTimer = setInterval(() => {
-      const elapsed = (Date.now() - this.startTime) / 1000; // 已经过去的秒数
-      this.fakeProgress = Math.min(elapsed / this.constDuration, 1); // 计算假进度
+    gamePrefabMgr.Instance.resetLoadState();
 
-      if (this.loading) {
-        this.loading.progress = this.fakeProgress;
-      }
-
-      // 当假进度达到100%且资源加载完成时，切换场景
-      if (this.fakeProgress >= 1 && this.isloadOver) {
-        clearInterval(this.progressTimer);
-        director.loadScene("MainScene");
-      }
-    }, 30); // 每30ms更新一次
-
+    this.startProgressTimer();
     this.loadRes();
   }
 
-  async loadRes() {
-    await ResourceManager.ins.loadBundle("res");
-    this.isloadOver = true;
+  /**
+   * 刷新真实加载进度
+   */
+  private startProgressTimer() {
+    this.clearProgressTimer();
 
-    const elapsed = (Date.now() - this.startTime) / 1000; // 计算实际加载用时
+    this.progressTimer = setInterval(() => {
+      const realProgress = gamePrefabMgr.Instance.getLoadProgress() / 100;
 
-    if (elapsed >= this.constDuration) {
-      // 如果加载时间超过3秒，清除计时器并显示100%
-      if (this.progressTimer) {
-        clearInterval(this.progressTimer);
-        console.log("Load over");
+      if (realProgress <= 0) {
+        this.targetProgress = Math.max(this.targetProgress, 0.03);
+      } else {
+        this.targetProgress = realProgress;
       }
+
+      this.currentProgress += (this.targetProgress - this.currentProgress) * 0.25;
+
       if (this.loading) {
-        this.loading.progress = 1;
+        this.loading.progress = this.currentProgress;
       }
-      // 加载完成后切换场景
-      director.loadScene("MainScene");
+    }, 30);
+  }
+
+  /**
+   * 加载资源
+   */
+  private async loadRes() {
+    try {
+      console.log("[loadScene] 开始加载资源");
+
+      /**
+       * 这里写你需要加载的 bundle。
+       *
+       * 注意：
+       * 不建议直接写 ResourceManager.ins.loadBundle("res")
+       * 因为那样 gamePrefabMgr 无法统计真实进度。
+       */
+      await gamePrefabMgr.Instance.loadBundle("res");
+
+      /**
+       * 如果以后有其他 bundle，就继续写：
+       *
+       * await gamePrefabMgr.Instance.loadBundle("config");
+       * await gamePrefabMgr.Instance.loadBundle("puzzle");
+       * await gamePrefabMgr.Instance.loadBundle("find");
+       */
+
+      /**
+       * 加载默认资源：
+       * - UI prefab
+       * - sound 音效
+       */
+      await gamePrefabMgr.Instance.loadDefaultAssets();
+
+      console.log("[loadScene] 所有资源加载完成，准备进入 MainScene");
+
+      AudioManager.playDefaultBgm();
+
+      this.enterMainScene();
+    } catch (err) {
+      console.error("[loadScene] 加载失败：", err);
     }
   }
 
-  update(deltaTime: number) {}
+  /**
+   * 进入主场景
+   */
+  private enterMainScene() {
+    if (this.hasEnteredMainScene) {
+      return;
+    }
+
+    this.hasEnteredMainScene = true;
+
+    this.targetProgress = 1;
+    this.currentProgress = 1;
+
+    if (this.loading) {
+      this.loading.progress = 1;
+    }
+
+    this.clearProgressTimer();
+
+    director.loadScene("MainScene");
+  }
+
+  private clearProgressTimer() {
+    if (this.progressTimer) {
+      clearInterval(this.progressTimer);
+      this.progressTimer = null;
+    }
+  }
+
+  onDestroy() {
+    this.clearProgressTimer();
+  }
 }
