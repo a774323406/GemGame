@@ -756,6 +756,15 @@ export class gameScene extends Component {
     this.unselectAfterMove(movingBlocks);
     this.scheduleOnce(
       () => {
+        /**
+         * 手动把下面槽位里的钻石移动回上方棋盘后，
+         * 槽位中间可能会留下空洞，或者同色被拆开。
+         * 这里补一次自然整理：
+         * - 如果已经排好，不会重新播放排序动画。
+         * - 如果有空洞 / 同色被拆散，才会自动整理。
+         */
+        this.sortTrayBlocks();
+
         this.inputLocked = false;
         this.checkWin();
       },
@@ -811,6 +820,7 @@ export class gameScene extends Component {
 
     this.scheduleOnce(
       () => {
+        this.sortTrayBlocks();
         this.inputLocked = false;
       },
       0.32 + count * 0.04,
@@ -883,31 +893,126 @@ export class gameScene extends Component {
     return result;
   }
 
-  private sortTrayBlocks() {
-    const blocks = this.traySlots
-      .map((slot) => slot.block)
-      .filter((block): block is BlockState => !!block)
-      .sort((a, b) => a.color - b.color || a.id - b.id);
+  /**
+   * 自动整理下面空白槽位。
+   *
+   * 这版不是每次都强行排序。
+   * 只有出现以下情况才会真正移动：
+   * 1. 中间有空槽，需要把钻石压缩到前面。
+   * 2. 同一种颜色被拆成了多段，比如：黑 黑 粉 粉 黑 黑。
+   *
+   * 如果已经是类似下面这种状态，就不再重新排一次：
+   * 黑 黑 粉 粉
+   * 粉 粉 黑 黑
+   *
+   * 排序时会保留颜色第一次出现的顺序，而不是固定按颜色编号排。
+   * 这样更接近视频里的自然整理效果，不会显得很刻意。
+   */
+  private sortTrayBlocks(): boolean {
+    if (!this.traySlots || this.traySlots.length === 0) {
+      return false;
+    }
 
-    for (const slot of this.traySlots) {
+    const activeSlots = this.traySlots.filter((slot) => this.isTraySlotActive(slot));
+
+    if (activeSlots.length === 0) {
+      return false;
+    }
+
+    const currentBlocks = activeSlots
+      .map((slot) => slot.block)
+      .filter((block): block is BlockState => !!block && block.location === "tray");
+
+    if (currentBlocks.length === 0) {
+      return false;
+    }
+
+    const targetBlocks = this.getGroupedTrayBlocksByFirstColorOrder(currentBlocks);
+
+    /**
+     * 如果现在已经是“同色连续 + 空槽在后面”，就不要再播放排序动画。
+     */
+    let needSort = false;
+
+    for (let i = 0; i < activeSlots.length; i++) {
+      const currentBlock = activeSlots[i].block || null;
+      const targetBlock = targetBlocks[i] || null;
+
+      if (currentBlock !== targetBlock) {
+        needSort = true;
+        break;
+      }
+    }
+
+    if (!needSort) {
+      return false;
+    }
+
+    for (const slot of activeSlots) {
       slot.block = null;
     }
 
-    for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
-      const slot = this.traySlots[i];
+    for (let i = 0; i < targetBlocks.length; i++) {
+      const block = targetBlocks[i];
+      const slot = activeSlots[i];
+
+      if (!slot) {
+        continue;
+      }
 
       slot.block = block;
-      block.slot = slot;
+
       block.location = "tray";
       block.row = -1;
       block.col = -1;
+      block.slot = slot;
 
       this.changeParentKeepWorldPosition(block.node, this.trayRoot);
+      this.updateCollapse(block, false);
 
+      block.node.active = true;
+      block.node.setScale(this.getTrayBlockScale(false));
       block.node.setSiblingIndex(9999);
-      this.moveNode(block.node, this.getNodePositionInTrayRoot(slot.node), 0.16);
+
+      this.moveNode(block.node, this.getNodePositionInTrayRoot(slot.node), 0.16, i * 0.015);
     }
+
+    return true;
+  }
+
+  /**
+   * 按颜色第一次出现的顺序分组。
+   *
+   * 例：
+   * 黑 黑 粉 粉 黑 黑 => 黑 黑 黑 黑 粉 粉
+   * 粉 粉 黑 黑       => 粉 粉 黑 黑
+   */
+  private getGroupedTrayBlocksByFirstColorOrder(blocks: BlockState[]): BlockState[] {
+    const colorOrder: number[] = [];
+    const colorMap = new Map<number, BlockState[]>();
+
+    for (const block of blocks) {
+      if (!colorMap.has(block.color)) {
+        colorMap.set(block.color, []);
+        colorOrder.push(block.color);
+      }
+
+      colorMap.get(block.color)!.push(block);
+    }
+
+    const result: BlockState[] = [];
+
+    for (const color of colorOrder) {
+      const group = colorMap.get(color);
+
+      if (!group) {
+        continue;
+      }
+
+      result.push(...group);
+    }
+
+    return result;
   }
 
   private getConnectedBlocks(row: number, col: number, color: number): BlockState[] {
@@ -1357,6 +1462,7 @@ export class gameScene extends Component {
 
     this.scheduleOnce(
       () => {
+        this.sortTrayBlocks();
         this.inputLocked = false;
         this.checkWin();
       },
@@ -1423,10 +1529,10 @@ export class gameScene extends Component {
         /**
          * 剩余暂时无法上去的槽位钻石，重新压缩排序到槽位前面。
          */
+        this.refreshTrayLayout();
         this.sortTrayBlocks();
 
         this.inputLocked = false;
-        this.refreshTrayLayout();
         this.checkWin();
       },
       0.35 + moveIndex * 0.045,
@@ -1722,7 +1828,7 @@ export class gameScene extends Component {
     const operations = this.collectMagnetSortOperations(maxCount);
 
     if (operations.length <= 0) {
-      TipsManager.Instance.show("暂无可整理的钻石");
+      TipsManager.Instance.show("无钻石可以吸附");
       return false;
     }
 
@@ -1742,8 +1848,9 @@ export class gameScene extends Component {
 
     this.scheduleOnce(
       () => {
-        this.inputLocked = false;
         this.refreshTrayLayout();
+        this.sortTrayBlocks();
+        this.inputLocked = false;
         this.checkWin();
       },
       0.35 + operations.length * 0.05,
