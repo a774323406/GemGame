@@ -104,6 +104,7 @@ const STORAGE_LEVEL_KEY = "gem_sort_level";
 const TRAY_COLS = 12;
 const MAX_TRAY_ROWS = 3;
 const MAX_TRAY_SLOTS = TRAY_COLS * MAX_TRAY_ROWS;
+const MAGNET_SORT_COUNT = 12;
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
 const CONNECTED_DIRECTIONS: Array<[number, number]> = [
@@ -1066,10 +1067,21 @@ export class gameScene extends Component {
     this.cleanTray();
   }
 
+  /**
+   * magnetBtn：自动整理上方棋盘 12 个钻石。
+   *
+   * 规则：
+   * 1. 只整理上方棋盘，最多完成 MAGNET_SORT_COUNT 个归位操作。
+   * 2. 如果正确钻石在上方棋盘里，直接移动 / 交换到正确位置。
+   * 3. 如果正确钻石在下面槽位里，只允许和上方错误钻石交换。
+   *    这样下面槽位的钻石数量不会减少。
+   * 4. 不会把下面槽位钻石直接放到上方空格，因为那会减少下面槽位上的钻石数量。
+   */
   private onMagnetClicked() {
     this.prepareTool("magnet", () => {
-      const blocks = this.blocks.filter((b) => !b.collapsed).slice(0, 12);
-      if (this.collapseBlocks(blocks)) ToolInventory.consume("magnet");
+      if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT)) {
+        ToolInventory.consume("magnet");
+      }
     });
   }
 
@@ -1441,9 +1453,7 @@ export class gameScene extends Component {
    * displacedBlock：如果 targetTile 上原本有错误钻石，就先挪走它。
    * bufferTile：错误钻石被挪去的上方空格，不要求颜色正确。
    */
-  private collectTrayAutoSortOperations(
-    trayBlocks: BlockState[],
-  ): Array<{ trayBlock: BlockState; targetTile: TileState; displacedBlock: BlockState | null; bufferTile: TileState | null }> {
+  private collectTrayAutoSortOperations(trayBlocks: BlockState[]): Array<{ trayBlock: BlockState; targetTile: TileState; displacedBlock: BlockState | null; bufferTile: TileState | null }> {
     const operations: Array<{ trayBlock: BlockState; targetTile: TileState; displacedBlock: BlockState | null; bufferTile: TileState | null }> = [];
 
     /**
@@ -1700,8 +1710,390 @@ export class gameScene extends Component {
     return 1;
   }
 
-  private collapseBlocks(blocks: BlockState[]): boolean {
+  /**
+   * 磁铁：自动整理上方棋盘。
+   *
+   * 重点区别：
+   * - 魔法棒可以处理指定区域。
+   * - 磁铁是自动挑选上方棋盘中未归位的位置，最多处理 12 个。
+   * - 如果使用下面槽位里的钻石，必须把上方错误钻石换到这个槽位里，保证槽位占用数量不减少。
+   */
+  private autoSortBoardByMagnet(maxCount: number = MAGNET_SORT_COUNT): boolean {
+    const operations = this.collectMagnetSortOperations(maxCount);
 
+    if (operations.length <= 0) {
+      TipsManager.Instance.show("暂无可整理的钻石");
+      return false;
+    }
+
+    this.inputLocked = true;
+    this.unselectAll(false);
+
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
+      const delay = i * 0.05;
+
+      if (op.fromSlot) {
+        this.applyMagnetTraySwapOperation(op.trayBlock, op.fromSlot, op.targetTile, op.displacedBlock!, delay);
+      } else if (op.fromTile) {
+        this.applyMagnetBoardOperation(op.boardBlock, op.fromTile, op.targetTile, delay);
+      }
+    }
+
+    this.scheduleOnce(
+      () => {
+        this.inputLocked = false;
+        this.refreshTrayLayout();
+        this.checkWin();
+      },
+      0.35 + operations.length * 0.05,
+    );
+
+    return true;
+  }
+
+  /**
+   * 磁铁整理操作。
+   *
+   * 两种情况：
+   * 1. fromTile 有值：上方棋盘内移动 / 交换。
+   * 2. fromSlot 有值：下面槽位钻石和上方错误钻石交换，槽位数量不减少。
+   */
+  private collectMagnetSortOperations(maxCount: number): Array<{
+    boardBlock: BlockState | null;
+    trayBlock: BlockState | null;
+    fromTile: TileState | null;
+    fromSlot: TraySlotState | null;
+    targetTile: TileState;
+    displacedBlock: BlockState | null;
+  }> {
+    const operations: Array<{
+      boardBlock: BlockState | null;
+      trayBlock: BlockState | null;
+      fromTile: TileState | null;
+      fromSlot: TraySlotState | null;
+      targetTile: TileState;
+      displacedBlock: BlockState | null;
+    }> = [];
+
+    const simulatedBlockAtTile = new Map<TileState, BlockState | null>();
+    const simulatedTileOfBlock = new Map<BlockState, TileState>();
+    const simulatedSlotOfBlock = new Map<BlockState, TraySlotState>();
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) {
+          continue;
+        }
+
+        simulatedBlockAtTile.set(tile, tile.block);
+
+        if (tile.block) {
+          simulatedTileOfBlock.set(tile.block, tile);
+        }
+      }
+    }
+
+    for (const slot of this.traySlots) {
+      if (!this.isTraySlotActive(slot) || !slot.block) {
+        continue;
+      }
+
+      simulatedSlotOfBlock.set(slot.block, slot);
+    }
+
+    const targetTiles = this.getMagnetTargetTiles(simulatedBlockAtTile);
+
+    for (const targetTile of targetTiles) {
+      if (operations.length >= maxCount) {
+        break;
+      }
+
+      const currentBlock = simulatedBlockAtTile.get(targetTile) || null;
+
+      if (currentBlock && currentBlock.color === targetTile.color) {
+        continue;
+      }
+
+      const source = this.findMagnetSourceForTarget(targetTile, simulatedBlockAtTile, simulatedTileOfBlock, simulatedSlotOfBlock);
+
+      if (!source) {
+        continue;
+      }
+
+      if (source.fromTile) {
+        const sourceBlock = source.block;
+        const occupant = simulatedBlockAtTile.get(targetTile) || null;
+
+        operations.push({
+          boardBlock: sourceBlock,
+          trayBlock: null,
+          fromTile: source.fromTile,
+          fromSlot: null,
+          targetTile,
+          displacedBlock: occupant,
+        });
+
+        simulatedBlockAtTile.set(targetTile, sourceBlock);
+        simulatedTileOfBlock.set(sourceBlock, targetTile);
+
+        if (occupant) {
+          simulatedBlockAtTile.set(source.fromTile, occupant);
+          simulatedTileOfBlock.set(occupant, source.fromTile);
+        } else {
+          simulatedBlockAtTile.set(source.fromTile, null);
+          simulatedTileOfBlock.delete(sourceBlock);
+          simulatedTileOfBlock.set(sourceBlock, targetTile);
+        }
+
+        continue;
+      }
+
+      if (source.fromSlot) {
+        const trayBlock = source.block;
+        const occupant = simulatedBlockAtTile.get(targetTile) || null;
+
+        /**
+         * 下面槽位的钻石只能和上方错误钻石交换。
+         * 如果目标格是空的，直接放上去会减少下面槽位数量，所以跳过。
+         */
+        if (!occupant || occupant.color === targetTile.color) {
+          continue;
+        }
+
+        operations.push({
+          boardBlock: null,
+          trayBlock,
+          fromTile: null,
+          fromSlot: source.fromSlot,
+          targetTile,
+          displacedBlock: occupant,
+        });
+
+        simulatedBlockAtTile.set(targetTile, trayBlock);
+        simulatedTileOfBlock.set(trayBlock, targetTile);
+        simulatedSlotOfBlock.delete(trayBlock);
+
+        simulatedSlotOfBlock.set(occupant, source.fromSlot);
+        simulatedTileOfBlock.delete(occupant);
+      }
+    }
+
+    return operations;
+  }
+
+  /**
+   * 获取磁铁优先整理的目标格子。
+   * 只挑选“当前未归位”的上方格子。
+   */
+  private getMagnetTargetTiles(simulatedBlockAtTile: Map<TileState, BlockState | null>): TileState[] {
+    const result: TileState[] = [];
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) {
+          continue;
+        }
+
+        const block = simulatedBlockAtTile.get(tile) || null;
+
+        if (block && block.color === tile.color) {
+          continue;
+        }
+
+        result.push(tile);
+      }
+    }
+
+    result.sort((a, b) => {
+      const aPriority = this.getBoardTileAutoSortPriority(a);
+      const bPriority = this.getBoardTileAutoSortPriority(b);
+
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+
+      const aBlock = simulatedBlockAtTile.get(a) || null;
+      const bBlock = simulatedBlockAtTile.get(b) || null;
+
+      /**
+       * 被错误钻石占着的位置优先处理。
+       * 这样磁铁更像“帮上方棋盘排序 12 个”。
+       */
+      const aOccupiedWrong = aBlock && aBlock.color !== a.color ? 0 : 1;
+      const bOccupiedWrong = bBlock && bBlock.color !== b.color ? 0 : 1;
+
+      if (aOccupiedWrong !== bOccupiedWrong) {
+        return aOccupiedWrong - bOccupiedWrong;
+      }
+
+      if (a.row !== b.row) {
+        return a.row - b.row;
+      }
+
+      return a.col - b.col;
+    });
+
+    return result;
+  }
+
+  /**
+   * 给目标格寻找正确颜色的钻石来源。
+   *
+   * 优先级：
+   * 1. 上方棋盘中的同色错误位置钻石。
+   * 2. 下面槽位中的同色钻石，但只有目标格被错误钻石占着时才允许使用。
+   */
+  private findMagnetSourceForTarget(
+    targetTile: TileState,
+    simulatedBlockAtTile: Map<TileState, BlockState | null>,
+    simulatedTileOfBlock: Map<BlockState, TileState>,
+    simulatedSlotOfBlock: Map<BlockState, TraySlotState>,
+  ): { block: BlockState; fromTile: TileState | null; fromSlot: TraySlotState | null } | null {
+    let boardCandidate: { block: BlockState; fromTile: TileState } | null = null;
+
+    for (const [tile, block] of simulatedBlockAtTile.entries()) {
+      if (!block || tile === targetTile) {
+        continue;
+      }
+
+      if (block.color !== targetTile.color) {
+        continue;
+      }
+
+      /**
+       * 已经正确归位的钻石不动。
+       */
+      if (tile.color === block.color) {
+        continue;
+      }
+
+      boardCandidate = { block, fromTile: tile };
+      break;
+    }
+
+    if (boardCandidate) {
+      return {
+        block: boardCandidate.block,
+        fromTile: boardCandidate.fromTile,
+        fromSlot: null,
+      };
+    }
+
+    const targetOccupant = simulatedBlockAtTile.get(targetTile) || null;
+
+    /**
+     * 如果目标格是空的，不能从槽位拿钻石上去，否则会减少槽位上的钻石数量。
+     */
+    if (!targetOccupant || targetOccupant.color === targetTile.color) {
+      return null;
+    }
+
+    let trayCandidate: { block: BlockState; fromSlot: TraySlotState } | null = null;
+
+    for (const [block, slot] of simulatedSlotOfBlock.entries()) {
+      if (!block || !slot || block.color !== targetTile.color) {
+        continue;
+      }
+
+      trayCandidate = { block, fromSlot: slot };
+      break;
+    }
+
+    if (!trayCandidate) {
+      return null;
+    }
+
+    return {
+      block: trayCandidate.block,
+      fromTile: null,
+      fromSlot: trayCandidate.fromSlot,
+    };
+  }
+
+  /**
+   * 应用上方棋盘内的磁铁整理。
+   */
+  private applyMagnetBoardOperation(block: BlockState | null, fromTile: TileState, targetTile: TileState, delay: number) {
+    if (!block || !fromTile || !targetTile || fromTile === targetTile) {
+      return;
+    }
+
+    const occupant = targetTile.block;
+
+    if (occupant && occupant !== block) {
+      /** 上方棋盘内交换。 */
+      fromTile.block = occupant;
+      targetTile.block = block;
+
+      occupant.location = "board";
+      occupant.row = fromTile.row;
+      occupant.col = fromTile.col;
+      occupant.slot = null;
+
+      block.location = "board";
+      block.row = targetTile.row;
+      block.col = targetTile.col;
+      block.slot = null;
+
+      this.updateCollapse(block, false);
+      this.updateCollapse(occupant, false);
+
+      block.node.setSiblingIndex(9999);
+      occupant.node.setSiblingIndex(9998);
+
+      this.moveNode(block.node, this.getNodePositionInBlockRoot(targetTile.node), 0.24, delay, () => this.updateCollapse(block, true));
+      this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromTile.node), 0.24, delay, () => this.updateCollapse(occupant, true));
+      return;
+    }
+
+    /** 目标格为空，上方棋盘内移动。 */
+    fromTile.block = null;
+    this.moveBlockToTile(block, targetTile, delay);
+  }
+
+  /**
+   * 应用下面槽位和上方棋盘的交换。
+   *
+   * trayBlock 上去归位，displacedBlock 下来占用原来的 fromSlot。
+   * 这样槽位上的钻石数量保持不变。
+   */
+  private applyMagnetTraySwapOperation(trayBlock: BlockState | null, fromSlot: TraySlotState, targetTile: TileState, displacedBlock: BlockState, delay: number) {
+    if (!trayBlock || !fromSlot || !targetTile || !displacedBlock) {
+      return;
+    }
+
+    if (targetTile.block !== displacedBlock) {
+      return;
+    }
+
+    fromSlot.block = displacedBlock;
+    targetTile.block = trayBlock;
+
+    displacedBlock.location = "tray";
+    displacedBlock.row = -1;
+    displacedBlock.col = -1;
+    displacedBlock.slot = fromSlot;
+
+    trayBlock.location = "board";
+    trayBlock.row = targetTile.row;
+    trayBlock.col = targetTile.col;
+    trayBlock.slot = null;
+
+    this.changeParentKeepWorldPosition(displacedBlock.node, this.trayRoot);
+    this.changeParentKeepWorldPosition(trayBlock.node, this.blockRoot);
+
+    this.updateCollapse(displacedBlock, false);
+    this.updateCollapse(trayBlock, false);
+
+    displacedBlock.node.setSiblingIndex(9998);
+    trayBlock.node.setSiblingIndex(9999);
+
+    this.moveNode(displacedBlock.node, this.getNodePositionInTrayRoot(fromSlot.node), 0.24, delay);
+    this.moveNode(trayBlock.node, this.getNodePositionInBlockRoot(targetTile.node), 0.24, delay, () => this.updateCollapse(trayBlock, true));
+  }
+
+  private collapseBlocks(blocks: BlockState[]): boolean {
     if (blocks.length === 0) return false;
     this.inputLocked = true;
     let operations = 0;
