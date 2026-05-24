@@ -9,6 +9,7 @@
 import { _decorator, director, AudioClip, AudioSource, Node } from "cc";
 import gameStorage from "./gameStorage";
 import gamePrefabMgr, { soundName } from "../gamePrefabMgr";
+import { ResourceManager } from "./ResourceManager";
 
 export default class AudioManager {
   // 背景音乐的 AudioSource 组件
@@ -20,6 +21,8 @@ export default class AudioManager {
   private static hasSetSoundEvent: boolean = false;
   /** 当前正在播放的背景音乐名称，避免同一首 BGM 反复从头播放 */
   private static currentBgmName: soundName | null = null;
+  /** 音效兜底加载队列，避免同一个音效被重复加载 */
+  private static effectClipLoadingMap = new Map<string, Promise<AudioClip | null>>();
   /**
    * 初始化音频组件
    * 创建用于播放背景音乐和音效的 AudioSource 组件
@@ -106,6 +109,7 @@ export default class AudioManager {
      * director.emit(soundName.buttonClick);
      */
     this.registerSoundNameEvents();
+    this.registerGemMoveSoundEvents();
 
     /**
      * 兼容旧的 click 事件。
@@ -191,12 +195,113 @@ export default class AudioManager {
       director.on(
         eventName,
         () => {
-          this.playEffect(eventName);
+          this.playEffectByName(eventName);
         },
         this,
       );
     }
   }
+  /**
+   * 钻石操作音效。
+   *
+   * up：点击钻石抬起时播放一次。
+   * down：钻石真实移动到另一个位置时播放一次。
+   *
+   * 这里不用强依赖 soundName 枚举，避免你只新增了 res/sound/up、res/sound/down
+   * 但忘记改 enum 时导致没有监听。
+   */
+  private static registerGemMoveSoundEvents() {
+    const soundEvents = new Set<string>(Object.values(soundName as any) as string[]);
+
+    if (!soundEvents.has("up")) {
+      director.on(
+        "up",
+        () => {
+          this.playEffectByName("up");
+        },
+        this,
+      );
+    }
+
+    if (!soundEvents.has("down")) {
+      director.on(
+        "down",
+        () => {
+          this.playEffectByName("down");
+        },
+        this,
+      );
+    }
+  }
+
+  /**
+   * 按字符串播放音效。
+   *
+   * 兼容两种情况：
+   * 1. gamePrefabMgr 已经预加载 soundRes[name]。
+   * 2. 没有预加载时，第一次播放会从 res/sound/name 兜底加载。
+   */
+  static async playEffectByName(name: string) {
+    this.initAudioSources();
+
+    if (!this.effectAudioSource) {
+      return;
+    }
+
+    if (!this.canPlaySound()) {
+      return;
+    }
+
+    let clip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
+
+    if (!clip) {
+      clip = await this.loadEffectClipByName(name);
+    }
+
+    if (!clip || !this.effectAudioSource) {
+      return;
+    }
+
+    if (!this.canPlaySound()) {
+      return;
+    }
+
+    this.effectAudioSource.playOneShot(clip, 1);
+  }
+
+  private static async loadEffectClipByName(name: string): Promise<AudioClip | null> {
+    const cachedClip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
+
+    if (cachedClip) {
+      return cachedClip;
+    }
+
+    if (this.effectClipLoadingMap.has(name)) {
+      return this.effectClipLoadingMap.get(name)!;
+    }
+
+    const task = (async () => {
+      try {
+        await ResourceManager.ins.loadBundle("res");
+        const clip = await ResourceManager.ins.loadBundleAsset<AudioClip>("res", `sound/${name}`, AudioClip);
+
+        if (clip) {
+          gamePrefabMgr.Instance.soundRes[name] = clip;
+        }
+
+        return clip || null;
+      } catch (err) {
+        console.warn(`[AudioManager] 音效资源 ${name} 加载失败`, err);
+        return null;
+      } finally {
+        this.effectClipLoadingMap.delete(name);
+      }
+    })();
+
+    this.effectClipLoadingMap.set(name, task);
+    return task;
+  }
+
   /**
    * 播放背景音乐
    * @param name 音乐名称
@@ -273,21 +378,7 @@ export default class AudioManager {
    * @param name 音效名称
    */
   static playEffect(name: soundName) {
-    this.initAudioSources();
-
-    if (!this.effectAudioSource) {
-      return;
-    }
-
-    if (!this.canPlaySound()) {
-      return;
-    }
-
-    const clip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
-
-    if (clip) {
-      this.effectAudioSource.playOneShot(clip, 1);
-    }
+    this.playEffectByName(name);
   }
 
   /**

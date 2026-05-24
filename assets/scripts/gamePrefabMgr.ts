@@ -11,6 +11,8 @@ export enum soundName {
   buttonClick = "buttonClick",
   fail = "fail",
   levelBgm = "levelBgm",
+  up = "up",
+  down = "down",
 }
 
 type LoadTask = {

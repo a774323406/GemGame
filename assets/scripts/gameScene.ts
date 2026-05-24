@@ -3,6 +3,7 @@ import {
   Button,
   Color,
   Component,
+  director,
   EventTouch,
   Label,
   Node,
@@ -688,6 +689,30 @@ export class gameScene extends Component {
     return block;
   }
 
+  private playGemUpSound() {
+    director.emit("up");
+  }
+
+  private playGemDownSound() {
+    director.emit("down");
+  }
+
+  private shouldPlayMoveSound(node: Node, targetPosition: Vec3): boolean {
+    if (!node || !targetPosition) {
+      return false;
+    }
+
+    const pos = node.position;
+    const dx = pos.x - targetPosition.x;
+    const dy = pos.y - targetPosition.y;
+
+    /**
+     * 只是抬起原地放下时，不播放 down。
+     * 只有真实移动到另一个位置时，才播放一次 down。
+     */
+    return dx * dx + dy * dy > 0.25;
+  }
+
   private onBlockClicked(block: BlockState) {
     if (this.inputLocked) return;
 
@@ -1085,6 +1110,11 @@ export class gameScene extends Component {
 
   private selectBlocks(blocks: BlockState[]) {
     this.unselectAll();
+
+    if (blocks.length > 0) {
+      this.playGemUpSound();
+    }
+
     this.selectedBlocks = blocks;
     for (const block of blocks) {
       block.selected = true;
@@ -2453,8 +2483,15 @@ export class gameScene extends Component {
   }
 
   private moveNode(node: Node, position: Vec3, duration: number, delay = 0, onComplete?: () => void) {
+    const shouldPlayDown = this.shouldPlayMoveSound(node, position);
+
     tween(node)
       .delay(delay)
+      .call(() => {
+        if (shouldPlayDown) {
+          this.playGemDownSound();
+        }
+      })
       .to(duration, { position: position.clone() }, { easing: "quadOut" })
       .call(() => onComplete?.())
       .start();
