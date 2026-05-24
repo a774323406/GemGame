@@ -3,6 +3,7 @@ import { ResourceManager } from "./framework/ResourceManager";
 
 export enum uiName {
   settingPanel = "settingPanel",
+  tipsPanel = "tipsPanel",
 }
 
 export enum soundName {

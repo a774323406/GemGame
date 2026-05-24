@@ -19,6 +19,7 @@ import {
   VerticalTextAlignment,
 } from "cc";
 import { ResourceManager } from "./framework/ResourceManager";
+import TipsManager from "./framework/TipsManager";
 import { ToolId, ToolInventory } from "./ToolInventory";
 import { mapControl } from "./mapControl";
 
@@ -594,7 +595,7 @@ export class gameScene extends Component {
       slot.node.active = active;
 
       const x = -((TRAY_COLS - 1) * stepX) * 0.5 + col * stepX;
-      const y = ((this.activeTrayRows - 1) * stepY) * 0.5 - row * stepY;
+      const y = (this.activeTrayRows - 1) * stepY * 0.5 - row * stepY;
 
       slot.node.setPosition(x, y);
 
@@ -1049,10 +1050,20 @@ export class gameScene extends Component {
     });
   }
 
+  /**
+   * clearBtn：清理下面所有已经开启的槽位。
+   *
+   * 效果参考视频：
+   * - 处理当前已经开启的所有槽位。
+   * - 把槽位里的钻石，自动移动回上方对应颜色的空白格子。
+   * - 成功移动的槽位会变空。
+   */
   private onBrushClicked() {
-    this.prepareTool("brush", () => {
-      if (this.cleanTray()) ToolInventory.consume("brush");
-    });
+    if (this.inputLocked) {
+      return;
+    }
+
+    this.cleanTray();
   }
 
   private onMagnetClicked() {
@@ -1342,25 +1353,355 @@ export class gameScene extends Component {
     return true;
   }
 
+  /**
+   * clearBtn：清理下面所有已经开启的槽位。
+   *
+   * 这版逻辑更接近你视频里的“帮忙排序”：
+   * 1. 扫描当前已经开启的所有槽位。
+   * 2. 如果槽位里没有钻石，提示“空白格子没有钻石”。
+   * 3. 下面槽位里的钻石会优先移动到上方对应颜色的位置，让它们直接归位。
+   * 4. 如果目标位置已经被错误钻石占着，会先把这个错误钻石挪到上方任意空格。
+   * 5. 被挪走的错误钻石不要求排序好，只要先腾出目标位即可。
+   * 6. 暂时无法归位的槽位钻石会留在槽位里，并重新压缩排序。
+   */
   private cleanTray(): boolean {
-    const trayBlocks = this.traySlots.map((slot) => slot.block).filter((block): block is BlockState => !!block);
-    if (trayBlocks.length === 0) return false;
+    const trayBlocks = this.getAllTrayBlocksForClean();
 
-    let moved = 0;
-    for (const block of trayBlocks) {
-      const tile = this.findEmptyTileForColor(block.color);
-      if (!tile) continue;
-      this.moveBlockToTile(block, tile, moved * 0.05);
-      moved++;
+    if (trayBlocks.length === 0) {
+      TipsManager.Instance.show("空白格子没有钻石");
+      return false;
     }
-    if (moved === 0) return false;
 
+    const operations = this.collectTrayAutoSortOperations(trayBlocks);
+
+    if (operations.length === 0) {
+      /**
+       * 没有可执行操作时，不要一直刷很多条“暂无可放回上方的钻石”。
+       * 保留一次提示，同时把下方槽位压缩一下，让玩家看到 clear 有反馈。
+       */
+      this.sortTrayBlocks();
+      TipsManager.Instance.show("暂无可整理的钻石");
+      return false;
+    }
+
+    this.inputLocked = true;
     this.unselectAll(false);
-    this.scheduleOnce(() => this.checkWin(), 0.35 + moved * 0.05);
+
+    let moveIndex = 0;
+
+    for (const op of operations) {
+      /**
+       * 如果目标格子上有错误钻石，先把它挪到上方空白格子里。
+       * 注意：这个错误钻石不要求归位，只是腾位置。
+       */
+      if (op.displacedBlock && op.bufferTile) {
+        this.moveBlockToTile(op.displacedBlock, op.bufferTile, moveIndex * 0.045);
+        moveIndex++;
+      }
+
+      /**
+       * 再把槽位里的钻石放到它对应颜色的目标格子。
+       */
+      this.moveBlockToTile(op.trayBlock, op.targetTile, moveIndex * 0.045);
+      moveIndex++;
+    }
+
+    this.scheduleOnce(
+      () => {
+        /**
+         * 剩余暂时无法上去的槽位钻石，重新压缩排序到槽位前面。
+         */
+        this.sortTrayBlocks();
+
+        this.inputLocked = false;
+        this.refreshTrayLayout();
+        this.checkWin();
+      },
+      0.35 + moveIndex * 0.045,
+    );
+
     return true;
   }
 
+  /**
+   * 获取当前已经开启的所有托盘槽位中的钻石。
+   */
+  private getAllTrayBlocksForClean(): BlockState[] {
+    return this.traySlots
+      .filter((slot) => this.isTraySlotActive(slot))
+      .map((slot) => slot.block)
+      .filter((block): block is BlockState => !!block && block.location === "tray");
+  }
+
+  /**
+   * clear 自动整理操作。
+   *
+   * trayBlock：下面槽位里准备上去的钻石。
+   * targetTile：它最终要去的正确颜色格子。
+   * displacedBlock：如果 targetTile 上原本有错误钻石，就先挪走它。
+   * bufferTile：错误钻石被挪去的上方空格，不要求颜色正确。
+   */
+  private collectTrayAutoSortOperations(
+    trayBlocks: BlockState[],
+  ): Array<{ trayBlock: BlockState; targetTile: TileState; displacedBlock: BlockState | null; bufferTile: TileState | null }> {
+    const operations: Array<{ trayBlock: BlockState; targetTile: TileState; displacedBlock: BlockState | null; bufferTile: TileState | null }> = [];
+
+    /**
+     * 模拟棋盘占用关系，避免一次 clear 里多个钻石抢同一个格子。
+     */
+    const simulatedBlockAtTile = new Map<TileState, BlockState | null>();
+    const simulatedTileOfBlock = new Map<BlockState, TileState>();
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) {
+          continue;
+        }
+
+        simulatedBlockAtTile.set(tile, tile.block);
+
+        if (tile.block) {
+          simulatedTileOfBlock.set(tile.block, tile);
+        }
+      }
+    }
+
+    /**
+     * clear 时优先处理：
+     * 1. 在槽位里没有左右同色相邻的散乱钻石。
+     * 2. 再处理已经连在一起的钻石。
+     * 3. 同优先级按槽位顺序。
+     */
+    const sortedTrayBlocks = [...trayBlocks].sort((a, b) => {
+      const aPriority = this.getTrayBlockCleanPriority(a);
+      const bPriority = this.getTrayBlockCleanPriority(b);
+
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+
+      return (a.slot?.index ?? 9999) - (b.slot?.index ?? 9999);
+    });
+
+    for (const trayBlock of sortedTrayBlocks) {
+      const targetTile = this.findBestTargetTileForTrayAutoSort(trayBlock.color, simulatedBlockAtTile);
+
+      if (!targetTile) {
+        continue;
+      }
+
+      const occupant = simulatedBlockAtTile.get(targetTile) || null;
+
+      if (!occupant) {
+        /**
+         * 目标格本来就是空的，直接把槽位钻石放上去。
+         */
+        operations.push({
+          trayBlock,
+          targetTile,
+          displacedBlock: null,
+          bufferTile: null,
+        });
+
+        simulatedBlockAtTile.set(targetTile, trayBlock);
+        simulatedTileOfBlock.set(trayBlock, targetTile);
+        continue;
+      }
+
+      /**
+       * 如果目标格已经是正确钻石，就不需要也不能覆盖。
+       */
+      if (occupant.color === targetTile.color) {
+        continue;
+      }
+
+      /**
+       * 目标格被错误钻石占着：
+       * 找一个上方空格把这个错误钻石挪走。
+       * 这个空格不要求颜色正确，只要能腾出目标格即可。
+       */
+      const bufferTile = this.findBestBufferTileForDisplacedBlock(targetTile, simulatedBlockAtTile);
+
+      if (!bufferTile) {
+        continue;
+      }
+
+      operations.push({
+        trayBlock,
+        targetTile,
+        displacedBlock: occupant,
+        bufferTile,
+      });
+
+      simulatedBlockAtTile.set(bufferTile, occupant);
+      simulatedTileOfBlock.set(occupant, bufferTile);
+
+      simulatedBlockAtTile.set(targetTile, trayBlock);
+      simulatedTileOfBlock.set(trayBlock, targetTile);
+    }
+
+    return operations;
+  }
+
+  /**
+   * 找槽位钻石应该归位的目标格。
+   *
+   * 可选目标：
+   * 1. tile.color === color。
+   * 2. 目标格为空，或者目标格上是错误颜色钻石。
+   * 3. 不覆盖已经正确归位的钻石。
+   */
+  private findBestTargetTileForTrayAutoSort(color: number, simulatedBlockAtTile: Map<TileState, BlockState | null>): TileState | null {
+    const candidates: TileState[] = [];
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color !== color) {
+          continue;
+        }
+
+        const block = simulatedBlockAtTile.get(tile) || null;
+
+        /**
+         * 已经正确的格子不动。
+         */
+        if (block && block.color === tile.color) {
+          continue;
+        }
+
+        candidates.push(tile);
+      }
+    }
+
+    if (candidates.length <= 0) {
+      return null;
+    }
+
+    candidates.sort((a, b) => {
+      const aBlock = simulatedBlockAtTile.get(a) || null;
+      const bBlock = simulatedBlockAtTile.get(b) || null;
+
+      /**
+       * 空格优先，其次才是被错误钻石占着的格子。
+       */
+      const aOccupied = aBlock ? 1 : 0;
+      const bOccupied = bBlock ? 1 : 0;
+
+      if (aOccupied !== bOccupied) {
+        return aOccupied - bOccupied;
+      }
+
+      const aPriority = this.getBoardTileAutoSortPriority(a);
+      const bPriority = this.getBoardTileAutoSortPriority(b);
+
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+
+      if (a.row !== b.row) {
+        return a.row - b.row;
+      }
+
+      return a.col - b.col;
+    });
+
+    return candidates[0];
+  }
+
+  /**
+   * 给被挤出来的错误钻石找一个上方空格。
+   *
+   * 这个空格不要求颜色正确，只是作为缓冲位。
+   * 但是不要使用即将被槽位钻石占用的 targetTile。
+   */
+  private findBestBufferTileForDisplacedBlock(targetTile: TileState, simulatedBlockAtTile: Map<TileState, BlockState | null>): TileState | null {
+    const candidates: TileState[] = [];
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0 || tile === targetTile) {
+          continue;
+        }
+
+        const block = simulatedBlockAtTile.get(tile) || null;
+
+        if (block) {
+          continue;
+        }
+
+        candidates.push(tile);
+      }
+    }
+
+    if (candidates.length <= 0) {
+      return null;
+    }
+
+    candidates.sort((a, b) => {
+      /**
+       * 缓冲位优先选普通空格，不强制正确。
+       * 这里按从下到上、从左到右找，尽量不要干扰上方已整理区域。
+       */
+      if (a.row !== b.row) {
+        return b.row - a.row;
+      }
+
+      return a.col - b.col;
+    });
+
+    return candidates[0];
+  }
+
+  /**
+   * 托盘槽位清理优先级。
+   *
+   * 0 = 左右没有同色相邻，优先清理。
+   * 1 = 左右有同色相邻，后清理。
+   *
+   * 只判断同一行内的左右相邻，不跨行判断。
+   */
+  private getTrayBlockCleanPriority(block: BlockState): number {
+    const slotIndex = block.slot?.index;
+
+    if (slotIndex === undefined || slotIndex === null) {
+      return 0;
+    }
+
+    const row = Math.floor(slotIndex / TRAY_COLS);
+    const col = slotIndex % TRAY_COLS;
+
+    const leftSlot = col > 0 ? this.traySlots[slotIndex - 1] : null;
+    const rightSlot = col < TRAY_COLS - 1 ? this.traySlots[slotIndex + 1] : null;
+
+    const leftBlock = leftSlot && Math.floor(leftSlot.index / TRAY_COLS) === row ? leftSlot.block : null;
+    const rightBlock = rightSlot && Math.floor(rightSlot.index / TRAY_COLS) === row ? rightSlot.block : null;
+
+    const hasSameColorNeighbor = leftBlock?.color === block.color || rightBlock?.color === block.color;
+
+    return hasSameColorNeighbor ? 1 : 0;
+  }
+
+  /**
+   * 目标格排序优先级。
+   *
+   * 0 = 周围已有同色正确钻石，优先补这个位置。
+   * 1 = 普通可整理位置。
+   */
+  private getBoardTileAutoSortPriority(tile: TileState): number {
+    for (const [dr, dc] of CONNECTED_DIRECTIONS) {
+      const near = this.tiles[tile.row + dr]?.[tile.col + dc];
+      const nearBlock = near?.block;
+
+      if (nearBlock && nearBlock.color === tile.color && nearBlock.collapsed) {
+        return 0;
+      }
+    }
+
+    return 1;
+  }
+
   private collapseBlocks(blocks: BlockState[]): boolean {
+
     if (blocks.length === 0) return false;
     this.inputLocked = true;
     let operations = 0;
