@@ -4,9 +4,12 @@ import {
   Color,
   Component,
   director,
+  EffectAsset,
   EventTouch,
   Label,
+  Material,
   Node,
+  ParticleSystem2D,
   Prefab,
   Sprite,
   SpriteFrame,
@@ -15,7 +18,9 @@ import {
   instantiate,
   tween,
   UITransform,
+  Vec2,
   Vec3,
+  Vec4,
   HorizontalTextAlignment,
   VerticalTextAlignment,
 } from "cc";
@@ -73,6 +78,8 @@ interface CachedGameAssets {
   selectFrame: SpriteFrame | null;
   traySlotFrame: SpriteFrame | null;
   wandSelectionFrame: SpriteFrame | null;
+  glowEffect: EffectAsset | null;
+  sparkleFrame: SpriteFrame | null;
   tileFrames: Map<number, SpriteFrame>;
   blockFrames: Map<number, SpriteFrame>;
   collapsedFrames: Map<number, SpriteFrame>;
@@ -155,6 +162,21 @@ export class gameScene extends Component {
   @property
   public magicAreaCols = 3;
 
+  @property
+  public selectedGlowStrength = 0.36;
+
+  @property
+  public sortedGlowStrength = 0.5;
+
+  @property
+  public glowRadius = 0.012;
+
+  @property
+  public glowPulseSpeed = 6;
+
+  @property
+  public correctSparkleCount = 2;
+
   private root: Node = null;
   private boardRoot: Node = null;
   private boardBaseRoot: Node = null;
@@ -213,6 +235,10 @@ export class gameScene extends Component {
   private selectFrame: SpriteFrame = null;
   private traySlotFrame: SpriteFrame = null;
   private wandSelectionFrame: SpriteFrame = null;
+  private sparkleFrame: SpriteFrame = null;
+  private glowEffect: EffectAsset = null;
+  private glowMaterials = new Map<number, Material>();
+  private glowFlashTokens = new Map<number, number>();
 
   protected async start() {
     await this.prepareScene();
@@ -358,6 +384,8 @@ export class gameScene extends Component {
     this.selectFrame = assets.selectFrame;
     this.traySlotFrame = assets.traySlotFrame;
     this.wandSelectionFrame = assets.wandSelectionFrame;
+    this.sparkleFrame = assets.sparkleFrame;
+    this.glowEffect = assets.glowEffect;
     this.tileFrames = assets.tileFrames;
     this.blockFrames = assets.blockFrames;
     this.collapsedFrames = assets.collapsedFrames;
@@ -366,7 +394,7 @@ export class gameScene extends Component {
   private async loadSharedAssets(): Promise<CachedGameAssets> {
     await ResourceManager.ins.loadBundle("res");
 
-    const [tilePrefab, blockPrefab, traySlotPrefab, emptyBlockPrefab, selectFrame, traySlotFrame, wandSelectionFrame, colorAssets] = await Promise.all([
+    const [tilePrefab, blockPrefab, traySlotPrefab, emptyBlockPrefab, selectFrame, traySlotFrame, wandSelectionFrame, glowEffect, sparkleFrame, colorAssets] = await Promise.all([
       this.tryLoadPrefab("prefab/Blocks/Tile"),
       this.tryLoadPrefab("prefab/Blocks/Block"),
       this.tryLoadPrefab("prefab/Blocks/TraySlot"),
@@ -374,6 +402,8 @@ export class gameScene extends Component {
       this.tryLoadSprite("texture/Tiles/Tiles/gem_select_fx"),
       this.tryLoadSprite("texture/Trays/TraySlot"),
       this.tryLoadSprite("Images/WandSelectionFrame"),
+      this.tryLoadEffect("effects/GemGlow"),
+      this.tryLoadSprite("texture/UIs/sparkle3"),
       Promise.all(
         COLOR_NAMES.map(async (name, color) => {
           if (color === 0) return null;
@@ -406,6 +436,8 @@ export class gameScene extends Component {
       selectFrame,
       traySlotFrame,
       wandSelectionFrame,
+      glowEffect,
+      sparkleFrame,
       tileFrames,
       blockFrames,
       collapsedFrames,
@@ -430,6 +462,14 @@ export class gameScene extends Component {
       }
     }
     return null;
+  }
+
+  private async tryLoadEffect(path: string): Promise<EffectAsset | null> {
+    try {
+      return await ResourceManager.ins.loadBundleAsset("res", path, EffectAsset);
+    } catch {
+      return null;
+    }
   }
 
   private async loadLevel(levelIndex: number) {
@@ -1125,6 +1165,7 @@ export class gameScene extends Component {
         block.node.setPosition(this.getRaisedTrayBlockPosition(block.slot));
       }
       if (block.selectedFx) block.selectedFx.node.active = false;
+      this.setBlockGlow(block, true, this.selectedGlowStrength);
       block.node.setSiblingIndex(9999);
     }
   }
@@ -1133,6 +1174,7 @@ export class gameScene extends Component {
     for (const block of this.selectedBlocks) {
       block.selected = false;
       block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
+      this.setBlockGlow(block, false);
       if (!resetPosition) {
         if (block.selectedFx) block.selectedFx.node.active = false;
         continue;
@@ -1147,6 +1189,7 @@ export class gameScene extends Component {
     for (const block of this.selectedBlocks) {
       block.selected = false;
       block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
+      this.setBlockGlow(block, false);
       if (!movingBlocks.has(block)) {
         this.resetBlockPosition(block);
       }
@@ -1171,11 +1214,132 @@ export class gameScene extends Component {
     block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
 
     if (block.collapsed && animate) {
+      this.flashBlockGlow(block, this.sortedGlowStrength);
+      this.playCorrectSparkle(block);
       tween(block.node)
         .to(0.08, { scale: new Vec3(1.16, 1.16, 1) })
         .to(0.1, { scale: Vec3.ONE })
         .start();
     }
+  }
+
+  private playCorrectSparkle(block: BlockState) {
+    if (!this.sparkleFrame || !this.blockRoot || !block.node?.isValid) {
+      return;
+    }
+
+    const node = this.createNode(`CorrectSparkle_${block.id}`, this.blockRoot, this.cellSize, this.cellSize);
+    node.setPosition(this.getTilePosition(block.row, block.col));
+    node.setSiblingIndex(10000);
+
+    const particle = node.addComponent(ParticleSystem2D);
+    particle.custom = true;
+    particle.spriteFrame = this.sparkleFrame;
+    particle.totalParticles = Math.max(1, Math.min(2, Math.floor(this.correctSparkleCount || 2)));
+    particle.duration = 0.12;
+    particle.emissionRate = 18;
+    particle.life = 0.42;
+    particle.lifeVar = 0.08;
+    particle.angle = 90;
+    particle.angleVar = 360;
+    particle.posVar = new Vec2(5, 3);
+    particle.speed = 28;
+    particle.speedVar = 10;
+    particle.gravity = new Vec2(0, -24);
+    particle.tangentialAccel = 0;
+    particle.radialAccel = 0;
+    particle.startSize = this.cellSize * 0.22;
+    particle.startSizeVar = this.cellSize * 0.05;
+    particle.endSize = this.cellSize * 0.03;
+    particle.endSizeVar = 0;
+    particle.startSpin = 0;
+    particle.startSpinVar = 120;
+    particle.endSpin = 180;
+    particle.endSpinVar = 160;
+    particle.startColor = new Color(255, 245, 120, 210);
+    particle.startColorVar = new Color(25, 25, 10, 25);
+    particle.endColor = new Color(255, 255, 255, 0);
+    particle.endColorVar = new Color(0, 0, 0, 0);
+    particle.positionType = 2;
+    particle.autoRemoveOnFinish = true;
+    particle.resetSystem();
+
+    this.scheduleOnce(() => {
+      if (node.isValid) {
+        node.destroy();
+      }
+    }, 0.8);
+  }
+
+  private setBlockGlow(block: BlockState, active: boolean, strength = this.selectedGlowStrength) {
+    const sprites = this.getBlockSprites(block);
+
+    if (!active) {
+      this.glowFlashTokens.set(block.id, (this.glowFlashTokens.get(block.id) || 0) + 1);
+      for (const sprite of sprites) {
+        sprite.customMaterial = null;
+        (sprite as any).updateMaterial?.();
+      }
+      return;
+    }
+
+    const material = this.getBlockGlowMaterial(block);
+    if (!material) {
+      return;
+    }
+
+    material.setProperty("glowColor", new Vec4(1, 0.92, 0.25, 1));
+    material.setProperty("glowParams", new Vec4(this.glowRadius, strength, this.glowPulseSpeed, 0.72));
+
+    for (const sprite of sprites) {
+      sprite.customMaterial = material;
+      (sprite as any).updateMaterial?.();
+    }
+  }
+
+  private flashBlockGlow(block: BlockState, strength: number, duration = 0.55) {
+    const token = (this.glowFlashTokens.get(block.id) || 0) + 1;
+    this.glowFlashTokens.set(block.id, token);
+    this.setBlockGlow(block, true, strength);
+
+    this.scheduleOnce(() => {
+      if (!block.node?.isValid || this.glowFlashTokens.get(block.id) !== token) {
+        return;
+      }
+
+      if (block.selected) {
+        this.setBlockGlow(block, true, this.selectedGlowStrength);
+      } else {
+        this.setBlockGlow(block, false);
+      }
+    }, duration);
+  }
+
+  private getBlockGlowMaterial(block: BlockState): Material | null {
+    if (!this.glowEffect) {
+      return null;
+    }
+
+    let material = this.glowMaterials.get(block.id);
+    if (!material) {
+      material = new Material();
+      material.initialize({
+        effectAsset: this.glowEffect,
+        defines: {
+          USE_TEXTURE: true,
+        },
+      });
+      this.glowMaterials.set(block.id, material);
+    }
+
+    return material;
+  }
+
+  private getBlockSprites(block: BlockState): Sprite[] {
+    const sprites: Sprite[] = [];
+    if (block.normalSprite) sprites.push(block.normalSprite);
+    if (block.collapsedSprite) sprites.push(block.collapsedSprite);
+    return sprites;
   }
 
   private onMagicClicked() {
@@ -2517,6 +2681,11 @@ export class gameScene extends Component {
     this.traySlots = [];
     this.selectedBlocks = [];
     this.blockIdSeed = 0;
+    for (const material of this.glowMaterials.values()) {
+      material.destroy();
+    }
+    this.glowMaterials.clear();
+    this.glowFlashTokens.clear();
   }
 
   private clearTraySlots() {
