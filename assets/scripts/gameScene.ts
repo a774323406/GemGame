@@ -179,6 +179,16 @@ export class gameScene extends Component {
   @property
   public correctSparkleCount = 2;
 
+  @property({
+    tooltip: "每关初始时间，单位为秒。",
+  })
+  public levelTimeSeconds = 300;
+
+  @property({
+    tooltip: "观看激励视频复活后增加的时间，单位为秒。",
+  })
+  public reviveBonusSeconds = 180;
+
   private root: Node = null;
   private boardRoot: Node = null;
   private boardBaseRoot: Node = null;
@@ -188,6 +198,7 @@ export class gameScene extends Component {
   private trayRoot: Node = null;
   private hudRoot: Node = null;
   private levelLabel: Label = null;
+  private timerLabel: Label = null;
   private messageLabel: Label = null;
 
   private levelIndex = 1;
@@ -229,6 +240,9 @@ export class gameScene extends Component {
   private magicAreaDidDrag = false;
   private magicAreaStartCenter: { row: number; col: number } | null = null;
   private inputLocked = false;
+  private remainingTime = 0;
+  private timerRunning = false;
+  private lastDisplayedSecond = -1;
   private blockIdSeed = 0;
 
   private tileFrames = new Map<number, SpriteFrame>();
@@ -308,6 +322,9 @@ export class gameScene extends Component {
 
     this.levelLabel = this.createLabel("LevelLabel", this.hudRoot, "", 36);
     this.levelLabel.node.setPosition(0, 575);
+
+    this.timerLabel = this.createLabel("TimerLabel", this.hudRoot, "", 28);
+    this.timerLabel.node.setPosition(0, 530);
 
     this.messageLabel = this.createLabel("MessageLabel", this.hudRoot, "", 42);
     this.messageLabel.node.setPosition(0, 0);
@@ -476,6 +493,7 @@ export class gameScene extends Component {
 
   private async loadLevel(levelIndex: number) {
     this.inputLocked = true;
+    this.timerRunning = false;
     this.clearBoard();
 
     let data = await this.loadLevelData(levelIndex);
@@ -494,8 +512,24 @@ export class gameScene extends Component {
     this.levelLabel.string = `Level ${this.levelIndex}`;
     this.buildBoard();
     this.buildTray();
+    this.remainingTime = Math.max(1, this.levelTimeSeconds);
+    this.lastDisplayedSecond = -1;
+    this.refreshTimerLabel();
     this.inputLocked = false;
+    this.timerRunning = true;
     this.checkWin();
+  }
+
+  protected update(deltaTime: number) {
+    if (!this.timerRunning || this.inputLocked || !this.levelData) return;
+
+    this.remainingTime = Math.max(0, this.remainingTime - deltaTime);
+    this.refreshTimerLabel();
+    if (this.remainingTime > 0) return;
+
+    this.timerRunning = false;
+    this.inputLocked = true;
+    this.openFailPanel();
   }
 
   private async loadLevelData(levelIndex: number): Promise<LevelData | null> {
@@ -1399,10 +1433,16 @@ export class gameScene extends Component {
     });
   }
 
-  private showRewardAdThenRun(action: () => void) {
-    if (this.inputLocked) return;
-    // TODO: Call action() from the real rewarded-ad success callback.
+  private async showRewardAdThenRun(action: () => void, allowWhenLocked = false): Promise<boolean> {
+    if (this.inputLocked && !allowWhenLocked) return false;
+
+    /**
+     * TODO: 在这里接入真实激励视频。
+     * 只有广告 SDK 的 rewarded / completed 回调触发时，才调用 action() 并返回 true。
+     * 编辑器预览阶段先直接模拟观看成功。
+     */
     action();
+    return true;
   }
 
   private enterMagicSelectMode() {
@@ -2488,9 +2528,31 @@ export class gameScene extends Component {
     const complete = this.blocks.every((block) => block.location === "board" && block.collapsed);
     if (!complete) return;
 
+    this.timerRunning = false;
     this.inputLocked = true;
     this.messageLabel.node.active = false;
     this.openPassPanel();
+  }
+
+  private openFailPanel() {
+    const manager = UIManager.instance;
+    if (!manager) return;
+
+    const data = {
+      level: this.levelIndex,
+      bonusSeconds: this.reviveBonusSeconds,
+      onRevive: () =>
+        this.showRewardAdThenRun(() => {
+          this.remainingTime += Math.max(1, this.reviveBonusSeconds);
+          this.lastDisplayedSecond = -1;
+          this.refreshTimerLabel();
+          this.inputLocked = false;
+          this.timerRunning = true;
+        }, true),
+      onHome: () => director.loadScene("MainScene"),
+    };
+
+    manager.open(uiName.failPanel, data, UILayer.Popup);
   }
 
   private openPassPanel() {
@@ -2678,6 +2740,20 @@ export class gameScene extends Component {
   private showMessage(text: string) {
     this.messageLabel.string = text;
     this.messageLabel.node.active = true;
+  }
+
+  private refreshTimerLabel() {
+    if (!this.timerLabel) return;
+
+    const displaySeconds = Math.max(0, Math.ceil(this.remainingTime));
+    if (displaySeconds === this.lastDisplayedSecond) return;
+    this.lastDisplayedSecond = displaySeconds;
+
+    const minutes = Math.floor(displaySeconds / 60);
+    const seconds = displaySeconds % 60;
+    this.timerLabel.string = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    this.timerLabel.color =
+      displaySeconds <= 30 ? new Color(255, 105, 105, 255) : new Color(255, 255, 255, 255);
   }
 
   private clearBoard() {
