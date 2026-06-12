@@ -28,6 +28,8 @@ import { ResourceManager } from "./framework/ResourceManager";
 import TipsManager from "./framework/TipsManager";
 import { ToolId, ToolInventory } from "./ToolInventory";
 import { mapControl } from "./mapControl";
+import UIManager, { UILayer } from "./framework/ui/UIManager";
+import { uiName } from "./gamePrefabMgr";
 
 const { ccclass, property } = _decorator;
 
@@ -2487,13 +2489,25 @@ export class gameScene extends Component {
     if (!complete) return;
 
     this.inputLocked = true;
-    this.showMessage("Complete!");
-    this.scheduleOnce(() => {
-      this.levelIndex++;
-      sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(this.levelIndex));
-      this.messageLabel.node.active = false;
-      this.loadLevel(this.levelIndex);
-    }, 1.1);
+    this.messageLabel.node.active = false;
+    this.openPassPanel();
+  }
+
+  private openPassPanel() {
+    const manager = UIManager.instance;
+    if (!manager) return;
+
+    const data = {
+      level: this.levelIndex,
+      onNext: () => {
+        this.levelIndex++;
+        sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(this.levelIndex));
+        this.loadLevel(this.levelIndex);
+      },
+      onHome: () => director.loadScene("MainScene"),
+    };
+
+    manager.open(uiName.passPanel, data, UILayer.Popup);
   }
 
   private getTilePosition(row: number, col: number): Vec3 {

@@ -4,6 +4,7 @@ import { ResourceManager } from "./framework/ResourceManager";
 export enum uiName {
   settingPanel = "settingPanel",
   tipsPanel = "tipsPanel",
+  passPanel = "passPanel",
 }
 
 export enum soundName {
@@ -14,6 +15,10 @@ export enum soundName {
   up = "up",
   down = "down",
 }
+
+const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
+  [uiName.passPanel]: "65eb9f3d-bf6f-4aee-ad4b-0fa7a52134fa",
+};
 
 type LoadTask = {
   desc: string;
@@ -149,7 +154,14 @@ export default class gamePrefabMgr {
       this.addTask(`加载 UI: ${uiname}`, async () => {
         console.log("[gamePrefabMgr] 开始加载 UI =", uiname, "path =", path);
 
-        const asset = await ResourceManager.ins.loadBundleAsset<Prefab>(bundleName, path, Prefab);
+        let asset: Prefab;
+        try {
+          asset = await ResourceManager.ins.loadBundleAsset<Prefab>(bundleName, path, Prefab);
+        } catch (pathError) {
+          const uuid = UI_PREFAB_UUIDS[uiname as uiName];
+          if (!uuid) throw pathError;
+          asset = await ResourceManager.ins.loadAssetByUuid<Prefab>(uuid);
+        }
 
         if (!asset) {
           throw new Error(`[gamePrefabMgr] UI 资源为空: ${uiname}, path=${path}`);

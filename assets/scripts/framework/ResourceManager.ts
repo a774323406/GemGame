@@ -128,6 +128,18 @@ export class ResourceManager {
     });
   }
 
+  public loadAssetByUuid<T extends Asset>(uuid: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      assetManager.loadAny<T>(uuid, (err, asset) => {
+        if (err || !asset) {
+          reject(err ?? new Error(`load asset by uuid failed: ${uuid}`));
+          return;
+        }
+        resolve(asset);
+      });
+    });
+  }
+
   /**
    * 预加载 bundle 内单个资源
    */
