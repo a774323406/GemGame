@@ -1332,16 +1332,22 @@ export class gameScene extends Component {
   }
 
   private unselectAfterMove(movingBlocks: Set<BlockState>) {
+    const remainingBlocks: BlockState[] = [];
+
     for (const block of this.selectedBlocks) {
+      if (!movingBlocks.has(block)) {
+        remainingBlocks.push(block);
+        continue;
+      }
+
       block.selected = false;
       block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
       this.setBlockGlow(block, false);
-      if (!movingBlocks.has(block)) {
-        this.resetBlockPosition(block);
-      }
       if (block.selectedFx) block.selectedFx.node.active = false;
     }
-    this.selectedBlocks = [];
+
+    // 一次只能放下部分钻石时，其余钻石继续保持抬起，方便连续点击其他坑位。
+    this.selectedBlocks = remainingBlocks;
   }
 
   private resetBlockPosition(block: BlockState) {
