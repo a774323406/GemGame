@@ -30,6 +30,7 @@ import { ToolId, ToolInventory } from "./ToolInventory";
 import { mapControl } from "./mapControl";
 import UIManager, { UILayer } from "./framework/ui/UIManager";
 import { uiName } from "./gamePrefabMgr";
+import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
 
@@ -332,7 +333,8 @@ export class gameScene extends Component {
     this.bindSettingButton();
 
     if (!this.addTrayBtn) {
-      const addTrayBtnNode = this.trayBgRoot?.getChildByName("addTrayBtn") || this.findDeepChild(this.trayBgRoot, "addTrayBtn");
+      const addTrayBtnNode =
+        this.trayBgRoot?.getChildByName("addTrayBtn") || this.findDeepChild(this.trayBgRoot, "addTrayBtn");
       this.addTrayBtn = addTrayBtnNode?.getComponent(Button) || null;
     }
 
@@ -446,9 +448,10 @@ export class gameScene extends Component {
       this.refreshTrayLayout();
       return;
     }
-
-    this.activeTrayRows++;
-    this.refreshTrayLayout();
+    SdkUtils.showADVideo(() => {
+      this.activeTrayRows++;
+      this.refreshTrayLayout();
+    });
   }
 
   private bindBoosterButtons() {
@@ -696,7 +699,11 @@ export class gameScene extends Component {
 
   private buildBoard() {
     const { rows, cols } = this.levelData;
-    this.cellSize = Math.min(this.maxCellSize, (this.boardMaxWidth - (cols - 1) * this.boardCellGap) / cols, (this.boardMaxHeight - (rows - 1) * this.boardCellGap) / rows);
+    this.cellSize = Math.min(
+      this.maxCellSize,
+      (this.boardMaxWidth - (cols - 1) * this.boardCellGap) / cols,
+      (this.boardMaxHeight - (rows - 1) * this.boardCellGap) / rows,
+    );
     this.cellStep = this.cellSize + this.boardCellGap;
 
     const width = (cols - 1) * this.cellStep;
@@ -840,19 +847,44 @@ export class gameScene extends Component {
   }
 
   private createBlock(color: number, row: number, col: number, pos: Vec3): BlockState {
-    const node = this.createPrefabOrNode(this.blockPrefab, `Block_${this.blockIdSeed}`, this.blockRoot, this.cellSize, this.cellSize);
+    const node = this.createPrefabOrNode(
+      this.blockPrefab,
+      `Block_${this.blockIdSeed}`,
+      this.blockRoot,
+      this.cellSize,
+      this.cellSize,
+    );
     node.setPosition(pos);
 
     const visualRoot = this.ensureChildNode(node, "Root");
 
-    const selectedNode = this.ensureSpriteChild(visualRoot, "SelectedFx", this.selectFrame, this.cellSize, this.cellSize, ["Selection"]);
+    const selectedNode = this.ensureSpriteChild(
+      visualRoot,
+      "SelectedFx",
+      this.selectFrame,
+      this.cellSize,
+      this.cellSize,
+      ["Selection"],
+    );
     selectedNode.active = false;
 
-    const normal = this.ensureSpriteChild(visualRoot, "Normal", this.blockFrames.get(color), this.getBoardBlockIconSize(), this.getBoardBlockIconSize(), ["IconView"]).getComponent(Sprite);
+    const normal = this.ensureSpriteChild(
+      visualRoot,
+      "Normal",
+      this.blockFrames.get(color),
+      this.getBoardBlockIconSize(),
+      this.getBoardBlockIconSize(),
+      ["IconView"],
+    ).getComponent(Sprite);
 
-    const collapsed = this.ensureSpriteChild(visualRoot, "Collapsed", this.collapsedFrames.get(color) || this.blockFrames.get(color), this.getBoardBlockIconSize(), this.getBoardBlockIconSize(), [
-      "IconCollapsed",
-    ]).getComponent(Sprite);
+    const collapsed = this.ensureSpriteChild(
+      visualRoot,
+      "Collapsed",
+      this.collapsedFrames.get(color) || this.blockFrames.get(color),
+      this.getBoardBlockIconSize(),
+      this.getBoardBlockIconSize(),
+      ["IconCollapsed"],
+    ).getComponent(Sprite);
     collapsed.node.active = false;
 
     const block: BlockState = {
@@ -1496,9 +1528,11 @@ export class gameScene extends Component {
 
   private onMagicClicked() {
     if (this.inputLocked) return;
-    this.prepareTool("magic", () => {
-      this.magicUses = ToolInventory.getCount("magic");
-      this.enterMagicSelectMode();
+    SdkUtils.showADVideo(() => {
+      this.prepareTool("magic", () => {
+        this.magicUses = ToolInventory.getCount("magic");
+        this.enterMagicSelectMode();
+      });
     });
   }
 
@@ -1514,8 +1548,9 @@ export class gameScene extends Component {
     if (this.inputLocked) {
       return;
     }
-
-    this.cleanTray();
+    SdkUtils.showADVideo(() => {
+      this.cleanTray();
+    });
   }
 
   /**
@@ -1529,11 +1564,13 @@ export class gameScene extends Component {
    * 4. 不会把下面槽位钻石直接放到上方空格，因为那会减少下面槽位上的钻石数量。
    */
   private onMagnetClicked() {
-    this.prepareTool("magnet", () => {
-      if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT)) {
-        ToolInventory.consume("magnet");
-        this.refreshToolBadges();
-      }
+    SdkUtils.showADVideo(() => {
+      this.prepareTool("magnet", () => {
+        if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT)) {
+          ToolInventory.consume("magnet");
+          this.refreshToolBadges();
+        }
+      });
     });
   }
 
@@ -1568,7 +1605,7 @@ export class gameScene extends Component {
     this.magicUses = ToolInventory.getCount("magic");
     this.magicSelecting = this.magicUses > 0;
     if (!this.magicSelecting) return;
-    this.showMessage("Drag Area");
+    this.showMessage("请选择区域");
     this.ensureMagicAreaNode();
     const center = this.getDefaultMagicAreaCenter();
     if (!center) return;
@@ -1735,7 +1772,7 @@ export class gameScene extends Component {
     if (!this.magicAreaStartCenter) return;
     this.moveMagicAreaTo(this.magicAreaStartCenter.row, this.magicAreaStartCenter.col);
     this.magicAreaDidDrag = false;
-    this.showMessage("Drag Area");
+    this.showMessage("请选择区域");
   }
 
   private sortMagicArea(tiles: TileState[]): boolean {
@@ -1914,8 +1951,18 @@ export class gameScene extends Component {
    * displacedBlock：如果 targetTile 上原本有错误钻石，就先挪走它。
    * bufferTile：错误钻石被挪去的上方空格，不要求颜色正确。
    */
-  private collectTrayAutoSortOperations(trayBlocks: BlockState[]): Array<{ trayBlock: BlockState; targetTile: TileState; displacedBlock: BlockState | null; bufferTile: TileState | null }> {
-    const operations: Array<{ trayBlock: BlockState; targetTile: TileState; displacedBlock: BlockState | null; bufferTile: TileState | null }> = [];
+  private collectTrayAutoSortOperations(trayBlocks: BlockState[]): Array<{
+    trayBlock: BlockState;
+    targetTile: TileState;
+    displacedBlock: BlockState | null;
+    bufferTile: TileState | null;
+  }> {
+    const operations: Array<{
+      trayBlock: BlockState;
+      targetTile: TileState;
+      displacedBlock: BlockState | null;
+      bufferTile: TileState | null;
+    }> = [];
 
     /**
      * 模拟棋盘占用关系，避免一次 clear 里多个钻石抢同一个格子。
@@ -2022,7 +2069,10 @@ export class gameScene extends Component {
    * 2. 目标格为空，或者目标格上是错误颜色钻石。
    * 3. 不覆盖已经正确归位的钻石。
    */
-  private findBestTargetTileForTrayAutoSort(color: number, simulatedBlockAtTile: Map<TileState, BlockState | null>): TileState | null {
+  private findBestTargetTileForTrayAutoSort(
+    color: number,
+    simulatedBlockAtTile: Map<TileState, BlockState | null>,
+  ): TileState | null {
     const candidates: TileState[] = [];
 
     for (const row of this.tiles) {
@@ -2085,7 +2135,10 @@ export class gameScene extends Component {
    * 这个空格不要求颜色正确，只是作为缓冲位。
    * 但是不要使用即将被槽位钻石占用的 targetTile。
    */
-  private findBestBufferTileForDisplacedBlock(targetTile: TileState, simulatedBlockAtTile: Map<TileState, BlockState | null>): TileState | null {
+  private findBestBufferTileForDisplacedBlock(
+    targetTile: TileState,
+    simulatedBlockAtTile: Map<TileState, BlockState | null>,
+  ): TileState | null {
     const candidates: TileState[] = [];
 
     for (const row of this.tiles) {
@@ -2277,7 +2330,12 @@ export class gameScene extends Component {
         continue;
       }
 
-      const source = this.findMagnetSourceForTarget(targetTile, simulatedBlockAtTile, simulatedTileOfBlock, simulatedSlotOfBlock);
+      const source = this.findMagnetSourceForTarget(
+        targetTile,
+        simulatedBlockAtTile,
+        simulatedTileOfBlock,
+        simulatedSlotOfBlock,
+      );
 
       if (!source) {
         continue;
@@ -2476,7 +2534,12 @@ export class gameScene extends Component {
   /**
    * 应用上方棋盘内的磁铁整理。
    */
-  private applyMagnetBoardOperation(block: BlockState | null, fromTile: TileState, targetTile: TileState, delay: number) {
+  private applyMagnetBoardOperation(
+    block: BlockState | null,
+    fromTile: TileState,
+    targetTile: TileState,
+    delay: number,
+  ) {
     if (!block || !fromTile || !targetTile || fromTile === targetTile) {
       return;
     }
@@ -2504,8 +2567,12 @@ export class gameScene extends Component {
       block.node.setSiblingIndex(9999);
       occupant.node.setSiblingIndex(9998);
 
-      this.moveNode(block.node, this.getNodePositionInBlockRoot(targetTile.node), 0.24, delay, () => this.updateCollapse(block, true));
-      this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromTile.node), 0.24, delay, () => this.updateCollapse(occupant, true));
+      this.moveNode(block.node, this.getNodePositionInBlockRoot(targetTile.node), 0.24, delay, () =>
+        this.updateCollapse(block, true),
+      );
+      this.moveNode(occupant.node, this.getNodePositionInBlockRoot(fromTile.node), 0.24, delay, () =>
+        this.updateCollapse(occupant, true),
+      );
       return;
     }
 
@@ -2520,7 +2587,13 @@ export class gameScene extends Component {
    * trayBlock 上去归位，displacedBlock 下来占用原来的 fromSlot。
    * 这样槽位上的钻石数量保持不变。
    */
-  private applyMagnetTraySwapOperation(trayBlock: BlockState | null, fromSlot: TraySlotState, targetTile: TileState, displacedBlock: BlockState, delay: number) {
+  private applyMagnetTraySwapOperation(
+    trayBlock: BlockState | null,
+    fromSlot: TraySlotState,
+    targetTile: TileState,
+    displacedBlock: BlockState,
+    delay: number,
+  ) {
     if (!trayBlock || !fromSlot || !targetTile || !displacedBlock) {
       return;
     }
@@ -2552,7 +2625,9 @@ export class gameScene extends Component {
     trayBlock.node.setSiblingIndex(9999);
 
     this.moveNode(displacedBlock.node, this.getNodePositionInTrayRoot(fromSlot.node), 0.24, delay);
-    this.moveNode(trayBlock.node, this.getNodePositionInBlockRoot(targetTile.node), 0.24, delay, () => this.updateCollapse(trayBlock, true));
+    this.moveNode(trayBlock.node, this.getNodePositionInBlockRoot(targetTile.node), 0.24, delay, () =>
+      this.updateCollapse(trayBlock, true),
+    );
   }
 
   private collapseBlocks(blocks: BlockState[]): boolean {
@@ -2874,9 +2949,10 @@ export class gameScene extends Component {
 
     const minutes = Math.floor(displaySeconds / 60);
     const seconds = displaySeconds % 60;
-    this.timerLabel.string = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    this.timerLabel.color =
-      displaySeconds <= 30 ? new Color(255, 92, 92, 255) : this.timerNormalColor;
+    const minuteText = minutes < 10 ? `0${minutes}` : String(minutes);
+    const secondText = seconds < 10 ? `0${seconds}` : String(seconds);
+    this.timerLabel.string = `${minuteText}:${secondText}`;
+    this.timerLabel.color = displaySeconds <= 30 ? new Color(255, 92, 92, 255) : this.timerNormalColor;
   }
 
   private clearBoard() {
@@ -2952,7 +3028,13 @@ export class gameScene extends Component {
 
   private createBoardBaseNode(row: number, col: number): Node {
     const size = this.getBoardBaseSize();
-    const node = this.createPrefabOrNode(this.traySlotPrefab, `BoardBase_${row}_${col}`, this.boardBaseRoot, size, size);
+    const node = this.createPrefabOrNode(
+      this.traySlotPrefab,
+      `BoardBase_${row}_${col}`,
+      this.boardBaseRoot,
+      size,
+      size,
+    );
     const view = this.findDeepChild(node, "View") || node;
     this.applySprite(view, this.boardBaseFrame, size, size, new Color(255, 255, 255, 95));
     return node;
@@ -3014,7 +3096,14 @@ export class gameScene extends Component {
     return node;
   }
 
-  private ensureSpriteChild(parent: Node, name: string, frame: SpriteFrame | null, width: number, height: number, aliases: string[] = []): Node {
+  private ensureSpriteChild(
+    parent: Node,
+    name: string,
+    frame: SpriteFrame | null,
+    width: number,
+    height: number,
+    aliases: string[] = [],
+  ): Node {
     let node = parent.getChildByName(name);
     if (!node) {
       for (const alias of aliases) {

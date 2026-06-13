@@ -1,6 +1,7 @@
 import { _decorator, Component, ProgressBar, director } from "cc";
 import AudioManager from "./framework/AudioManager";
 import gamePrefabMgr from "./gamePrefabMgr";
+import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
 
@@ -15,6 +16,7 @@ export class loadScene extends Component {
   private hasEnteredMainScene: boolean = false;
 
   start() {
+    SdkUtils.requireSDK();
     if (this.loading) {
       this.loading.progress = 0;
     }
