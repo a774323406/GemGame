@@ -6,6 +6,7 @@ export enum uiName {
   tipsPanel = "tipsPanel",
   passPanel = "passPanel",
   failPanel = "failPanel",
+  rewardPanel = "rewardPanel",
 }
 
 export enum soundName {
@@ -20,6 +21,7 @@ export enum soundName {
 const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
   [uiName.passPanel]: "65eb9f3d-bf6f-4aee-ad4b-0fa7a52134fa",
   [uiName.failPanel]: "531ebd07-e609-43e5-95d5-f1924f345cf6",
+  [uiName.rewardPanel]: "f3072c33-e0bf-4d2b-a3a3-d1405c37a1f1",
 };
 
 type LoadTask = {
