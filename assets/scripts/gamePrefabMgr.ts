@@ -13,7 +13,6 @@ export enum soundName {
   bgm = "bgm",
   buttonClick = "buttonClick",
   fail = "fail",
-  levelBgm = "levelBgm",
   up = "up",
   down = "down",
 }

@@ -2845,7 +2845,7 @@ export class gameScene extends Component {
       this.feedPauseApplied = false;
       this.inputLocked = false;
       this.timerRunning = true;
-      AudioManager.playMusic(soundName.levelBgm);
+      // AudioManager.playMusic(soundName.levelBgm);
       return;
     }
 
@@ -2857,7 +2857,7 @@ export class gameScene extends Component {
     } else {
       this.inputLocked = false;
       this.timerRunning = true;
-      AudioManager.playMusic(soundName.levelBgm);
+      // AudioManager.playMusic(soundName.levelBgm);
     }
   }
 

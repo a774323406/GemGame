@@ -121,7 +121,7 @@ export class settingPanel extends UIBase {
   }
   private playBgmByEnterType() {
     if (this.enterType === 1) {
-      AudioManager.playMusic(soundName.levelBgm);
+      // AudioManager.playMusic(soundName.levelBgm);
       return;
     }
 

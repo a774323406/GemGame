@@ -79,6 +79,8 @@ export class failPanel extends UIBase {
   private formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remainSeconds = seconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(remainSeconds).padStart(2, "0")}`;
+    const minuteText = minutes < 10 ? `0${minutes}` : String(minutes);
+    const secondText = remainSeconds < 10 ? `0${remainSeconds}` : String(remainSeconds);
+    return `${minuteText}:${secondText}`;
   }
 }

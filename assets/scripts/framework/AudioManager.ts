@@ -145,7 +145,7 @@ export default class AudioManager {
     director.on(
       "levelBgm",
       () => {
-        this.playMusic(soundName.levelBgm);
+        // this.playMusic(soundName.levelBgm);
       },
       this,
     );
@@ -179,7 +179,7 @@ export default class AudioManager {
    * - 背景音乐建议单独调用 playMusic，或者用特殊事件映射
    */
   private static registerSoundNameEvents() {
-    const musicSet = new Set<string>([soundName.bgm, soundName.levelBgm]);
+    // const musicSet = new Set<string>([soundName.bgm, soundName.levelBgm]);
 
     for (const key in soundName) {
       const eventName = (soundName as any)[key] as soundName;
@@ -188,9 +188,9 @@ export default class AudioManager {
        * 跳过 BGM。
        * 因为 BGM 要走 playMusic，不是 playEffect。
        */
-      if (musicSet.has(eventName)) {
-        continue;
-      }
+      // if (musicSet.has(eventName)) {
+      //   continue;
+      // }
 
       director.on(
         eventName,
@@ -209,9 +209,14 @@ export default class AudioManager {
    *
    * 这里不用强依赖 soundName 枚举，避免你只新增了 res/sound/up、res/sound/down
    * 但忘记改 enum 时导致没有监听。
-   */
+  */
   private static registerGemMoveSoundEvents() {
-    const soundEvents = new Set<string>(Object.values(soundName as any) as string[]);
+    const soundEvents = new Set<string>();
+    for (const key in soundName) {
+      if (Object.prototype.hasOwnProperty.call(soundName, key)) {
+        soundEvents.add((soundName as any)[key] as string);
+      }
+    }
 
     if (!soundEvents.has("up")) {
       director.on(
