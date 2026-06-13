@@ -22,12 +22,12 @@ export class mainScene extends Component {
   sidebarBtn: Button = null;
 
   protected onLoad(): void {
-    this.startBtn?.node.on("click", this.startGame, this);
-    this.clearBtn?.node.on(Node.EventType.TOUCH_END, this.clearData, this);
-    this.settingBtn?.node.on(Node.EventType.TOUCH_END, this.showSettingPanel, this);
-    this.sidebarBtn?.node.on(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
+    this.startBtn?.node?.on("click", this.startGame, this);
+    this.clearBtn?.node?.on(Node.EventType.TOUCH_END, this.clearData, this);
+    this.settingBtn?.node?.on(Node.EventType.TOUCH_END, this.showSettingPanel, this);
+    this.sidebarBtn?.node?.on(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
 
-    if (this.sidebarBtn) {
+    if (this.sidebarBtn?.node) {
       this.sidebarBtn.node.active = false;
     }
     SidebarRewardService.addListener(this.onSidebarStateChanged);
@@ -36,7 +36,7 @@ export class mainScene extends Component {
   }
 
   protected onDestroy(): void {
-    this.sidebarBtn?.node.off(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
+    this.sidebarBtn?.node?.off(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
   }
   startGame() {

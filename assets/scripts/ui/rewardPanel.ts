@@ -20,13 +20,13 @@ export class rewardPanel extends UIBase {
   public statusLabel: Label = null;
 
   protected onLoad() {
-    this.closeBtn?.node.on(Button.EventType.CLICK, this.onClose, this);
-    this.actionBtn?.node.on(Button.EventType.CLICK, this.onActionClicked, this);
+    this.closeBtn?.node?.on(Button.EventType.CLICK, this.onClose, this);
+    this.actionBtn?.node?.on(Button.EventType.CLICK, this.onActionClicked, this);
   }
 
   protected onDestroy() {
-    this.closeBtn?.node.off(Button.EventType.CLICK, this.onClose, this);
-    this.actionBtn?.node.off(Button.EventType.CLICK, this.onActionClicked, this);
+    this.closeBtn?.node?.off(Button.EventType.CLICK, this.onClose, this);
+    this.actionBtn?.node?.off(Button.EventType.CLICK, this.onActionClicked, this);
     SidebarRewardService.removeListener(this.onStateChanged);
   }
 
