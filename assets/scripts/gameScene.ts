@@ -29,7 +29,14 @@ import TipsManager from "./framework/TipsManager";
 import { ToolId, ToolInventory } from "./ToolInventory";
 import { mapControl } from "./mapControl";
 import UIManager, { UILayer } from "./framework/ui/UIManager";
-import { uiName } from "./gamePrefabMgr";
+import AudioManager from "./framework/AudioManager";
+import { soundName, uiName } from "./gamePrefabMgr";
+import PlayData from "./data/PlayData";
+import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
+import {
+  FeedAcquisitionService,
+  FeedAcquisitionState,
+} from "./framework/Platform/FeedAcquisitionService";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
@@ -260,6 +267,12 @@ export class gameScene extends Component {
   private timerRunning = false;
   private lastDisplayedSecond = -1;
   private blockIdSeed = 0;
+  private feedMode = false;
+  private feedSceneReady = false;
+  private feedHasStarted = false;
+  private feedPauseApplied = false;
+  private inputLockedBeforeFeedPause = false;
+  private timerRunningBeforeFeedPause = false;
 
   private tileFrames = new Map<number, SpriteFrame>();
   private blockFrames = new Map<number, SpriteFrame>();
@@ -274,10 +287,25 @@ export class gameScene extends Component {
   private glowFlashTokens = new Map<number, number>();
 
   protected async start() {
+    FeedAcquisitionService.init();
+    this.feedMode = FeedAcquisitionService.isActive();
+    if (this.feedMode) {
+      FeedAcquisitionService.addListener(this.onFeedStateChanged);
+    }
+
     await this.prepareScene();
     await this.loadAssets();
-    this.levelIndex = Math.max(1, Number(sys.localStorage.getItem(STORAGE_LEVEL_KEY) || this.startLevel));
+    this.levelIndex = this.feedMode
+      ? Math.max(1, this.startLevel)
+      : Math.max(1, Number(sys.localStorage.getItem(STORAGE_LEVEL_KEY) || this.startLevel));
     await this.loadLevel(this.levelIndex);
+
+    if (this.feedMode) {
+      this.feedSceneReady = true;
+      this.applyFeedState(FeedAcquisitionService.getState());
+      this.bindFeedFallbackTouch();
+      FeedAcquisitionService.reportSceneReady();
+    }
   }
 
   private async prepareScene() {
@@ -405,7 +433,8 @@ export class gameScene extends Component {
         },
         onBack: () => {
           this.finishSettingsPause(false);
-          director.loadScene("MainScene");
+          this.finishFeedExperience();
+          void GameSceneBundle.loadScene(GameSceneName.Main);
         },
       },
       UILayer.Popup,
@@ -612,7 +641,9 @@ export class gameScene extends Component {
     let data = await this.loadLevelData(levelIndex);
     if (!data && levelIndex !== 1) {
       this.levelIndex = 1;
-      sys.localStorage.setItem(STORAGE_LEVEL_KEY, "1");
+      if (!this.feedMode) {
+        sys.localStorage.setItem(STORAGE_LEVEL_KEY, "1");
+      }
       data = await this.loadLevelData(1);
     }
 
@@ -628,8 +659,9 @@ export class gameScene extends Component {
     this.remainingTime = Math.max(1, this.levelTimeSeconds);
     this.lastDisplayedSecond = -1;
     this.refreshTimerLabel();
-    this.inputLocked = false;
-    this.timerRunning = true;
+    const waitingForFeedEnter = this.feedMode && !FeedAcquisitionService.getState().entered;
+    this.inputLocked = waitingForFeedEnter;
+    this.timerRunning = !waitingForFeedEnter;
     this.checkWin();
   }
 
@@ -2750,7 +2782,10 @@ export class gameScene extends Component {
           this.inputLocked = false;
           this.timerRunning = true;
         }, true),
-      onHome: () => director.loadScene("MainScene"),
+      onHome: () => {
+        this.finishFeedExperience();
+        void GameSceneBundle.loadScene(GameSceneName.Main);
+      },
     };
 
     manager.open(uiName.failPanel, data, UILayer.Popup);
@@ -2763,14 +2798,100 @@ export class gameScene extends Component {
     const data = {
       level: this.levelIndex,
       onNext: () => {
+        this.finishFeedExperience();
         this.levelIndex++;
         sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(this.levelIndex));
         this.loadLevel(this.levelIndex);
       },
-      onHome: () => director.loadScene("MainScene"),
+      onHome: () => {
+        this.finishFeedExperience();
+        void GameSceneBundle.loadScene(GameSceneName.Main);
+      },
     };
 
     manager.open(uiName.passPanel, data, UILayer.Popup);
+  }
+
+  private onFeedStateChanged = (state: FeedAcquisitionState) => {
+    this.applyFeedState(state);
+  };
+
+  private applyFeedState(state: FeedAcquisitionState) {
+    if (!this.feedMode || !this.feedSceneReady) return;
+
+    if (state.exited) {
+      if (this.feedHasStarted && !this.feedPauseApplied) {
+        this.feedPauseApplied = true;
+        this.inputLockedBeforeFeedPause = this.inputLocked;
+        this.timerRunningBeforeFeedPause = this.timerRunning;
+      }
+      this.inputLocked = true;
+      this.timerRunning = false;
+      PlayData.Instance.ispause = true;
+      AudioManager.pauseAll();
+      return;
+    }
+
+    if (!state.entered) {
+      this.inputLocked = true;
+      this.timerRunning = false;
+      PlayData.Instance.ispause = true;
+      return;
+    }
+
+    PlayData.Instance.ispause = false;
+    if (!this.feedHasStarted) {
+      this.feedHasStarted = true;
+      this.feedPauseApplied = false;
+      this.inputLocked = false;
+      this.timerRunning = true;
+      AudioManager.playMusic(soundName.levelBgm);
+      return;
+    }
+
+    if (this.feedPauseApplied) {
+      this.inputLocked = this.inputLockedBeforeFeedPause;
+      this.timerRunning = this.timerRunningBeforeFeedPause;
+      this.feedPauseApplied = false;
+      AudioManager.resumeAll();
+    } else {
+      this.inputLocked = false;
+      this.timerRunning = true;
+      AudioManager.playMusic(soundName.levelBgm);
+    }
+  }
+
+  private bindFeedFallbackTouch() {
+    const state = FeedAcquisitionService.getState();
+    if (!this.feedMode || state.statusApiSupported) return;
+    this.node.on(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+  }
+
+  private onFeedFallbackTouch() {
+    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    FeedAcquisitionService.activateFromFirstTouch();
+  }
+
+  private finishFeedExperience() {
+    if (!this.feedMode) return;
+
+    this.feedMode = false;
+    this.feedSceneReady = false;
+    this.feedHasStarted = false;
+    this.feedPauseApplied = false;
+    PlayData.Instance.ispause = false;
+    FeedAcquisitionService.removeListener(this.onFeedStateChanged);
+    FeedAcquisitionService.completeSession();
+    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+  }
+
+  protected onDestroy() {
+    FeedAcquisitionService.removeListener(this.onFeedStateChanged);
+    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    this.mapControl?.node?.off(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
+    if (this.feedMode) {
+      FeedAcquisitionService.completeSession();
+    }
   }
 
   private getTilePosition(row: number, col: number): Vec3 {

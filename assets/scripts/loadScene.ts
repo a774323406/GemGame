@@ -1,6 +1,8 @@
-import { _decorator, Component, ProgressBar, director } from "cc";
+import { _decorator, Component, ProgressBar } from "cc";
 import AudioManager from "./framework/AudioManager";
 import gamePrefabMgr from "./gamePrefabMgr";
+import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
+import { FeedAcquisitionService } from "./framework/Platform/FeedAcquisitionService";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
@@ -13,10 +15,11 @@ export class loadScene extends Component {
   private progressTimer: any = null;
   private currentProgress: number = 0;
   private targetProgress: number = 0;
-  private hasEnteredMainScene: boolean = false;
+  private hasEnteredNextScene: boolean = false;
 
   start() {
     SdkUtils.requireSDK();
+    FeedAcquisitionService.init();
     if (this.loading) {
       this.loading.progress = 0;
     }
@@ -65,6 +68,7 @@ export class loadScene extends Component {
        * 因为那样 gamePrefabMgr 无法统计真实进度。
        */
       await gamePrefabMgr.Instance.loadBundle("res");
+      await gamePrefabMgr.Instance.loadBundle("gamescene");
 
       /**
        * 如果以后有其他 bundle，就继续写：
@@ -81,11 +85,16 @@ export class loadScene extends Component {
        */
       await gamePrefabMgr.Instance.loadDefaultAssets();
 
-      console.log("[loadScene] 所有资源加载完成，准备进入 MainScene");
+      const isFeedAcquisition = FeedAcquisitionService.isActive();
+      console.log(
+        `[loadScene] 所有资源加载完成，准备进入 ${isFeedAcquisition ? "GameScene（获客模式）" : "MainScene"}`,
+      );
 
-      AudioManager.playDefaultBgm();
+      if (!isFeedAcquisition) {
+        AudioManager.playDefaultBgm();
+      }
 
-      this.enterMainScene();
+      await this.enterNextScene();
     } catch (err) {
       console.error("[loadScene] 加载失败：", err);
     }
@@ -94,12 +103,12 @@ export class loadScene extends Component {
   /**
    * 进入主场景
    */
-  private enterMainScene() {
-    if (this.hasEnteredMainScene) {
+  private async enterNextScene() {
+    if (this.hasEnteredNextScene) {
       return;
     }
 
-    this.hasEnteredMainScene = true;
+    this.hasEnteredNextScene = true;
 
     this.targetProgress = 1;
     this.currentProgress = 1;
@@ -110,7 +119,9 @@ export class loadScene extends Component {
 
     this.clearProgressTimer();
 
-    director.loadScene("MainScene");
+    await GameSceneBundle.loadScene(
+      FeedAcquisitionService.isActive() ? GameSceneName.Game : GameSceneName.Main,
+    );
   }
 
   private clearProgressTimer() {

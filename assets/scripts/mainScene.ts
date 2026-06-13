@@ -1,7 +1,8 @@
-import { _decorator, Button, Component, director, Label, Node } from "cc";
+import { _decorator, Button, Component, Label, Node } from "cc";
 import UIManager from "./framework/ui/UIManager";
 import { uiName } from "./gamePrefabMgr";
 import { SidebarRewardService, SidebarRewardState } from "./framework/Platform/SidebarRewardService";
+import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 const { ccclass, property } = _decorator;
 
 @ccclass("mainScene")
@@ -39,8 +40,19 @@ export class mainScene extends Component {
     this.sidebarBtn?.node?.off(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
   }
-  startGame() {
-    director.loadScene("GameScene");
+  async startGame() {
+    if (this.startBtn) {
+      this.startBtn.interactable = false;
+    }
+
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.Game);
+    } catch (err) {
+      console.error("[mainScene] GameScene 加载失败", err);
+      if (this.startBtn) {
+        this.startBtn.interactable = true;
+      }
+    }
   }
   clearData() {
     localStorage.clear();
