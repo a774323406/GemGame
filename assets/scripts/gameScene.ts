@@ -1657,18 +1657,25 @@ export class gameScene extends Component {
   }
 
   private ensureMagicAreaNode() {
+    const parent = this.getMagicAreaParent();
+
     if (this.magicAreaNode) {
+      if (this.magicAreaNode.parent !== parent) {
+        this.changeParentKeepWorldPosition(this.magicAreaNode, parent);
+      }
       this.drawMagicAreaNode();
+      this.magicAreaNode.setSiblingIndex(parent.children.length - 1);
       return;
     }
 
-    this.magicAreaNode = this.createNode("MagicArea", this.getMagicAreaParent(), 1, 1);
+    this.magicAreaNode = this.createNode("MagicArea", parent, 1, 1);
     this.magicAreaNode.addComponent(Sprite);
     this.magicAreaNode.on(Node.EventType.TOUCH_START, this.onMagicAreaTouchStart, this);
     this.magicAreaNode.on(Node.EventType.TOUCH_MOVE, this.onMagicAreaTouchMove, this);
     this.magicAreaNode.on(Node.EventType.TOUCH_END, this.onMagicAreaTouchEnd, this);
     this.magicAreaNode.on(Node.EventType.TOUCH_CANCEL, this.onMagicAreaTouchEnd, this);
     this.drawMagicAreaNode();
+    this.magicAreaNode.setSiblingIndex(parent.children.length - 1);
   }
 
   private drawMagicAreaNode() {
@@ -2824,9 +2831,11 @@ export class gameScene extends Component {
   private getMagicAreaParent(): Node {
     /**
      * 魔法框是棋盘选择区域，必须跟着棋盘一起缩放 / 拖动。
-     * 所以不要放到 HudRoot。
+     * 它放在 GameRoot 下并位于 BlockRoot 后面：
+     * - 仍会跟随棋盘整体缩放 / 拖动。
+     * - 不会再被 BlockRoot 中的钻石遮挡。
      */
-    return this.tileRoot || this.root || this.node;
+    return this.root || this.tileRoot || this.node;
   }
 
   private getTouchPositionInMagicAreaParent(event: EventTouch): Vec3 | null {
