@@ -79,6 +79,7 @@ interface CachedGameAssets {
   traySlotPrefab: Prefab | null;
   selectFrame: SpriteFrame | null;
   traySlotFrame: SpriteFrame | null;
+  boardBaseFrame: SpriteFrame | null;
   wandSelectionFrame: SpriteFrame | null;
   glowEffect: EffectAsset | null;
   sparkleFrame: SpriteFrame | null;
@@ -147,6 +148,10 @@ export class gameScene extends Component {
 
   @property(Prefab)
   public traySlotPrefab: Prefab = null;
+
+  @property(Button)
+  public settingBtn: Button = null;
+
   @property(Button)
   public magicBtn: Button = null;
   @property(Button)
@@ -158,6 +163,16 @@ export class gameScene extends Component {
 
   @property(Button)
   public addTrayBtn: Button = null; //添加tray槽
+
+  @property(Label)
+  public levelLabel: Label = null;
+
+  @property(Label)
+  public timerLabel: Label = null;
+
+  @property(Label)
+  public messageLabel: Label = null;
+
   @property
   public magicAreaRows = 3;
 
@@ -197,9 +212,7 @@ export class gameScene extends Component {
   private trayBgRoot: Node = null;
   private trayRoot: Node = null;
   private hudRoot: Node = null;
-  private levelLabel: Label = null;
-  private timerLabel: Label = null;
-  private messageLabel: Label = null;
+  private timerNormalColor = Color.WHITE.clone();
 
   private levelIndex = 1;
   private levelData: LevelData = null;
@@ -222,14 +235,13 @@ export class gameScene extends Component {
   private cellSize = 54;
   private cellStep = 54;
   private boardOrigin = new Vec3();
-  private readonly trayMaxWidth = 670;
+  private readonly trayMaxWidth = 650;
   private traySlotSize = 38;
   private readonly traySlotGap = 0;
   private readonly trayRowGap = 4;
-  private readonly trayY = -285;
-  private readonly trayBgPaddingX = 36;
-  private readonly trayBgPaddingY = 78;
-  private readonly trayAddButtonBottom = 16;
+  private readonly trayBgPaddingX = 30;
+  private readonly trayBgPaddingY = 62;
+  private readonly trayAddButtonGap = 22;
   private activeTrayRows = 1;
   private magicUses = 0;
   private magicSelecting = false;
@@ -240,6 +252,9 @@ export class gameScene extends Component {
   private magicAreaDidDrag = false;
   private magicAreaStartCenter: { row: number; col: number } | null = null;
   private inputLocked = false;
+  private settingsOpen = false;
+  private inputLockedBeforeSettings = false;
+  private timerRunningBeforeSettings = false;
   private remainingTime = 0;
   private timerRunning = false;
   private lastDisplayedSecond = -1;
@@ -250,6 +265,7 @@ export class gameScene extends Component {
   private collapsedFrames = new Map<number, SpriteFrame>();
   private selectFrame: SpriteFrame = null;
   private traySlotFrame: SpriteFrame = null;
+  private boardBaseFrame: SpriteFrame = null;
   private wandSelectionFrame: SpriteFrame = null;
   private sparkleFrame: SpriteFrame = null;
   private glowEffect: EffectAsset = null;
@@ -296,7 +312,7 @@ export class gameScene extends Component {
      * HudRoot 不放进 mapControl / GameRoot。
      * 否则 LevelLabel / MessageLabel 会跟着棋盘缩放和拖动。
      */
-    this.hudRoot = this.node.getChildByName("HudRoot") || this.createNode("HudRoot", this.node, DESIGN_WIDTH, DESIGN_HEIGHT);
+    this.hudRoot = this.node.getChildByName("HudRoot");
 
     /**
      * 托盘和底部按钮不放进 GameRoot。
@@ -307,28 +323,27 @@ export class gameScene extends Component {
      *   trays        // 只放空白槽位和移动到托盘的钻石
      *   addTrayBtn   // 增加一行空白槽按钮
      */
-    this.trayBgRoot = this.node.getChildByName("trayBG") || this.createNode("trayBG", this.node, DESIGN_WIDTH, 120);
-    this.trayBgRoot.setPosition(0, this.trayY);
+    this.trayBgRoot = this.node.getChildByName("trayBG");
+    this.trayRoot = this.trayBgRoot?.getChildByName("trays") || null;
 
-    this.trayRoot = this.trayBgRoot.getChildByName("trays") || this.createNode("trays", this.trayBgRoot, this.trayMaxWidth, 120);
-    this.trayRoot.setPosition(0, 0);
+    if (!this.settingBtn) {
+      this.settingBtn = this.node.getChildByName("settingBtn")?.getComponent(Button) || null;
+    }
+    this.bindSettingButton();
 
     if (!this.addTrayBtn) {
-      const addTrayBtnNode = this.trayBgRoot.getChildByName("addTrayBtn") || this.findDeepChild(this.trayBgRoot, "addTrayBtn");
+      const addTrayBtnNode = this.trayBgRoot?.getChildByName("addTrayBtn") || this.findDeepChild(this.trayBgRoot, "addTrayBtn");
       this.addTrayBtn = addTrayBtnNode?.getComponent(Button) || null;
     }
 
     this.bindAddTrayButton();
 
-    this.levelLabel = this.createLabel("LevelLabel", this.hudRoot, "", 36);
-    this.levelLabel.node.setPosition(0, 575);
-
-    this.timerLabel = this.createLabel("TimerLabel", this.hudRoot, "", 28);
-    this.timerLabel.node.setPosition(0, 530);
-
-    this.messageLabel = this.createLabel("MessageLabel", this.hudRoot, "", 42);
-    this.messageLabel.node.setPosition(0, 0);
-    this.messageLabel.node.active = false;
+    this.levelLabel ||= this.findDeepChild(this.hudRoot, "LevelLabel")?.getComponent(Label) || null;
+    this.timerLabel ||= this.findDeepChild(this.hudRoot, "TimerLabel")?.getComponent(Label) || null;
+    this.messageLabel ||= this.findDeepChild(this.hudRoot, "MessageLabel")?.getComponent(Label) || null;
+    if (this.timerLabel) {
+      this.timerNormalColor = this.timerLabel.color.clone();
+    }
 
     /**
      * 棋盘点击只监听 mapControl 节点，不再监听整个 gameScene。
@@ -347,6 +362,70 @@ export class gameScene extends Component {
     this.magicBtn?.node.on("click", this.onMagicClicked, this);
     this.clearBtn?.node.on("click", this.onBrushClicked, this);
     this.magnetBtn?.node.on("click", this.onMagnetClicked, this);
+  }
+
+  private bindSettingButton() {
+    if (!this.settingBtn) {
+      return;
+    }
+
+    this.settingBtn.node.off("click", this.onSettingClicked, this);
+    this.settingBtn.node.on("click", this.onSettingClicked, this);
+
+    // 棋盘和 HUD 会在运行时调整层级，设置按钮始终放在 Canvas 最上层接收点击。
+    this.settingBtn.node.setSiblingIndex(this.node.children.length - 1);
+  }
+
+  private onSettingClicked() {
+    if (this.settingsOpen) {
+      return;
+    }
+
+    const manager = UIManager.instance;
+    if (!manager) {
+      return;
+    }
+
+    this.settingsOpen = true;
+    this.inputLockedBeforeSettings = this.inputLocked;
+    this.timerRunningBeforeSettings = this.timerRunning;
+    this.inputLocked = true;
+    this.timerRunning = false;
+
+    const panel = manager.open(
+      uiName.settingPanel,
+      {
+        enterType: 1,
+        onClose: () => this.finishSettingsPause(),
+        onRetry: () => {
+          this.finishSettingsPause(false);
+          this.loadLevel(this.levelIndex);
+        },
+        onBack: () => {
+          this.finishSettingsPause(false);
+          director.loadScene("MainScene");
+        },
+      },
+      UILayer.Popup,
+    );
+
+    if (!panel) {
+      this.finishSettingsPause();
+    }
+  }
+
+  private finishSettingsPause(restoreGameState = true) {
+    if (!this.settingsOpen) {
+      return;
+    }
+
+    this.settingsOpen = false;
+    if (restoreGameState) {
+      this.inputLocked = this.inputLockedBeforeSettings;
+      this.timerRunning = this.timerRunningBeforeSettings;
+    }
+    this.inputLockedBeforeSettings = false;
+    this.timerRunningBeforeSettings = false;
   }
 
   private bindAddTrayButton() {
@@ -377,15 +456,10 @@ export class gameScene extends Component {
     const buttons = bottom ? bottom.children.filter((child) => child.getComponent(Button)) : [];
 
     const binds = [() => this.onMagicClicked(), () => this.onBrushClicked(), () => this.onMagnetClicked()];
-    const names = ["Magic", "Brush", "Magnet"];
-
     for (let i = 0; i < Math.min(buttons.length, binds.length); i++) {
       const btn = buttons[i].getComponent(Button);
       buttons[i].off(Node.EventType.TOUCH_END);
       btn.node.on("click", binds[i], this);
-
-      const title = this.createLabel(`${names[i]}Label`, buttons[i], names[i], 18);
-      title.node.setPosition(0, -46);
     }
   }
 
@@ -402,23 +476,58 @@ export class gameScene extends Component {
 
     this.selectFrame = assets.selectFrame;
     this.traySlotFrame = assets.traySlotFrame;
+    this.boardBaseFrame = assets.boardBaseFrame;
     this.wandSelectionFrame = assets.wandSelectionFrame;
     this.sparkleFrame = assets.sparkleFrame;
     this.glowEffect = assets.glowEffect;
     this.tileFrames = assets.tileFrames;
     this.blockFrames = assets.blockFrames;
     this.collapsedFrames = assets.collapsedFrames;
+    this.refreshToolBadges();
+  }
+
+  private refreshToolBadges() {
+    const tools: Array<{ button: Button; tool: ToolId }> = [
+      { button: this.magicBtn, tool: "magic" },
+      { button: this.clearBtn, tool: "brush" },
+      { button: this.magnetBtn, tool: "magnet" },
+    ];
+
+    for (const { button, tool } of tools) {
+      if (!button?.node) continue;
+      const count = ToolInventory.getCount(tool);
+      const countBadge = button.node.getChildByName("CountBadge");
+      const adBadge = button.node.getChildByName("AdBadge");
+      const countLabel = countBadge?.getChildByName("Count")?.getComponent(Label);
+
+      if (countBadge) countBadge.active = count > 0;
+      if (adBadge) adBadge.active = count <= 0;
+      if (countLabel) countLabel.string = String(count);
+    }
   }
 
   private async loadSharedAssets(): Promise<CachedGameAssets> {
     await ResourceManager.ins.loadBundle("res");
 
-    const [tilePrefab, blockPrefab, traySlotPrefab, emptyBlockPrefab, selectFrame, traySlotFrame, wandSelectionFrame, glowEffect, sparkleFrame, colorAssets] = await Promise.all([
+    const [
+      tilePrefab,
+      blockPrefab,
+      traySlotPrefab,
+      emptyBlockPrefab,
+      selectFrame,
+      traySlotFrame,
+      boardBaseFrame,
+      wandSelectionFrame,
+      glowEffect,
+      sparkleFrame,
+      colorAssets,
+    ] = await Promise.all([
       this.tryLoadPrefab("prefab/Blocks/Tile"),
       this.tryLoadPrefab("prefab/Blocks/Block"),
       this.tryLoadPrefab("prefab/Blocks/TraySlot"),
       this.tryLoadPrefab("prefab/Blocks/EmptyBlock"),
       this.tryLoadSprite("texture/Tiles/Tiles/gem_select_fx"),
+      this.tryLoadSprite("texture/Trays/game_tray_slot_v2"),
       this.tryLoadSprite("texture/Trays/TraySlot"),
       this.tryLoadSprite("Images/WandSelectionFrame"),
       this.tryLoadEffect("effects/GemGlow"),
@@ -454,6 +563,7 @@ export class gameScene extends Component {
       traySlotPrefab,
       selectFrame,
       traySlotFrame,
+      boardBaseFrame,
       wandSelectionFrame,
       glowEffect,
       sparkleFrame,
@@ -509,7 +619,7 @@ export class gameScene extends Component {
     }
 
     this.levelData = data;
-    this.levelLabel.string = `Level ${this.levelIndex}`;
+    if (this.levelLabel) this.levelLabel.string = `LEVEL ${this.levelIndex}`;
     this.buildBoard();
     this.buildTray();
     this.remainingTime = Math.max(1, this.levelTimeSeconds);
@@ -722,7 +832,7 @@ export class gameScene extends Component {
     const bgTransform = this.trayBgRoot.getComponent(UITransform);
     const bgHeight = bgTransform?.height || 0;
 
-    this.addTrayBtn.node.setPosition(0, -bgHeight * 0.5 + this.trayAddButtonBottom);
+    this.addTrayBtn.node.setPosition(0, -bgHeight * 0.5 - this.trayAddButtonGap);
   }
 
   private isTraySlotActive(slot: TraySlotState): boolean {
@@ -1416,6 +1526,7 @@ export class gameScene extends Component {
     this.prepareTool("magnet", () => {
       if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT)) {
         ToolInventory.consume("magnet");
+        this.refreshToolBadges();
       }
     });
   }
@@ -1429,6 +1540,7 @@ export class gameScene extends Component {
 
     this.showRewardAdThenRun(() => {
       ToolInventory.add(tool);
+      this.refreshToolBadges();
       onReady();
     });
   }
@@ -1478,10 +1590,11 @@ export class gameScene extends Component {
       this.resetMagicAreaToStart();
       return;
     }
+    this.refreshToolBadges();
 
     this.magicSelecting = false;
     this.magicUses = ToolInventory.getCount("magic");
-    this.messageLabel.node.active = false;
+    if (this.messageLabel) this.messageLabel.node.active = false;
     if (this.magicAreaNode) this.magicAreaNode.active = false;
   }
 
@@ -2530,7 +2643,7 @@ export class gameScene extends Component {
 
     this.timerRunning = false;
     this.inputLocked = true;
-    this.messageLabel.node.active = false;
+    if (this.messageLabel) this.messageLabel.node.active = false;
     this.openPassPanel();
   }
 
@@ -2738,6 +2851,10 @@ export class gameScene extends Component {
   }
 
   private showMessage(text: string) {
+    if (!this.messageLabel) {
+      console.warn(`[gameScene] ${text}`);
+      return;
+    }
     this.messageLabel.string = text;
     this.messageLabel.node.active = true;
   }
@@ -2753,7 +2870,7 @@ export class gameScene extends Component {
     const seconds = displaySeconds % 60;
     this.timerLabel.string = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     this.timerLabel.color =
-      displaySeconds <= 30 ? new Color(255, 105, 105, 255) : new Color(255, 255, 255, 255);
+      displaySeconds <= 30 ? new Color(255, 92, 92, 255) : this.timerNormalColor;
   }
 
   private clearBoard() {
@@ -2831,7 +2948,7 @@ export class gameScene extends Component {
     const size = this.getBoardBaseSize();
     const node = this.createPrefabOrNode(this.traySlotPrefab, `BoardBase_${row}_${col}`, this.boardBaseRoot, size, size);
     const view = this.findDeepChild(node, "View") || node;
-    this.applySprite(view, this.traySlotFrame, size, size, new Color(255, 255, 255, 95));
+    this.applySprite(view, this.boardBaseFrame, size, size, new Color(255, 255, 255, 95));
     return node;
   }
 
@@ -2926,7 +3043,8 @@ export class gameScene extends Component {
     sprite.color = frame ? Color.WHITE : fallbackColor;
   }
 
-  private findDeepChild(parent: Node, name: string): Node | null {
+  private findDeepChild(parent: Node | null, name: string): Node | null {
+    if (!parent) return null;
     for (const child of parent.children) {
       if (child.name === name) return child;
       const found = this.findDeepChild(child, name);

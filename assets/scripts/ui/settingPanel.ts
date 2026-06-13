@@ -22,8 +22,17 @@ export class settingPanel extends UIBase {
   @property(Toggle)
   shakeBtn: Toggle | null = null;
   enterType: number = 0; //进入方式 0:主界面 1:游戏界面
+  private closeCallback: (() => void) | null = null;
+  private retryCallback: (() => void) | null = null;
+  private backCallback: (() => void) | null = null;
+  private actionHandled = false;
 
   public onOpen(data?: any): void {
+    this.actionHandled = false;
+    this.closeCallback = typeof data?.onClose === "function" ? data.onClose : null;
+    this.retryCallback = typeof data?.onRetry === "function" ? data.onRetry : null;
+    this.backCallback = typeof data?.onBack === "function" ? data.onBack : null;
+
     if (data) {
       this.enterType = data.enterType;
 
@@ -41,7 +50,7 @@ export class settingPanel extends UIBase {
     if (this.soundBtn) {
       this.soundBtn.isChecked = gameStorage.getSound() == 1;
     }
-    PlayData.Instance.ispause = false;
+    PlayData.Instance.ispause = this.enterType === 1;
   }
   protected onLoad(): void {
     this.closeBtn.node.on(Node.EventType.TOUCH_END, this.onClose, this);
@@ -53,9 +62,33 @@ export class settingPanel extends UIBase {
   }
 
   start() {}
-  onBack() {}
 
-  onRetry() {}
+  public onClose() {
+    if (!this.actionHandled) {
+      this.actionHandled = true;
+      PlayData.Instance.ispause = false;
+      this.closeCallback?.();
+    }
+    super.onClose();
+  }
+
+  onBack() {
+    if (this.actionHandled) return;
+
+    this.actionHandled = true;
+    PlayData.Instance.ispause = false;
+    super.onClose();
+    this.backCallback?.();
+  }
+
+  onRetry() {
+    if (this.actionHandled) return;
+
+    this.actionHandled = true;
+    PlayData.Instance.ispause = false;
+    super.onClose();
+    this.retryCallback?.();
+  }
 
   onMusicClick(toggle: ToggleComponent) {
     if (toggle.isChecked) {

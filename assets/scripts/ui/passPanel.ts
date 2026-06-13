@@ -1,4 +1,4 @@
-import { _decorator, Button, Label, Sprite, SpriteFrame, tween, Vec3 } from "cc";
+import { _decorator, Button, Label, Size, Sprite, SpriteFrame, tween, UITransform, Vec3 } from "cc";
 import { ResourceManager } from "../framework/ResourceManager";
 import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import UIManager from "../framework/ui/UIManager";
@@ -33,10 +33,16 @@ export class passPanel extends UIBase {
 
   private requestToken = 0;
   private data: PassPanelData = null;
+  private previewBounds = new Size();
 
   protected onLoad() {
     this.nextButton?.node.on(Button.EventType.CLICK, this.onNext, this);
     this.homeButton?.node.on(Button.EventType.CLICK, this.onHome, this);
+
+    const previewTransform = this.previewSprite?.node.getComponent(UITransform);
+    if (previewTransform) {
+      this.previewBounds.set(previewTransform.width, previewTransform.height);
+    }
   }
 
   protected onDestroy() {
@@ -65,9 +71,24 @@ export class passPanel extends UIBase {
       );
       if (token !== this.requestToken || !this.previewSprite?.node?.isValid) return;
       this.previewSprite.spriteFrame = frame;
+      this.fitPreviewToBounds(frame);
     } catch (err) {
       console.warn(`[passPanel] PreviewLevel${level} 加载失败`, err);
     }
+  }
+
+  private fitPreviewToBounds(frame: SpriteFrame) {
+    const transform = this.previewSprite?.node.getComponent(UITransform);
+    if (!transform) return;
+
+    const sourceSize = frame.originalSize;
+    const sourceWidth = Math.max(1, sourceSize.width);
+    const sourceHeight = Math.max(1, sourceSize.height);
+    const maxWidth = Math.max(1, this.previewBounds.width || transform.width);
+    const maxHeight = Math.max(1, this.previewBounds.height || transform.height);
+    const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight, 1);
+
+    transform.setContentSize(sourceWidth * scale, sourceHeight * scale);
   }
 
   private playCelebration() {
