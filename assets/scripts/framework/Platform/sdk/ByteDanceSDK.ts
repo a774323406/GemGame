@@ -3,7 +3,7 @@ import { BaseSDK } from "./BaseSDK";
 import { GlobalTool } from "./GlobalTool";
 import { View } from "cc";
 
-//字节跟抖音
+//字节跟抖�?
 export class ByteDanceSDK extends BaseSDK {
   TAG = `ByteDanceSDK`;
   public isInited = false;
@@ -123,33 +123,66 @@ export class ByteDanceSDK extends BaseSDK {
     this.videCanelCB = null;
   }
 
+  private rewardedVideoResultDispatched: boolean = false;
+
   showADVideo(cb?: Function, failCB?: Function) {
-    this.log("showADVideo start1111");
+    this.log("showADVideo start");
     this.videFinishCB = cb;
     this.videCanelCB = failCB;
-    // 激励视频
+    this.rewardedVideoResultDispatched = false;
     GlobalTool.isPlayingAD = true;
+
+    if (typeof tt === "undefined" || !tt.createRewardedVideoAd) {
+      this.warn("tt.createRewardedVideoAd unavailable");
+      this.finishRewardedVideo(false);
+      return;
+    }
 
     const videoAd = tt.createRewardedVideoAd({
       adUnitId: this.adUnitId,
     });
+
     videoAd.onLoad(() => {
-      videoAd.show();
-      console.log("广告加载完成");
+      const showResult = videoAd.show();
+      showResult?.catch?.((err) => {
+        this.warn("rewarded video show failed", err);
+        this.finishRewardedVideo(false);
+      });
     });
-    videoAd.load();
-    function listener(res) {
-      if (res.isEnded) {
-        cb && cb();
-      }
-      if (res.count) {
-        //在支持多例模式的版本上会返回该字段，并且是否返回该字段与multiton是否为true无关
-        //判断观看了几次广告
-      }
-    }
-    videoAd.onClose(listener);
+
+    videoAd.onError?.((err) => {
+      this.warn("rewarded video error", err);
+      this.finishRewardedVideo(false);
+    });
+
+    const loadResult = videoAd.load();
+    loadResult?.catch?.((err) => {
+      this.warn("rewarded video load failed", err);
+      this.finishRewardedVideo(false);
+    });
+
+    videoAd.onClose((res) => {
+      this.finishRewardedVideo(!!res?.isEnded);
+    });
   }
 
+  private finishRewardedVideo(isEnded: boolean) {
+    if (this.rewardedVideoResultDispatched) {
+      return;
+    }
+
+    this.rewardedVideoResultDispatched = true;
+    GlobalTool.isPlayingAD = false;
+    GlobalTool.setWatchADTime();
+    this.setBrightness(1);
+
+    if (isEnded) {
+      this.onVideoFinished();
+      return;
+    }
+
+    this.onVideCanceled();
+  }
   setBrightness(val: number) {
     //@ts-ignore
     /*window.qg.setScreenBrightness({

@@ -341,6 +341,9 @@ export default class AudioManager {
        * 避免切场景回 StartScene 时 BGM 从头开始。
        */
       if (this.bgmAudioSource.clip === clip) {
+        if (!(this.bgmAudioSource as any).playing) {
+          this.bgmAudioSource.play();
+        }
         return;
       }
 
@@ -366,6 +369,9 @@ export default class AudioManager {
       }
 
       if (this.bgmAudioSource.clip === retryClip) {
+        if (!(this.bgmAudioSource as any).playing) {
+          this.bgmAudioSource.play();
+        }
         return;
       }
 
@@ -514,6 +520,11 @@ export default class AudioManager {
 
     if (this.bgmAudioSource && this.bgmAudioSource.clip) {
       this.bgmAudioSource.play();
+      setTimeout(() => {
+        if (this.canPlayMusic() && this.bgmAudioSource?.clip && !(this.bgmAudioSource as any).playing) {
+          this.bgmAudioSource.play();
+        }
+      }, 300);
       return;
     }
 
