@@ -17,6 +17,7 @@ import {
   TextAsset,
   instantiate,
   tween,
+  UIOpacity,
   UITransform,
   Vec2,
   Vec3,
@@ -191,7 +192,7 @@ export class gameScene extends Component {
   public selectedGlowStrength = 0.36;
 
   @property
-  public sortedGlowStrength = 0.5;
+  public sortedGlowStrength = 0.22;
 
   @property
   public glowRadius = 0.012;
@@ -200,7 +201,7 @@ export class gameScene extends Component {
   public glowPulseSpeed = 6;
 
   @property
-  public correctSparkleCount = 2;
+  public correctSparkleCount = 10;
 
   @property({
     tooltip: "每关初始时间，单位为秒。",
@@ -1430,7 +1431,7 @@ export class gameScene extends Component {
     block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
 
     if (block.collapsed && animate) {
-      this.flashBlockGlow(block, this.sortedGlowStrength);
+      this.flashBlockGlow(block, this.sortedGlowStrength, 0.32);
       this.playCorrectSparkle(block);
       tween(block.node)
         .to(0.08, { scale: new Vec3(1.16, 1.16, 1) })
@@ -1451,40 +1452,84 @@ export class gameScene extends Component {
     const particle = node.addComponent(ParticleSystem2D);
     particle.custom = true;
     particle.spriteFrame = this.sparkleFrame;
-    particle.totalParticles = Math.max(1, Math.min(2, Math.floor(this.correctSparkleCount || 2)));
-    particle.duration = 0.12;
-    particle.emissionRate = 18;
-    particle.life = 0.42;
-    particle.lifeVar = 0.08;
+    particle.totalParticles = Math.max(6, Math.min(18, Math.floor(this.correctSparkleCount || 10)));
+    particle.duration = 0.42;
+    particle.emissionRate = 26;
+    particle.life = 0.52;
+    particle.lifeVar = 0.16;
     particle.angle = 90;
     particle.angleVar = 360;
-    particle.posVar = new Vec2(5, 3);
-    particle.speed = 28;
-    particle.speedVar = 10;
-    particle.gravity = new Vec2(0, -24);
+    particle.posVar = new Vec2(this.cellSize * 0.32, this.cellSize * 0.28);
+    particle.speed = this.cellSize * 0.78;
+    particle.speedVar = this.cellSize * 0.32;
+    particle.gravity = new Vec2(0, -this.cellSize * 0.45);
     particle.tangentialAccel = 0;
     particle.radialAccel = 0;
-    particle.startSize = this.cellSize * 0.22;
-    particle.startSizeVar = this.cellSize * 0.05;
-    particle.endSize = this.cellSize * 0.03;
+    particle.startSize = this.cellSize * 0.06;
+    particle.startSizeVar = this.cellSize * 0.025;
+    particle.endSize = this.cellSize * 0.01;
     particle.endSizeVar = 0;
     particle.startSpin = 0;
-    particle.startSpinVar = 120;
-    particle.endSpin = 180;
-    particle.endSpinVar = 160;
-    particle.startColor = new Color(255, 245, 120, 210);
-    particle.startColorVar = new Color(25, 25, 10, 25);
+    particle.startSpinVar = 240;
+    particle.endSpin = 260;
+    particle.endSpinVar = 260;
+    particle.startColor = new Color(255, 248, 120, 245);
+    particle.startColorVar = new Color(20, 20, 35, 10);
     particle.endColor = new Color(255, 255, 255, 0);
     particle.endColorVar = new Color(0, 0, 0, 0);
     particle.positionType = 2;
     particle.autoRemoveOnFinish = true;
     particle.resetSystem();
 
+    this.playCorrectStarBursts(block);
+
     this.scheduleOnce(() => {
       if (node.isValid) {
         node.destroy();
       }
-    }, 0.8);
+    }, 1);
+  }
+
+  private playCorrectStarBursts(block: BlockState) {
+    const center = this.getTilePosition(block.row, block.col);
+    const radius = this.cellSize * 0.34;
+    const offsets = [
+      new Vec3(-radius, radius * 0.45, 0),
+      new Vec3(radius * 0.55, radius * 0.75, 0),
+      new Vec3(radius * 0.82, -radius * 0.28, 0),
+      new Vec3(-radius * 0.45, -radius * 0.78, 0),
+    ];
+
+    for (let i = 0; i < offsets.length; i++) {
+      const size = this.cellSize * (i % 2 === 0 ? 0.1 : 0.085);
+      const star = this.createSpriteNode(`CorrectStar_${block.id}_${i}`, this.blockRoot, this.sparkleFrame, size, size);
+      star.setPosition(center.x + offsets[i].x, center.y + offsets[i].y, 0);
+      star.setSiblingIndex(10001 + i);
+      star.setScale(new Vec3(0.15, 0.15, 1));
+      star.angle = i * 35;
+
+      const opacity = star.addComponent(UIOpacity);
+      opacity.opacity = 0;
+      const delay = i * 0.06;
+
+      tween(opacity)
+        .delay(delay)
+        .to(0.08, { opacity: 255 })
+        .delay(0.2)
+        .to(0.18, { opacity: 0 })
+        .start();
+
+      tween(star)
+        .delay(delay)
+        .to(0.12, { scale: new Vec3(0.8, 0.8, 1), angle: star.angle + 45 }, { easing: "backOut" })
+        .to(0.26, { scale: new Vec3(0.25, 0.25, 1), angle: star.angle + 130 }, { easing: "quadOut" })
+        .call(() => {
+          if (star.isValid) {
+            star.destroy();
+          }
+        })
+        .start();
+    }
   }
 
   private setBlockGlow(block: BlockState, active: boolean, strength = this.selectedGlowStrength) {
@@ -3139,6 +3184,8 @@ export class gameScene extends Component {
     const node = this.createNode(name, parent, width, height);
     const sprite = node.addComponent(Sprite);
     sprite.spriteFrame = frame;
+    sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    node.getComponent(UITransform).setContentSize(width, height);
     if (!frame) sprite.color = new Color(255, 255, 255, 60);
     return node;
   }
