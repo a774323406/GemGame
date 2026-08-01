@@ -18,8 +18,9 @@ export class BaseSDK {
     cb && cb();
   }
 
-  showADVideo(cb?: Function, failCB?: Function) {
+  showADVideo(cb?: Function, failCB?: Function, shownCB?: Function) {
     console.log("[BaseSDK] mock rewarded video success");
+    shownCB && shownCB();
     cb && cb();
   }
 

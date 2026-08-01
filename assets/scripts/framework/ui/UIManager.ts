@@ -9,6 +9,7 @@ export enum UILayer {
   Popup = "Popup",
   Top = "Top",
   Tips = "Tips",
+  Guide = "Guide",
 }
 
 @ccclass("UIManager")
@@ -300,6 +301,12 @@ export default class UIManager extends Component {
     }
 
     return node;
+  }
+
+  /** 获取指定 UI 层，供运行时创建的全屏引导/加载节点使用。 */
+  public getLayerNode(layer: UILayer): Node | null {
+    this.ensureSceneUIRoot();
+    return this.layerMap.get(layer) || null;
   }
 
   /**

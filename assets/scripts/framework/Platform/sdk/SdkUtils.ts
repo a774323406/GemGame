@@ -1,6 +1,7 @@
 /*
  * @author: wch
  */
+import { director, Director } from "cc";
 import { BaseSDK } from "./BaseSDK";
 import { ByteDanceSDK } from "./ByteDanceSDK";
 import { EnvTool } from "./EnvTool";
@@ -11,11 +12,13 @@ import AudioManager from "../../AudioManager";
 import PlayData from "../../../data/PlayData";
 import gameStorage from "../../gameStorage";
 import { GameConfig } from "../../../GameConfig";
+import { adLoadPanel } from "../../../ui/adLoadPanel";
 
 export class SdkUtils {
   static sdk: BaseSDK = null;
   private static adPauseCount: number = 0;
   private static pauseBeforeAd: boolean = false;
+  private static rewardedVideoBusy: boolean = false;
   static isSDKEnvironment(): boolean {
     return !!this.sdk && this.sdk.constructor !== BaseSDK;
   }
@@ -54,40 +57,73 @@ export class SdkUtils {
   static login(cb?: Function) {
     SdkUtils.sdk.login(cb);
   }
-  static showADVideo(cb?: Function, failCB?: Function) {
+  static showADVideo(cb?: Function, failCB?: Function): boolean {
     if (!SdkUtils.sdk) {
       SdkUtils.requireSDK();
     }
     if (!GameConfig.showAd) {
       cb && cb();
-      return;
+      return true;
     }
+    if (SdkUtils.rewardedVideoBusy) {
+      console.warn("[SdkUtils] 激励视频正在加载或播放，本次重复请求已忽略");
+      failCB && failCB();
+      return false;
+    }
+
+    SdkUtils.rewardedVideoBusy = true;
     SdkUtils.enterAdPause();
+    adLoadPanel.show();
 
     let finished = false;
+    let adShown = false;
+    const onAdShown = () => {
+      if (adShown) return;
+      adShown = true;
+      adLoadPanel.hide();
+    };
     const finish = (callback?: Function) => {
       if (finished) {
         return;
       }
 
       finished = true;
+      SdkUtils.rewardedVideoBusy = false;
+      adLoadPanel.hide();
       SdkUtils.leaveAdPause();
       callback && callback();
     };
 
-    try {
-      SdkUtils.sdk.showADVideo(
-        () => {
-          finish(cb);
-        },
-        () => {
-          finish(failCB);
-        },
+    // 先让遮罩完整渲染一帧，再拉起抖音原生广告。
+    director.once(Director.EVENT_END_FRAME, () => {
+      try {
+        SdkUtils.sdk.showADVideo(
+          () => finish(cb),
+          () => finish(failCB),
+          onAdShown,
+        );
+      } catch (err) {
+        console.warn("[SdkUtils] showADVideo failed", err);
+        finish(failCB);
+      }
+    });
+
+    return true;
+  }
+
+  /** Promise 版本：只有完整看完广告时才返回 true。 */
+  static showRewardedVideo(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const started = SdkUtils.showADVideo(
+        () => resolve(true),
+        () => resolve(false),
       );
-    } catch (err) {
-      console.warn("[SdkUtils] showADVideo failed", err);
-      finish(failCB);
-    }
+      if (!started) resolve(false);
+    });
+  }
+
+  static isRewardedVideoBusy(): boolean {
+    return SdkUtils.rewardedVideoBusy;
   }
 
   static showADBanner(callback?: Function) {

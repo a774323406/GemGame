@@ -3,7 +3,7 @@ import { BaseSDK } from "./BaseSDK";
 import { GlobalTool } from "./GlobalTool";
 import { View } from "cc";
 
-//字节跟抖�?
+// 字节跳动/抖音小游戏 SDK
 export class ByteDanceSDK extends BaseSDK {
   TAG = `ByteDanceSDK`;
   public isInited = false;
@@ -125,12 +125,18 @@ export class ByteDanceSDK extends BaseSDK {
 
   private rewardedVideoResultDispatched: boolean = false;
 
-  showADVideo(cb?: Function, failCB?: Function) {
+  showADVideo(cb?: Function, failCB?: Function, shownCB?: Function) {
     this.log("showADVideo start");
     this.videFinishCB = cb;
     this.videCanelCB = failCB;
     this.rewardedVideoResultDispatched = false;
     GlobalTool.isPlayingAD = true;
+    let shownDispatched = false;
+    const notifyShown = () => {
+      if (shownDispatched) return;
+      shownDispatched = true;
+      shownCB && shownCB();
+    };
 
     if (typeof tt === "undefined" || !tt.createRewardedVideoAd) {
       this.warn("tt.createRewardedVideoAd unavailable");
@@ -143,11 +149,22 @@ export class ByteDanceSDK extends BaseSDK {
     });
 
     videoAd.onLoad(() => {
-      const showResult = videoAd.show();
-      showResult?.catch?.((err) => {
+      try {
+        const showResult = videoAd.show();
+        if (showResult?.then) {
+          showResult
+            .then(() => notifyShown())
+            .catch((err) => {
+              this.warn("rewarded video show failed", err);
+              this.finishRewardedVideo(false);
+            });
+        } else {
+          notifyShown();
+        }
+      } catch (err) {
         this.warn("rewarded video show failed", err);
         this.finishRewardedVideo(false);
-      });
+      }
     });
 
     videoAd.onError?.((err) => {
@@ -162,7 +179,8 @@ export class ByteDanceSDK extends BaseSDK {
     });
 
     videoAd.onClose((res) => {
-      this.finishRewardedVideo(!!res?.isEnded);
+      // 兼容旧基础库：关闭回调没有 res 时按完整观看处理。
+      this.finishRewardedVideo(res === undefined || !!res?.isEnded);
     });
   }
 

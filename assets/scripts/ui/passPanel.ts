@@ -10,6 +10,9 @@ export interface PassPanelData {
   level: number;
   onNext: () => void;
   onHome: () => void;
+  title?: string;
+  levelText?: string;
+  nextText?: string;
 }
 
 @ccclass("passPanel")
@@ -34,6 +37,7 @@ export class passPanel extends UIBase {
   private requestToken = 0;
   private data: PassPanelData = null;
   private previewBounds = new Size();
+  private actionHandled = false;
 
   protected onLoad() {
     this.nextButton?.node.on(Button.EventType.CLICK, this.onNext, this);
@@ -52,10 +56,26 @@ export class passPanel extends UIBase {
 
   public onOpen(data?: PassPanelData) {
     this.data = data || null;
+    this.actionHandled = false;
+    if (this.nextButton) this.nextButton.interactable = true;
+    if (this.homeButton) this.homeButton.interactable = true;
     const level = Math.max(1, Number(data?.level) || 1);
 
+    // 复用面板时先清掉上一关图片，避免缺图关卡显示旧预览。
+    if (this.previewSprite) {
+      this.previewSprite.spriteFrame = null;
+      this.previewSprite.node.active = false;
+    }
+
     if (this.levelLabel) {
-      this.levelLabel.string = `LEVEL ${level}`;
+      this.levelLabel.string = data?.levelText || `LEVEL ${level}`;
+    }
+    if (this.titleLabel) {
+      this.titleLabel.string = data?.title || "通关成功";
+    }
+    const nextLabel = this.nextButton?.node?.getComponentInChildren(Label);
+    if (nextLabel) {
+      nextLabel.string = data?.nextText || "下一关";
     }
     this.loadPreview(level);
     this.playCelebration();
@@ -71,6 +91,7 @@ export class passPanel extends UIBase {
       );
       if (token !== this.requestToken || !this.previewSprite?.node?.isValid) return;
       this.previewSprite.spriteFrame = frame;
+      this.previewSprite.node.active = true;
       this.fitPreviewToBounds(frame);
     } catch (err) {
       console.warn(`[passPanel] PreviewLevel${level} 加载失败`, err);
@@ -107,12 +128,22 @@ export class passPanel extends UIBase {
   }
 
   private onNext() {
+    if (!this.consumeAction()) return;
     UIManager.instance?.close(uiName.passPanel);
     this.data?.onNext?.();
   }
 
   private onHome() {
+    if (!this.consumeAction()) return;
     UIManager.instance?.close(uiName.passPanel);
     this.data?.onHome?.();
+  }
+
+  private consumeAction(): boolean {
+    if (this.actionHandled) return false;
+    this.actionHandled = true;
+    if (this.nextButton) this.nextButton.interactable = false;
+    if (this.homeButton) this.homeButton.interactable = false;
+    return true;
   }
 }

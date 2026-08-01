@@ -25,7 +25,7 @@
               "isRemote": false,
               "compressionType": "merge_dep"
             },
-            "configMode": "fallback",
+            "configMode": "overwrite",
             "overwriteSettings": {
               "bytedance-mini-game": {
                 "compressionType": "subpackage"

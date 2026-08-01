@@ -121,8 +121,6 @@ export default class gamePrefabMgr {
       return;
     }
 
-    this.inited = true;
-
     if (onComplete) {
       this.loadCompleteCallbacks.push(onComplete);
     }
@@ -130,9 +128,14 @@ export default class gamePrefabMgr {
     this.addUITasks("res");
     this.addSoundTasks("res");
 
-    await this.runRemainTasks();
-
-    this.callLoadCompleteCallbacks();
+    try {
+      await this.runRemainTasks();
+      this.inited = true;
+      this.callLoadCompleteCallbacks();
+    } catch (err) {
+      this.inited = false;
+      throw err;
+    }
   }
 
   /**
@@ -257,13 +260,12 @@ export default class gamePrefabMgr {
 
     try {
       await task.loader();
-    } catch (err) {
-      console.error("[gamePrefabMgr] 加载失败:", task.desc, err);
-      throw err;
-    } finally {
       this.jilv++;
       this.allResNum = this.loadTasks.length;
       console.log("[gamePrefabMgr] 进度:", this.jilv, "/", this.allResNum);
+    } catch (err) {
+      console.error("[gamePrefabMgr] 加载失败:", task.desc, err);
+      throw err;
     }
   }
 

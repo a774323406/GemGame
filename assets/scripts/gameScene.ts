@@ -4,6 +4,7 @@ import {
   Color,
   Component,
   director,
+  Director,
   EffectAsset,
   EventTouch,
   Label,
@@ -33,11 +34,18 @@ import UIManager, { UILayer } from "./framework/ui/UIManager";
 import AudioManager from "./framework/AudioManager";
 import { soundName, uiName } from "./gamePrefabMgr";
 import PlayData from "./data/PlayData";
+import { calculateLevelTiming } from "./data/LevelDifficulty";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 import {
   FeedAcquisitionService,
   FeedAcquisitionState,
 } from "./framework/Platform/FeedAcquisitionService";
+import {
+  FEED_REVISIT_CHALLENGE_LEVEL,
+  FEED_REVISIT_CHALLENGE_SECONDS,
+  FEED_REVISIT_REVIVE_SECONDS,
+} from "./framework/Platform/FeedRevisitConfig";
+import { FeedRevisitService } from "./framework/Platform/FeedRevisitService";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
@@ -121,12 +129,19 @@ const COLOR_NAMES = [
 ];
 
 const STORAGE_LEVEL_KEY = "gem_sort_level";
+const STORAGE_LEVEL_SEQUENCE_KEY = "gem_sort_level_sequence_v2";
 const TRAY_COLS = 12;
 const MAX_TRAY_ROWS = 3;
 const MAX_TRAY_SLOTS = TRAY_COLS * MAX_TRAY_ROWS;
 const MAGNET_SORT_COUNT = 12;
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
+const LAST_STANDARD_LEVEL = 222;
+const FEED_ACQUISITION_LEVEL = 1;
+const FEED_ACQUISITION_SECONDS = 60;
+const FEED_ACQUISITION_REVIVE_SECONDS = 45;
+const FEED_EXTERNAL_UI_DELAY_MS = 5000;
+const FEED_ACQUISITION_GUIDE_SECONDS = 3;
 const CONNECTED_DIRECTIONS: Array<[number, number]> = [
   [-1, -1],
   [-1, 0],
@@ -141,7 +156,7 @@ const CONNECTED_DIRECTIONS: Array<[number, number]> = [
 @ccclass("gameScene")
 export class gameScene extends Component {
   private static assetsLoadPromise: Promise<CachedGameAssets> | null = null;
-  private static levelDataCache = new Map<number, LevelData | null>();
+  private static levelDataCache = new Map<number, LevelData>();
 
   @property
   public startLevel = 1;
@@ -204,12 +219,12 @@ export class gameScene extends Component {
   public correctSparkleCount = 10;
 
   @property({
-    tooltip: "每关初始时间，单位为秒。",
+    tooltip: "动态难度计算失败时使用的默认关卡时间，单位为秒。",
   })
   public levelTimeSeconds = 300;
 
   @property({
-    tooltip: "观看激励视频复活后增加的时间，单位为秒。",
+    tooltip: "观看激励视频复活后最多增加的时间，单位为秒。",
   })
   public reviveBonusSeconds = 180;
 
@@ -265,15 +280,23 @@ export class gameScene extends Component {
   private inputLockedBeforeSettings = false;
   private timerRunningBeforeSettings = false;
   private remainingTime = 0;
+  private currentLevelTimeSeconds = 300;
+  private currentReviveBonusSeconds = 90;
   private timerRunning = false;
   private lastDisplayedSecond = -1;
   private blockIdSeed = 0;
   private feedMode = false;
+  private feedAcquisition = false;
+  private feedRevisitChallenge = false;
   private feedSceneReady = false;
   private feedHasStarted = false;
+  private feedGuideShown = false;
+  private feedEnteredAtMs = 0;
   private feedPauseApplied = false;
   private inputLockedBeforeFeedPause = false;
   private timerRunningBeforeFeedPause = false;
+  private levelCompletionHandled = false;
+  private feedChallengeRewardGranted = false;
 
   private tileFrames = new Map<number, SpriteFrame>();
   private blockFrames = new Map<number, SpriteFrame>();
@@ -290,22 +313,27 @@ export class gameScene extends Component {
   protected async start() {
     FeedAcquisitionService.init();
     this.feedMode = FeedAcquisitionService.isActive();
+    this.feedAcquisition = FeedAcquisitionService.isAcquisition();
+    this.feedRevisitChallenge = FeedAcquisitionService.isRevisit();
     if (this.feedMode) {
       FeedAcquisitionService.addListener(this.onFeedStateChanged);
     }
 
     await this.prepareScene();
     await this.loadAssets();
-    this.levelIndex = this.feedMode
-      ? Math.max(1, this.startLevel)
-      : Math.max(1, Number(sys.localStorage.getItem(STORAGE_LEVEL_KEY) || this.startLevel));
-    await this.loadLevel(this.levelIndex);
+    this.levelIndex = this.feedRevisitChallenge
+      ? FEED_REVISIT_CHALLENGE_LEVEL
+      : this.feedAcquisition
+        ? FEED_ACQUISITION_LEVEL
+        : this.getStoredLevelIndex();
+    const levelLoaded = await this.loadLevel(this.levelIndex);
 
-    if (this.feedMode) {
+    if (this.feedMode && levelLoaded) {
       this.feedSceneReady = true;
       this.applyFeedState(FeedAcquisitionService.getState());
       this.bindFeedFallbackTouch();
-      FeedAcquisitionService.reportSceneReady();
+      // 至少完成一帧实际渲染后再通知平台，避免卡片首帧仍是空画面。
+      director.once(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     }
   }
 
@@ -408,6 +436,10 @@ export class gameScene extends Component {
   }
 
   private onSettingClicked() {
+    if (this.isFeedExternalUiGuardActive()) {
+      this.showFeedExternalUiGuardTip();
+      return;
+    }
     if (this.settingsOpen) {
       return;
     }
@@ -476,6 +508,10 @@ export class gameScene extends Component {
 
     if (this.activeTrayRows >= MAX_TRAY_ROWS) {
       this.refreshTrayLayout();
+      return;
+    }
+    if (this.isFeedExternalUiGuardActive()) {
+      this.showFeedExternalUiGuardTip();
       return;
     }
     SdkUtils.showADVideo(() => {
@@ -634,40 +670,74 @@ export class gameScene extends Component {
     }
   }
 
-  private async loadLevel(levelIndex: number) {
+  private async loadLevel(levelIndex: number): Promise<boolean> {
     this.inputLocked = true;
     this.timerRunning = false;
+    this.levelCompletionHandled = false;
+    this.feedChallengeRewardGranted = false;
+    this.levelData = null;
     this.clearBoard();
 
-    let data = await this.loadLevelData(levelIndex);
-    if (!data && levelIndex !== 1) {
-      this.levelIndex = 1;
-      if (!this.feedMode) {
-        sys.localStorage.setItem(STORAGE_LEVEL_KEY, "1");
-      }
-      data = await this.loadLevelData(1);
+    const resolved = await this.resolvePlayableLevel(levelIndex);
+    if (!resolved) {
+      this.showMessage("No Level Data");
+      return false;
     }
 
-    if (!data) {
-      this.showMessage("No Level Data");
-      return;
+    this.levelIndex = resolved.levelIndex;
+    const data = resolved.data;
+    if (!this.feedMode) {
+      sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(this.levelIndex));
     }
 
     this.levelData = data;
-    if (this.levelLabel) this.levelLabel.string = `LEVEL ${this.levelIndex}`;
+    const timing = calculateLevelTiming(
+      this.levelIndex,
+      data,
+      this.levelTimeSeconds,
+      this.reviveBonusSeconds,
+    );
+    // 推荐流体验不参与正式 1～222 关的商业化难度曲线。
+    this.currentLevelTimeSeconds = this.feedRevisitChallenge
+      ? FEED_REVISIT_CHALLENGE_SECONDS
+      : this.feedAcquisition
+        ? FEED_ACQUISITION_SECONDS
+        : timing.initialSeconds;
+    this.currentReviveBonusSeconds = this.feedRevisitChallenge
+      ? FEED_REVISIT_REVIVE_SECONDS
+      : this.feedAcquisition
+        ? FEED_ACQUISITION_REVIVE_SECONDS
+        : timing.reviveSeconds;
+    console.log(`[gameScene] Level ${this.levelIndex} difficulty`, timing);
+    if (this.levelLabel) {
+      this.levelLabel.string = this.feedRevisitChallenge ? "每日宝石挑战" : `LEVEL ${this.levelIndex}`;
+    }
     this.buildBoard();
     this.buildTray();
-    this.remainingTime = Math.max(1, this.levelTimeSeconds);
+    const scenePlayable =
+      this.blocks.length > 0 &&
+      this.tiles.length === data.rows &&
+      this.traySlots.length === MAX_TRAY_SLOTS;
+    if (!scenePlayable) {
+      this.inputLocked = true;
+      this.timerRunning = false;
+      this.showMessage("Scene Load Failed");
+      console.error("[gameScene] 棋盘或托盘未完整创建，禁止上报推荐流场景 7001");
+      return false;
+    }
+
+    this.remainingTime = Math.max(1, this.currentLevelTimeSeconds);
     this.lastDisplayedSecond = -1;
     this.refreshTimerLabel();
     const waitingForFeedEnter = this.feedMode && !FeedAcquisitionService.getState().entered;
     this.inputLocked = waitingForFeedEnter;
     this.timerRunning = !waitingForFeedEnter;
     this.checkWin();
+    return true;
   }
 
   protected update(deltaTime: number) {
-    if (!this.timerRunning || this.inputLocked || !this.levelData) return;
+    if (!this.timerRunning || this.inputLocked || PlayData.Instance.ispause || !this.levelData) return;
 
     this.remainingTime = Math.max(0, this.remainingTime - deltaTime);
     this.refreshTimerLabel();
@@ -679,9 +749,8 @@ export class gameScene extends Component {
   }
 
   private async loadLevelData(levelIndex: number): Promise<LevelData | null> {
-    if (gameScene.levelDataCache.has(levelIndex)) {
-      return gameScene.levelDataCache.get(levelIndex);
-    }
+    const cached = gameScene.levelDataCache.get(levelIndex);
+    if (cached) return cached;
 
     try {
       const asset = await ResourceManager.ins.loadBundleAsset("res", `Levels/Level${levelIndex}_Complete`, TextAsset);
@@ -690,9 +759,49 @@ export class gameScene extends Component {
       return data;
     } catch (err) {
       console.warn(`[gameScene] Level ${levelIndex} load failed`, err);
-      gameScene.levelDataCache.set(levelIndex, null);
       return null;
     }
+  }
+
+  /** 把旧版 1～225（缺 118/121/161）的存档映射到新版连续 1～222。 */
+  private getStoredLevelIndex(): number {
+    const storedLevel = Math.max(
+      1,
+      Math.floor(Number(sys.localStorage.getItem(STORAGE_LEVEL_KEY) || this.startLevel) || 1),
+    );
+    if (sys.localStorage.getItem(STORAGE_LEVEL_SEQUENCE_KEY) === "1") {
+      return Math.min(LAST_STANDARD_LEVEL, storedLevel);
+    }
+
+    const removedLevelNumbers = [118, 121, 161];
+    const removedBeforeStoredLevel = removedLevelNumbers.filter(
+      (removedLevel) => storedLevel > removedLevel,
+    ).length;
+    const migratedLevel = Math.min(
+      LAST_STANDARD_LEVEL,
+      Math.max(1, storedLevel - removedBeforeStoredLevel),
+    );
+    sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(migratedLevel));
+    sys.localStorage.setItem(STORAGE_LEVEL_SEQUENCE_KEY, "1");
+    return migratedLevel;
+  }
+
+  /** 缺号时向后寻找下一份正式关卡；超过正式关卡范围后回到第 1 关。 */
+  private async resolvePlayableLevel(levelIndex: number): Promise<{ levelIndex: number; data: LevelData } | null> {
+    const requested = Math.max(1, Math.floor(Number(levelIndex) || 1));
+    const searchEnd = requested <= LAST_STANDARD_LEVEL ? LAST_STANDARD_LEVEL : requested;
+
+    for (let candidate = requested; candidate <= searchEnd; candidate++) {
+      const data = await this.loadLevelData(candidate);
+      if (data) return { levelIndex: candidate, data };
+    }
+
+    if (requested !== 1) {
+      const firstLevel = await this.loadLevelData(1);
+      if (firstLevel) return { levelIndex: 1, data: firstLevel };
+    }
+
+    return null;
   }
 
   private parseLevel(text: string): LevelData | null {
@@ -1605,11 +1714,9 @@ export class gameScene extends Component {
 
   private onMagicClicked() {
     if (this.inputLocked) return;
-    SdkUtils.showADVideo(() => {
-      this.prepareTool("magic", () => {
-        this.magicUses = ToolInventory.getCount("magic");
-        this.enterMagicSelectMode();
-      });
+    void this.prepareTool("magic", () => {
+      this.magicUses = ToolInventory.getCount("magic");
+      this.enterMagicSelectMode();
     });
   }
 
@@ -1625,8 +1732,11 @@ export class gameScene extends Component {
     if (this.inputLocked) {
       return;
     }
-    SdkUtils.showADVideo(() => {
-      this.cleanTray();
+    void this.prepareTool("brush", () => {
+      if (this.cleanTray()) {
+        ToolInventory.consume("brush");
+        this.refreshToolBadges();
+      }
     });
   }
 
@@ -1641,24 +1751,23 @@ export class gameScene extends Component {
    * 4. 不会把下面槽位钻石直接放到上方空格，因为那会减少下面槽位上的钻石数量。
    */
   private onMagnetClicked() {
-    SdkUtils.showADVideo(() => {
-      this.prepareTool("magnet", () => {
-        if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT)) {
-          ToolInventory.consume("magnet");
-          this.refreshToolBadges();
-        }
-      });
+    if (this.inputLocked) return;
+    void this.prepareTool("magnet", () => {
+      if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT)) {
+        ToolInventory.consume("magnet");
+        this.refreshToolBadges();
+      }
     });
   }
 
-  private prepareTool(tool: ToolId, onReady: () => void) {
-    if (this.inputLocked) return;
+  private async prepareTool(tool: ToolId, onReady: () => void): Promise<boolean> {
+    if (this.inputLocked) return false;
     if (ToolInventory.has(tool)) {
       onReady();
-      return;
+      return true;
     }
 
-    this.showRewardAdThenRun(() => {
+    return this.showRewardAdThenRun(() => {
       ToolInventory.add(tool);
       this.refreshToolBadges();
       onReady();
@@ -1666,13 +1775,15 @@ export class gameScene extends Component {
   }
 
   private async showRewardAdThenRun(action: () => void, allowWhenLocked = false): Promise<boolean> {
+    if (this.isFeedExternalUiGuardActive()) {
+      this.showFeedExternalUiGuardTip();
+      return false;
+    }
     if (this.inputLocked && !allowWhenLocked) return false;
 
-    /**
-     * TODO: 在这里接入真实激励视频。
-     * 只有广告 SDK 的 rewarded / completed 回调触发时，才调用 action() 并返回 true。
-     * 编辑器预览阶段先直接模拟观看成功。
-     */
+    const rewarded = await SdkUtils.showRewardedVideo();
+    if (!rewarded) return false;
+
     action();
     return true;
   }
@@ -2802,13 +2913,28 @@ export class gameScene extends Component {
   }
 
   private checkWin() {
-    if (!this.levelData || this.blocks.length === 0) return;
+    if (this.levelCompletionHandled || !this.levelData || this.blocks.length === 0) return;
     const complete = this.blocks.every((block) => block.location === "board" && block.collapsed);
     if (!complete) return;
 
+    this.levelCompletionHandled = true;
     this.timerRunning = false;
     this.inputLocked = true;
     if (this.messageLabel) this.messageLabel.node.active = false;
+
+    if (this.feedRevisitChallenge) {
+      // 每次真实挑战只发一次奖励；随后把下一次事件排到未来，避免重复出卡。
+      const canClaimReward = FeedRevisitService.claimChallengeReward(
+        FeedAcquisitionService.getContentId(),
+        FeedAcquisitionService.getExtra(),
+      );
+      this.feedChallengeRewardGranted = canClaimReward;
+      if (canClaimReward) {
+        ToolInventory.addMany({ magic: 1, brush: 1, magnet: 1 });
+        this.refreshToolBadges();
+      }
+      FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
+    }
     this.openPassPanel();
   }
 
@@ -2818,10 +2944,10 @@ export class gameScene extends Component {
 
     const data = {
       level: this.levelIndex,
-      bonusSeconds: this.reviveBonusSeconds,
+      bonusSeconds: this.currentReviveBonusSeconds,
       onRevive: () =>
         this.showRewardAdThenRun(() => {
-          this.remainingTime += Math.max(1, this.reviveBonusSeconds);
+          this.remainingTime += Math.max(1, this.currentReviveBonusSeconds);
           this.lastDisplayedSecond = -1;
           this.refreshTimerLabel();
           this.inputLocked = false;
@@ -2840,13 +2966,21 @@ export class gameScene extends Component {
     const manager = UIManager.instance;
     if (!manager) return;
 
+    const isRevisitChallenge = this.feedRevisitChallenge;
     const data = {
       level: this.levelIndex,
+      title: isRevisitChallenge ? "挑战完成" : undefined,
+      levelText: isRevisitChallenge
+        ? this.feedChallengeRewardGranted
+          ? "奖励：三种道具各 +1"
+          : "本期挑战已完成"
+        : undefined,
+      nextText: isRevisitChallenge ? "继续闯关" : undefined,
       onNext: () => {
         this.finishFeedExperience();
-        this.levelIndex++;
-        sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(this.levelIndex));
-        this.loadLevel(this.levelIndex);
+        this.feedRevisitChallenge = false;
+        this.levelIndex = isRevisitChallenge ? this.getStoredLevelIndex() : this.levelIndex + 1;
+        void this.loadLevel(this.levelIndex);
       },
       onHome: () => {
         this.finishFeedExperience();
@@ -2859,6 +2993,11 @@ export class gameScene extends Component {
 
   private onFeedStateChanged = (state: FeedAcquisitionState) => {
     this.applyFeedState(state);
+    if (state.entered) {
+      this.unbindFeedFallbackTouch();
+    } else {
+      this.bindFeedFallbackTouch();
+    }
   };
 
   private applyFeedState(state: FeedAcquisitionState) {
@@ -2887,9 +3026,11 @@ export class gameScene extends Component {
     PlayData.Instance.ispause = false;
     if (!this.feedHasStarted) {
       this.feedHasStarted = true;
+      this.feedEnteredAtMs = Date.now();
       this.feedPauseApplied = false;
       this.inputLocked = false;
       this.timerRunning = true;
+      this.showFeedAcquisitionGuide();
       // AudioManager.playMusic(soundName.levelBgm);
       return;
     }
@@ -2908,31 +3049,72 @@ export class gameScene extends Component {
 
   private bindFeedFallbackTouch() {
     const state = FeedAcquisitionService.getState();
-    if (!this.feedMode || state.statusApiSupported) return;
+    if (!this.feedMode || !this.feedSceneReady || state.entered) return;
+    this.unbindFeedFallbackTouch();
     this.node.on(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
   }
 
   private onFeedFallbackTouch() {
-    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    this.unbindFeedFallbackTouch();
     FeedAcquisitionService.activateFromFirstTouch();
+  }
+
+  private unbindFeedFallbackTouch() {
+    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+  }
+
+  private reportFeedSceneReady() {
+    if (!this.feedMode || !this.node?.isValid) return;
+    FeedAcquisitionService.reportSceneReady();
+  }
+
+  private showFeedAcquisitionGuide() {
+    if (!this.feedAcquisition || this.feedGuideShown) return;
+
+    this.feedGuideShown = true;
+    const content = "点击同色宝石，把它们放回对应位置";
+    this.showMessage(content);
+    this.scheduleOnce(() => {
+      if (this.messageLabel?.string === content) this.messageLabel.node.active = false;
+    }, FEED_ACQUISITION_GUIDE_SECONDS);
   }
 
   private finishFeedExperience() {
     if (!this.feedMode) return;
 
+    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     this.feedMode = false;
+    this.feedAcquisition = false;
+    this.feedRevisitChallenge = false;
     this.feedSceneReady = false;
     this.feedHasStarted = false;
+    this.feedGuideShown = false;
+    this.feedEnteredAtMs = 0;
     this.feedPauseApplied = false;
     PlayData.Instance.ispause = false;
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     FeedAcquisitionService.completeSession();
-    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    this.unbindFeedFallbackTouch();
+  }
+
+  private isFeedExternalUiGuardActive(): boolean {
+    if (!this.feedMode) return false;
+    if (!this.feedHasStarted || this.feedEnteredAtMs <= 0) return true;
+    return Date.now() - this.feedEnteredAtMs < FEED_EXTERNAL_UI_DELAY_MS;
+  }
+
+  private showFeedExternalUiGuardTip() {
+    const content = "挑战开始 5 秒后可使用";
+    this.showMessage(content);
+    this.scheduleOnce(() => {
+      if (this.messageLabel?.string === content) this.messageLabel.node.active = false;
+    }, 1.2);
   }
 
   protected onDestroy() {
+    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
-    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    this.unbindFeedFallbackTouch();
     this.mapControl?.node?.off(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
     if (this.feedMode) {
       FeedAcquisitionService.completeSession();
