@@ -4,7 +4,7 @@
  * 后台路径：运营 -> 能力中心 -> 推荐流直玩游戏能力 -> 复访能力。
  * 选择「重要事件掉落」并完成方案提报后，把平台生成的 CONTENT... 填到这里。
  */
-export const FEED_REVISIT_CONTENT_ID = "";
+export const FEED_REVISIT_CONTENT_ID = "CONTENT14256097026";
 
 /** 抖音固定场景：3 = 重要事件掉落。 */
 export const FEED_REVISIT_SCENE = 3;
