@@ -10,17 +10,40 @@ export interface ToolInventorySnapshot {
   magnet: number;
 }
 
+export interface ToolFlagSnapshot {
+  magic: boolean;
+  brush: boolean;
+  magnet: boolean;
+}
+
+interface ToolInventoryData extends ToolInventorySnapshot {
+  unlocked: ToolFlagSnapshot;
+  rewardGranted: ToolFlagSnapshot;
+  rewardPresented: ToolFlagSnapshot;
+  guideDone: ToolFlagSnapshot;
+}
+
 const STORAGE_KEY = "gem_sort_tool_inventory_v1";
 const DEFAULT_INVENTORY: ToolInventorySnapshot = {
   magic: 0,
   brush: 0,
   magnet: 0,
 };
+const DEFAULT_FLAGS: ToolFlagSnapshot = {
+  magic: false,
+  brush: false,
+  magnet: false,
+};
 
 @ccclass("ToolInventory")
 export class ToolInventory extends Component {
   public static getAll(): ToolInventorySnapshot {
-    return ToolInventory.load();
+    const data = ToolInventory.load();
+    return {
+      magic: data.magic,
+      brush: data.brush,
+      magnet: data.magnet,
+    };
   }
 
   public static getCount(tool: ToolId): number {
@@ -44,7 +67,11 @@ export class ToolInventory extends Component {
       inventory[tool] += ToolInventory.normalizeAmount(reward[tool] || 0);
     }
     ToolInventory.save(inventory);
-    return inventory;
+    return {
+      magic: inventory.magic,
+      brush: inventory.brush,
+      magnet: inventory.magnet,
+    };
   }
 
   public static consume(tool: ToolId, amount = 1): boolean {
@@ -64,19 +91,86 @@ export class ToolInventory extends Component {
     return inventory[tool];
   }
 
-  public static reset() {
-    ToolInventory.save({ ...DEFAULT_INVENTORY });
+  public static isUnlocked(tool: ToolId): boolean {
+    return ToolInventory.load().unlocked[tool] === true;
   }
 
-  private static load(): ToolInventorySnapshot {
-    const inventory = { ...DEFAULT_INVENTORY };
+  public static unlock(tool: ToolId): boolean {
+    const inventory = ToolInventory.load();
+    if (inventory.unlocked[tool]) return false;
+
+    inventory.unlocked[tool] = true;
+    ToolInventory.save(inventory);
+    return true;
+  }
+
+  public static isUnlockRewardGranted(tool: ToolId): boolean {
+    return ToolInventory.load().rewardGranted[tool] === true;
+  }
+
+  public static isUnlockRewardPresented(tool: ToolId): boolean {
+    return ToolInventory.load().rewardPresented[tool] === true;
+  }
+
+  public static markUnlockRewardPresented(tool: ToolId): void {
+    const inventory = ToolInventory.load();
+    if (inventory.rewardPresented[tool]) return;
+
+    inventory.rewardPresented[tool] = true;
+    ToolInventory.save(inventory);
+  }
+
+  /**
+   * 首次解锁时一次性写入解锁、奖励发放标记和数量。
+   * 先落存档再播放引导表现，退出重进不会重复领奖或丢失奖励。
+   */
+  public static grantUnlockReward(tool: ToolId, amount = 1): boolean {
+    const inventory = ToolInventory.load();
+    if (inventory.rewardGranted[tool]) {
+      if (!inventory.unlocked[tool]) {
+        inventory.unlocked[tool] = true;
+        ToolInventory.save(inventory);
+      }
+      return false;
+    }
+
+    inventory.unlocked[tool] = true;
+    inventory.rewardGranted[tool] = true;
+    inventory[tool] += ToolInventory.normalizeAmount(amount);
+    ToolInventory.save(inventory);
+    return true;
+  }
+
+  public static isGuideDone(tool: ToolId): boolean {
+    return ToolInventory.load().guideDone[tool] === true;
+  }
+
+  public static markGuideDone(tool: ToolId): void {
+    const inventory = ToolInventory.load();
+    if (inventory.guideDone[tool]) return;
+
+    inventory.guideDone[tool] = true;
+    inventory.unlocked[tool] = true;
+    ToolInventory.save(inventory);
+  }
+
+  public static reset() {
+    ToolInventory.save(ToolInventory.createDefaultData());
+  }
+
+  private static load(): ToolInventoryData {
+    const inventory = ToolInventory.createDefaultData();
     const raw = sys.localStorage.getItem(STORAGE_KEY);
     if (!raw) return inventory;
 
     try {
-      const saved = JSON.parse(raw) as Partial<ToolInventorySnapshot>;
+      const saved = JSON.parse(raw) as Partial<ToolInventoryData>;
       for (const tool of ToolInventory.tools()) {
         inventory[tool] = ToolInventory.normalizeAmount(saved[tool] || 0);
+        inventory.unlocked[tool] = saved.unlocked?.[tool] === true;
+        inventory.rewardGranted[tool] = saved.rewardGranted?.[tool] === true;
+        inventory.rewardPresented[tool] = saved.rewardPresented?.[tool] === true;
+        inventory.guideDone[tool] = saved.guideDone?.[tool] === true;
       }
     } catch {
       ToolInventory.save(inventory);
@@ -85,8 +179,18 @@ export class ToolInventory extends Component {
     return inventory;
   }
 
-  private static save(inventory: ToolInventorySnapshot) {
+  private static save(inventory: ToolInventoryData) {
     sys.localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+  }
+
+  private static createDefaultData(): ToolInventoryData {
+    return {
+      ...DEFAULT_INVENTORY,
+      unlocked: { ...DEFAULT_FLAGS },
+      rewardGranted: { ...DEFAULT_FLAGS },
+      rewardPresented: { ...DEFAULT_FLAGS },
+      guideDone: { ...DEFAULT_FLAGS },
+    };
   }
 
   private static tools(): ToolId[] {

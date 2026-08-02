@@ -226,6 +226,11 @@ export default class UIManager extends Component {
     widget.right = 0;
 
     node.setPosition(0, 0, 0);
+
+    // Widget normally applies its size on the next frame. Runtime-created guide
+    // layers are used immediately, so force the whole parent chain to align now;
+    // otherwise the first overlay would calculate its hole inside a 100x100 node.
+    widget.updateAlignment();
   }
 
   /**

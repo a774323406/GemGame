@@ -1,5 +1,5 @@
 import { _decorator, Button, Component, director, Node, NodeEventType, Toggle, ToggleComponent } from "cc";
-import UIBase from "../framework/ui/UIBase";
+import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import gameStorage from "../framework/gameStorage";
 import PlayData, { EventName } from "../data/PlayData";
 import AudioManager from "../framework/AudioManager";
@@ -8,6 +8,9 @@ const { ccclass, property } = _decorator;
 
 @ccclass("settingPanel")
 export class settingPanel extends UIBase {
+  /** 与 multigame 的设置弹窗保持一致：遮罩和内容打开、关闭时淡入淡出。 */
+  protected uiAnimType: UIOpenAnimType = UIOpenAnimType.Fade;
+
   @property(Button)
   closeBtn: Button = null;
   @property(Button)
@@ -64,30 +67,43 @@ export class settingPanel extends UIBase {
   start() {}
 
   public onClose() {
-    if (!this.actionHandled) {
+    // UIBase 在关闭动画结束时会再次调用 onClose；此分支完成真正关闭，并兼容外部 close。
+    if (!this.isOpen) {
+      const shouldNotifyClose = !this.actionHandled;
       this.actionHandled = true;
-      PlayData.Instance.ispause = false;
-      this.closeCallback?.();
+      super.onClose();
+      if (shouldNotifyClose) {
+        this.closeCallback?.();
+      }
+      return;
     }
-    super.onClose();
+    if (this.actionHandled) {
+      super.onClose();
+      return;
+    }
+
+    this.actionHandled = true;
+    this.hide(() => {
+      this.closeCallback?.();
+    });
   }
 
   onBack() {
     if (this.actionHandled) return;
 
     this.actionHandled = true;
-    PlayData.Instance.ispause = false;
-    super.onClose();
-    this.backCallback?.();
+    this.hide(() => {
+      this.backCallback?.();
+    });
   }
 
   onRetry() {
     if (this.actionHandled) return;
 
     this.actionHandled = true;
-    PlayData.Instance.ispause = false;
-    super.onClose();
-    this.retryCallback?.();
+    this.hide(() => {
+      this.retryCallback?.();
+    });
   }
 
   onMusicClick(toggle: ToggleComponent) {

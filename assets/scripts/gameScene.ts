@@ -1,13 +1,16 @@
 import {
   _decorator,
   Button,
+  BlockInputEvents,
   Color,
   Component,
   director,
   Director,
   EffectAsset,
   EventTouch,
+  Graphics,
   Label,
+  LabelOutline,
   Material,
   Node,
   ParticleSystem2D,
@@ -18,8 +21,10 @@ import {
   TextAsset,
   instantiate,
   tween,
+  Tween,
   UIOpacity,
   UITransform,
+  Widget,
   Vec2,
   Vec3,
   Vec4,
@@ -35,6 +40,8 @@ import AudioManager from "./framework/AudioManager";
 import { soundName, uiName } from "./gamePrefabMgr";
 import PlayData from "./data/PlayData";
 import { calculateLevelTiming } from "./data/LevelDifficulty";
+import { TutorialProgress } from "./data/TutorialProgress";
+import { GuideOverlay } from "./ui/GuideOverlay";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 import {
   FeedAcquisitionService,
@@ -52,6 +59,19 @@ const { ccclass, property } = _decorator;
 
 type Matrix = number[][];
 type BlockLocation = "board" | "tray";
+type TutorialStep =
+  | "none"
+  | "core_select_first"
+  | "core_store_first"
+  | "core_select_second"
+  | "core_place_second"
+  | "core_select_tray"
+  | "core_place_last"
+  | "tray_expand"
+  | "magic_button"
+  | "magic_drag"
+  | "brush_button"
+  | "magnet_button";
 
 interface LevelData {
   rows: number;
@@ -100,6 +120,7 @@ interface CachedGameAssets {
   wandSelectionFrame: SpriteFrame | null;
   glowEffect: EffectAsset | null;
   sparkleFrame: SpriteFrame | null;
+  lockFrame: SpriteFrame | null;
   tileFrames: Map<number, SpriteFrame>;
   blockFrames: Map<number, SpriteFrame>;
   collapsedFrames: Map<number, SpriteFrame>;
@@ -141,7 +162,19 @@ const FEED_ACQUISITION_LEVEL = 1;
 const FEED_ACQUISITION_SECONDS = 60;
 const FEED_ACQUISITION_REVIVE_SECONDS = 45;
 const FEED_EXTERNAL_UI_DELAY_MS = 5000;
-const FEED_ACQUISITION_GUIDE_SECONDS = 3;
+const GUIDE_ROOT_NAME = "__GemBeginnerGuide";
+const GUIDE_REWARD_NAME = "__GemToolUnlockReward";
+const GUIDE_PROXY_NAME = "__GemGuideTargetProxy";
+const TOOL_UNLOCK_LEVELS: Record<ToolId, number> = {
+  magic: 3,
+  brush: 5,
+  magnet: 7,
+};
+const TOOL_DISPLAY_NAMES: Record<ToolId, string> = {
+  magic: "魔法棒",
+  brush: "扫把",
+  magnet: "磁铁",
+};
 const CONNECTED_DIRECTIONS: Array<[number, number]> = [
   [-1, -1],
   [-1, 0],
@@ -298,6 +331,23 @@ export class gameScene extends Component {
   private levelCompletionHandled = false;
   private feedChallengeRewardGranted = false;
 
+  private tutorialStep: TutorialStep = "none";
+  private tutorialPaused = false;
+  private tutorialTransitioning = false;
+  private tutorialTargetProxy: Node | null = null;
+  private tutorialFirstColor = 0;
+  private tutorialSecondColor = 0;
+  private tutorialFirstBlockIds = new Set<number>();
+  private tutorialSecondBlockIds = new Set<number>();
+  private tutorialMagicTarget: { row: number; col: number } | null = null;
+  private tutorialVisualToken = 0;
+  private tutorialMapInputState: {
+    pinch: boolean;
+    wheel: boolean;
+    drag: boolean;
+  } | null = null;
+  private pendingToolRewardAnimations = new Set<ToolId>();
+
   private tileFrames = new Map<number, SpriteFrame>();
   private blockFrames = new Map<number, SpriteFrame>();
   private collapsedFrames = new Map<number, SpriteFrame>();
@@ -306,6 +356,7 @@ export class gameScene extends Component {
   private boardBaseFrame: SpriteFrame = null;
   private wandSelectionFrame: SpriteFrame = null;
   private sparkleFrame: SpriteFrame = null;
+  private lockFrame: SpriteFrame = null;
   private glowEffect: EffectAsset = null;
   private glowMaterials = new Map<number, Material>();
   private glowFlashTokens = new Map<number, number>();
@@ -436,6 +487,11 @@ export class gameScene extends Component {
   }
 
   private onSettingClicked() {
+    if (this.tutorialStep !== "none" || this.tutorialTransitioning) {
+      this.showMessage("请先完成当前引导");
+      return;
+    }
+    if (this.inputLocked) return;
     if (this.isFeedExternalUiGuardActive()) {
       this.showFeedExternalUiGuardTip();
       return;
@@ -484,12 +540,30 @@ export class gameScene extends Component {
     }
 
     this.settingsOpen = false;
-    if (restoreGameState) {
+    const feedState = this.feedMode ? FeedAcquisitionService.getState() : null;
+    const feedStillBlocking = !!feedState && (!feedState.entered || feedState.exited);
+    if (feedStillBlocking) {
+      // 设置关闭动画期间如果切出了推荐流，不能让设置回调反向恢复游戏。
+      // 同时把“Feed 返回后应恢复的状态”改成打开设置前的真实游戏状态。
+      if (this.feedPauseApplied) {
+        this.inputLockedBeforeFeedPause = restoreGameState ? this.inputLockedBeforeSettings : false;
+        this.timerRunningBeforeFeedPause = restoreGameState ? this.timerRunningBeforeSettings : true;
+      }
+      this.inputLocked = true;
+      this.timerRunning = false;
+      PlayData.Instance.ispause = true;
+    } else if (restoreGameState) {
       this.inputLocked = this.inputLockedBeforeSettings;
       this.timerRunning = this.timerRunningBeforeSettings;
+      PlayData.Instance.ispause = false;
+    } else {
+      PlayData.Instance.ispause = false;
     }
     this.inputLockedBeforeSettings = false;
     this.timerRunningBeforeSettings = false;
+    if (restoreGameState && !feedStillBlocking) {
+      this.scheduleOnce(() => this.tryStartTutorialForCurrentLevel(), 0);
+    }
   }
 
   private bindAddTrayButton() {
@@ -505,11 +579,31 @@ export class gameScene extends Component {
     if (this.inputLocked) {
       return;
     }
+    if (!TutorialProgress.isTrayExpandUnlocked()) return;
+    if (
+      this.levelIndex === 2 &&
+      !TutorialProgress.isTrayExpandGuideDone() &&
+      this.tutorialStep !== "tray_expand"
+    ) {
+      return;
+    }
+
+    if (this.tutorialStep !== "none" && this.tutorialStep !== "tray_expand") {
+      return;
+    }
 
     if (this.activeTrayRows >= MAX_TRAY_ROWS) {
       this.refreshTrayLayout();
       return;
     }
+    if (this.isLevel2FreeExpandAvailable()) {
+      TutorialProgress.completeTrayExpandGuide();
+      this.activeTrayRows++;
+      this.refreshTrayLayout();
+      this.finishTutorialStep();
+      return;
+    }
+
     if (this.isFeedExternalUiGuardActive()) {
       this.showFeedExternalUiGuardTip();
       return;
@@ -548,6 +642,7 @@ export class gameScene extends Component {
     this.boardBaseFrame = assets.boardBaseFrame;
     this.wandSelectionFrame = assets.wandSelectionFrame;
     this.sparkleFrame = assets.sparkleFrame;
+    this.lockFrame = assets.lockFrame;
     this.glowEffect = assets.glowEffect;
     this.tileFrames = assets.tileFrames;
     this.blockFrames = assets.blockFrames;
@@ -565,14 +660,53 @@ export class gameScene extends Component {
     for (const { button, tool } of tools) {
       if (!button?.node) continue;
       const count = ToolInventory.getCount(tool);
+      const unlocked = ToolInventory.isUnlocked(tool);
       const countBadge = button.node.getChildByName("CountBadge");
       const adBadge = button.node.getChildByName("AdBadge");
       const countLabel = countBadge?.getChildByName("Count")?.getComponent(Label);
 
-      if (countBadge) countBadge.active = count > 0;
-      if (adBadge) adBadge.active = count <= 0;
+      if (countBadge) countBadge.active = unlocked && count > 0;
+      if (adBadge) adBadge.active = unlocked && count <= 0;
       if (countLabel) countLabel.string = String(count);
+      this.refreshToolLockBadge(button.node, tool, unlocked);
     }
+  }
+
+  private refreshToolLockBadge(buttonNode: Node, tool: ToolId, unlocked: boolean) {
+    let lockRoot = buttonNode.getChildByName("TutorialLock");
+    if (unlocked) {
+      if (lockRoot?.isValid) lockRoot.active = false;
+      return;
+    }
+
+    if (!lockRoot) {
+      lockRoot = this.createNode("TutorialLock", buttonNode, 126, 92);
+      lockRoot.setPosition(0, 12, 0);
+
+      const lockIcon = this.createNode("Icon", lockRoot, 50, 50);
+      lockIcon.setPosition(0, 13, 0);
+      const lockSprite = lockIcon.addComponent(Sprite);
+      lockSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+
+      const unlockText = this.createNode("UnlockText", lockRoot, 150, 34);
+      unlockText.setPosition(0, -33, 0);
+      const label = unlockText.addComponent(Label);
+      label.fontSize = 20;
+      label.lineHeight = 24;
+      label.horizontalAlign = HorizontalTextAlignment.CENTER;
+      label.verticalAlign = VerticalTextAlignment.CENTER;
+      label.color = new Color(255, 255, 255, 255);
+      const outline = unlockText.addComponent(LabelOutline);
+      outline.color = new Color(91, 48, 139, 255);
+      outline.width = 3;
+    }
+
+    lockRoot.active = true;
+    lockRoot.setSiblingIndex(buttonNode.children.length - 1);
+    const sprite = lockRoot.getChildByName("Icon")?.getComponent(Sprite);
+    if (sprite) sprite.spriteFrame = this.lockFrame;
+    const label = lockRoot.getChildByName("UnlockText")?.getComponent(Label);
+    if (label) label.string = `第${TOOL_UNLOCK_LEVELS[tool]}关解锁`;
   }
 
   private async loadSharedAssets(): Promise<CachedGameAssets> {
@@ -589,6 +723,7 @@ export class gameScene extends Component {
       wandSelectionFrame,
       glowEffect,
       sparkleFrame,
+      lockFrame,
       colorAssets,
     ] = await Promise.all([
       this.tryLoadPrefab("prefab/Blocks/Tile"),
@@ -601,6 +736,7 @@ export class gameScene extends Component {
       this.tryLoadSprite("Images/WandSelectionFrame"),
       this.tryLoadEffect("effects/GemGlow"),
       this.tryLoadSprite("texture/UIs/sparkle3"),
+      this.tryLoadSprite("texture/UIs/icon_lock"),
       Promise.all(
         COLOR_NAMES.map(async (name, color) => {
           if (color === 0) return null;
@@ -636,6 +772,7 @@ export class gameScene extends Component {
       wandSelectionFrame,
       glowEffect,
       sparkleFrame,
+      lockFrame,
       tileFrames,
       blockFrames,
       collapsedFrames,
@@ -671,6 +808,7 @@ export class gameScene extends Component {
   }
 
   private async loadLevel(levelIndex: number): Promise<boolean> {
+    this.clearTutorialPresentation();
     this.inputLocked = true;
     this.timerRunning = false;
     this.levelCompletionHandled = false;
@@ -691,6 +829,7 @@ export class gameScene extends Component {
     }
 
     this.levelData = data;
+    this.ensureUnlocksForCurrentLevel();
     const timing = calculateLevelTiming(
       this.levelIndex,
       data,
@@ -730,14 +869,25 @@ export class gameScene extends Component {
     this.lastDisplayedSecond = -1;
     this.refreshTimerLabel();
     const waitingForFeedEnter = this.feedMode && !FeedAcquisitionService.getState().entered;
-    this.inputLocked = waitingForFeedEnter;
-    this.timerRunning = !waitingForFeedEnter;
+    // 等首帧布局稳定后再开放输入，避免玩家在引导遮罩出现前抢先改变第一关局面。
+    this.inputLocked = true;
+    this.timerRunning = false;
     this.checkWin();
+    if (!waitingForFeedEnter) {
+      this.scheduleOnce(() => {
+        if (!this.node?.isValid || this.levelCompletionHandled) return;
+        this.inputLocked = false;
+        this.timerRunning = true;
+        this.tryStartTutorialForCurrentLevel();
+      }, 0.18);
+    }
     return true;
   }
 
   protected update(deltaTime: number) {
-    if (!this.timerRunning || this.inputLocked || PlayData.Instance.ispause || !this.levelData) return;
+    if (!this.timerRunning || this.inputLocked || this.tutorialPaused || PlayData.Instance.ispause || !this.levelData) {
+      return;
+    }
 
     this.remainingTime = Math.max(0, this.remainingTime - deltaTime);
     this.refreshTimerLabel();
@@ -882,7 +1032,10 @@ export class gameScene extends Component {
   }
 
   private buildTray() {
-    this.activeTrayRows = 1;
+    this.activeTrayRows =
+      this.levelIndex === 2 && TutorialProgress.isTrayExpandGuideDone()
+        ? Math.min(2, MAX_TRAY_ROWS)
+        : 1;
     this.traySlotSize = this.getTraySlotSize();
     this.traySlots = [];
 
@@ -972,7 +1125,12 @@ export class gameScene extends Component {
     }
 
     const isMaxRows = this.activeTrayRows >= MAX_TRAY_ROWS;
-    this.addTrayBtn.node.active = !isMaxRows;
+    const waitingForLevel2Guide =
+      this.levelIndex === 2 &&
+      !TutorialProgress.isTrayExpandGuideDone() &&
+      this.getAllTrayBlocksForClean().length === 0;
+    this.addTrayBtn.node.active =
+      TutorialProgress.isTrayExpandUnlocked() && !isMaxRows && !waitingForLevel2Guide;
 
     if (isMaxRows || !this.trayBgRoot) {
       return;
@@ -1076,6 +1234,10 @@ export class gameScene extends Component {
   private onBlockClicked(block: BlockState) {
     if (this.inputLocked) return;
 
+    if (!this.isTutorialBlockAllowed(block)) {
+      return;
+    }
+
     if (this.magicSelecting) {
       return;
     }
@@ -1087,6 +1249,7 @@ export class gameScene extends Component {
 
     if (block.location === "tray") {
       this.selectTrayRun(block);
+      this.onTutorialBlockSelectionCompleted(block);
       return;
     }
 
@@ -1095,16 +1258,18 @@ export class gameScene extends Component {
     const group = this.getConnectedBlocks(block.row, block.col, block.color);
     if (group.length === 0) return;
     this.selectBlocks(group);
+    this.onTutorialBlockSelectionCompleted(block);
   }
 
   private onTraySlotClicked(slot: TraySlotState) {
     if (this.inputLocked) return;
     if (!this.isTraySlotActive(slot)) return;
+    if (!this.isTutorialTraySlotAllowed(slot)) return;
 
     const boardBlocks = this.selectedBlocks.filter((b) => b.location === "board");
     if (boardBlocks.length === 0) return;
 
-    this.moveBoardBlocksToTray(boardBlocks, slot.index);
+    this.moveBoardBlocksToTray(boardBlocks, slot.index, () => this.onTutorialTrayMoveCompleted());
   }
 
   private onSceneTouchEnd(event: EventTouch) {
@@ -1119,6 +1284,7 @@ export class gameScene extends Component {
 
   private onTileClicked(tile: TileState) {
     if (this.inputLocked || !tile || !tile.node.active) return;
+    if (!this.isTutorialTileAllowed(tile)) return;
     if (tile.color <= 0) return;
     if (this.magicSelecting) {
       return;
@@ -1151,13 +1317,15 @@ export class gameScene extends Component {
         this.sortTrayBlocks();
 
         this.inputLocked = false;
+        this.onTutorialTileMoveCompleted();
+        this.tryStartTutorialForCurrentLevel();
         this.checkWin();
       },
       0.35 + count * 0.04,
     );
   }
 
-  private moveBoardBlocksToTray(blocks: BlockState[], startSlotIndex: number) {
+  private moveBoardBlocksToTray(blocks: BlockState[], startSlotIndex: number, onComplete?: () => void) {
     const slots = this.collectEmptyTraySlots(startSlotIndex, blocks.length);
     if (slots.length === 0) {
       this.showMessage("Tray Full");
@@ -1207,6 +1375,8 @@ export class gameScene extends Component {
       () => {
         this.sortTrayBlocks();
         this.inputLocked = false;
+        onComplete?.();
+        this.tryStartTutorialForCurrentLevel();
       },
       0.32 + count * 0.04,
     );
@@ -1714,9 +1884,13 @@ export class gameScene extends Component {
 
   private onMagicClicked() {
     if (this.inputLocked) return;
+    if (!this.isToolActionAllowed("magic")) return;
     void this.prepareTool("magic", () => {
       this.magicUses = ToolInventory.getCount("magic");
       this.enterMagicSelectMode();
+      if (this.tutorialStep === "magic_button" && this.magicSelecting) {
+        this.startMagicDragTutorial();
+      }
     });
   }
 
@@ -1732,10 +1906,18 @@ export class gameScene extends Component {
     if (this.inputLocked) {
       return;
     }
+    if (!this.isToolActionAllowed("brush")) return;
     void this.prepareTool("brush", () => {
-      if (this.cleanTray()) {
-        ToolInventory.consume("brush");
+      const isGuideUse = this.tutorialStep === "brush_button";
+      let consumed = false;
+      if (this.cleanTray(() => {
+        if (consumed) this.completeToolTutorial("brush");
+      })) {
+        consumed = ToolInventory.consume("brush");
+        if (consumed && isGuideUse) ToolInventory.markGuideDone("brush");
         this.refreshToolBadges();
+      } else if (isGuideUse) {
+        this.skipToolTutorial("brush");
       }
     });
   }
@@ -1752,17 +1934,38 @@ export class gameScene extends Component {
    */
   private onMagnetClicked() {
     if (this.inputLocked) return;
+    if (!this.isToolActionAllowed("magnet")) return;
     void this.prepareTool("magnet", () => {
-      if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT)) {
-        ToolInventory.consume("magnet");
+      const isGuideUse = this.tutorialStep === "magnet_button";
+      let consumed = false;
+      if (this.autoSortBoardByMagnet(MAGNET_SORT_COUNT, () => {
+        if (consumed) this.completeToolTutorial("magnet");
+      })) {
+        consumed = ToolInventory.consume("magnet");
+        if (consumed && isGuideUse) ToolInventory.markGuideDone("magnet");
         this.refreshToolBadges();
+      } else if (isGuideUse) {
+        this.skipToolTutorial("magnet");
       }
     });
   }
 
   private async prepareTool(tool: ToolId, onReady: () => void): Promise<boolean> {
     if (this.inputLocked) return false;
+    if (!ToolInventory.isUnlocked(tool)) {
+      this.showMessage(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
+      return false;
+    }
     if (ToolInventory.has(tool)) {
+      onReady();
+      return true;
+    }
+
+    // 教学必须能离线完成。即使玩家曾在动画中退出导致试用次数耗尽，
+    // 也只补一份教学用次数，不在强制引导里拉起广告。
+    if (this.isActiveToolTutorial(tool)) {
+      ToolInventory.add(tool, 1);
+      this.refreshToolBadges();
       onReady();
       return true;
     }
@@ -1804,6 +2007,17 @@ export class gameScene extends Component {
 
   private castMagicAt(row: number, col: number) {
     if (!this.magicSelecting || this.magicUses <= 0) return;
+    const isGuideUse = this.tutorialStep === "magic_drag";
+
+    if (
+      this.tutorialStep === "magic_drag" &&
+      this.tutorialMagicTarget &&
+      (row !== this.tutorialMagicTarget.row || col !== this.tutorialMagicTarget.col)
+    ) {
+      this.resetMagicAreaToStart();
+      this.showMagicDragTutorial();
+      return;
+    }
 
     const tiles = this.getMagicAreaTiles(row, col);
     if (tiles.length === 0) return;
@@ -1812,15 +2026,28 @@ export class gameScene extends Component {
       return;
     }
 
-    if (!this.sortMagicArea(tiles)) {
-      this.resetMagicAreaToStart();
+    let consumed = false;
+    if (!this.sortMagicArea(tiles, () => {
+      if (consumed) this.completeToolTutorial("magic");
+    })) {
+      if (isGuideUse) {
+        this.skipToolTutorial("magic");
+      } else {
+        this.resetMagicAreaToStart();
+      }
       return;
     }
 
-    if (!ToolInventory.consume("magic")) {
-      this.resetMagicAreaToStart();
+    consumed = ToolInventory.consume("magic");
+    if (!consumed) {
+      if (isGuideUse) {
+        this.skipToolTutorial("magic");
+      } else {
+        this.resetMagicAreaToStart();
+      }
       return;
     }
+    if (isGuideUse) ToolInventory.markGuideDone("magic");
     this.refreshToolBadges();
 
     this.magicSelecting = false;
@@ -1932,10 +2159,31 @@ export class gameScene extends Component {
     this.onMagicAreaTouchMove(event);
     if (!this.magicAreaDidDrag) return;
 
-    const tile = this.findNearestTileAtPosition(this.getMagicAreaPositionInTileRoot());
-    if (!tile) return;
+    const nearestTile = this.findNearestTileAtPosition(this.getMagicAreaPositionInTileRoot());
+    if (!nearestTile) return;
+
+    // 教学要求玩家理解“拖动区域后释放”，不应该要求3×3框的中心格
+    // 与目标中心完全重合。进入目标3×3范围后自动吸附到正确中心，
+    // 避免视觉上已经拖到高亮区，却因为偏一格而被强制复位。
+    const tile = this.snapMagicTutorialDrop(nearestTile);
     this.moveMagicAreaTo(tile.row, tile.col);
     this.castMagicAt(tile.row, tile.col);
+  }
+
+  private snapMagicTutorialDrop(tile: TileState): TileState {
+    if (this.tutorialStep !== "magic_drag" || !this.tutorialMagicTarget) {
+      return tile;
+    }
+
+    const target = this.tiles[this.tutorialMagicTarget.row]?.[this.tutorialMagicTarget.col];
+    if (!target) return tile;
+
+    const rowTolerance = Math.floor(this.getMagicAreaRows() * 0.5);
+    const colTolerance = Math.floor(this.getMagicAreaCols() * 0.5);
+    const isInsideTargetArea =
+      Math.abs(tile.row - target.row) <= rowTolerance &&
+      Math.abs(tile.col - target.col) <= colTolerance;
+    return isInsideTargetArea ? target : tile;
   }
 
   private moveMagicAreaTo(row: number, col: number) {
@@ -1970,7 +2218,7 @@ export class gameScene extends Component {
     this.showMessage("请选择区域");
   }
 
-  private sortMagicArea(tiles: TileState[]): boolean {
+  private sortMagicArea(tiles: TileState[], onComplete?: () => void): boolean {
     const candidates = this.blocks.filter((block) => block.location === "board" || block.location === "tray");
     if (candidates.length === 0) return false;
 
@@ -2051,6 +2299,7 @@ export class gameScene extends Component {
       () => {
         this.sortTrayBlocks();
         this.inputLocked = false;
+        onComplete?.();
         this.checkWin();
       },
       0.35 + operations * 0.04,
@@ -2069,7 +2318,7 @@ export class gameScene extends Component {
    * 5. 被挪走的错误钻石不要求排序好，只要先腾出目标位即可。
    * 6. 暂时无法归位的槽位钻石会留在槽位里，并重新压缩排序。
    */
-  private cleanTray(): boolean {
+  private cleanTray(onComplete?: () => void): boolean {
     const trayBlocks = this.getAllTrayBlocksForClean();
 
     if (trayBlocks.length === 0) {
@@ -2120,6 +2369,7 @@ export class gameScene extends Component {
         this.sortTrayBlocks();
 
         this.inputLocked = false;
+        onComplete?.();
         this.checkWin();
       },
       0.35 + moveIndex * 0.045,
@@ -2427,7 +2677,7 @@ export class gameScene extends Component {
    * - 磁铁是自动挑选上方棋盘中未归位的位置，最多处理 12 个。
    * - 如果使用下面槽位里的钻石，必须把上方错误钻石换到这个槽位里，保证槽位占用数量不减少。
    */
-  private autoSortBoardByMagnet(maxCount: number = MAGNET_SORT_COUNT): boolean {
+  private autoSortBoardByMagnet(maxCount: number = MAGNET_SORT_COUNT, onComplete?: () => void): boolean {
     const operations = this.collectMagnetSortOperations(maxCount);
 
     if (operations.length <= 0) {
@@ -2454,6 +2704,7 @@ export class gameScene extends Component {
         this.refreshTrayLayout();
         this.sortTrayBlocks();
         this.inputLocked = false;
+        onComplete?.();
         this.checkWin();
       },
       0.35 + operations.length * 0.05,
@@ -2917,6 +3168,7 @@ export class gameScene extends Component {
     const complete = this.blocks.every((block) => block.location === "board" && block.collapsed);
     if (!complete) return;
 
+    this.clearTutorialPresentation();
     this.levelCompletionHandled = true;
     this.timerRunning = false;
     this.inputLocked = true;
@@ -2939,6 +3191,7 @@ export class gameScene extends Component {
   }
 
   private openFailPanel() {
+    this.clearTutorialPresentation();
     const manager = UIManager.instance;
     if (!manager) return;
 
@@ -2989,6 +3242,960 @@ export class gameScene extends Component {
     };
 
     manager.open(uiName.passPanel, data, UILayer.Popup);
+  }
+
+  // =========================================================
+  // Beginner guide
+  // =========================================================
+
+  private ensureUnlocksForCurrentLevel() {
+    if (this.feedRevisitChallenge) {
+      // 老版本存档只有数量，没有 unlocked 标记。复访挑战先按正式进度补齐解锁，
+      // 但不在特殊关卡中发首解奖励，也不触发新手教学。
+      const standardLevel = this.getStoredLevelIndex();
+      if (standardLevel >= 2) TutorialProgress.unlockTrayExpand();
+      const tools: ToolId[] = ["magic", "brush", "magnet"];
+      for (const tool of tools) {
+        if (standardLevel >= TOOL_UNLOCK_LEVELS[tool]) ToolInventory.unlock(tool);
+      }
+      this.refreshToolBadges();
+      return;
+    }
+
+    if (this.levelIndex >= 2) {
+      TutorialProgress.unlockTrayExpand();
+    }
+
+    const tools: ToolId[] = ["magic", "brush", "magnet"];
+    for (const tool of tools) {
+      if (this.levelIndex < TOOL_UNLOCK_LEVELS[tool]) continue;
+      if (ToolInventory.grantUnlockReward(tool, 1)) {
+        this.pendingToolRewardAnimations.add(tool);
+      } else {
+        ToolInventory.unlock(tool);
+        if (
+          ToolInventory.isUnlockRewardGranted(tool) &&
+          !ToolInventory.isUnlockRewardPresented(tool) &&
+          !ToolInventory.isGuideDone(tool)
+        ) {
+          this.pendingToolRewardAnimations.add(tool);
+        }
+      }
+    }
+    this.refreshToolBadges();
+  }
+
+  private tryStartTutorialForCurrentLevel() {
+    if (
+      !this.node?.isValid ||
+      !this.levelData ||
+      this.levelCompletionHandled ||
+      this.settingsOpen ||
+      this.inputLocked ||
+      this.feedRevisitChallenge ||
+      this.tutorialStep !== "none" ||
+      this.tutorialTransitioning
+    ) {
+      return;
+    }
+
+    if (this.feedAcquisition && !this.feedHasStarted) {
+      return;
+    }
+
+    if (this.levelIndex === 1 && !TutorialProgress.isCoreGuideDone()) {
+      this.startCoreTutorial();
+      return;
+    }
+
+    if (
+      this.levelIndex === 2 &&
+      !TutorialProgress.isTrayExpandGuideDone() &&
+      this.getAllTrayBlocksForClean().length > 0
+    ) {
+      this.startTrayExpandTutorial();
+      return;
+    }
+
+    const tools: ToolId[] = ["magic", "brush", "magnet"];
+    for (const tool of tools) {
+      if (
+        this.levelIndex < TOOL_UNLOCK_LEVELS[tool] ||
+        !ToolInventory.isUnlocked(tool) ||
+        ToolInventory.isGuideDone(tool)
+      ) {
+        continue;
+      }
+
+      if (tool === "brush" && !this.hasBrushGuideOpportunity()) {
+        continue;
+      }
+
+      this.startToolButtonTutorial(tool);
+      return;
+    }
+  }
+
+  private startCoreTutorial() {
+    const candidates = this.blocks
+      .filter((block) => block.location === "board" && !block.collapsed)
+      .sort((a, b) => a.col - b.col || a.row - b.row);
+    const firstSeed = candidates[0];
+    if (!firstSeed) {
+      this.failOpenCoreTutorial("没有找到第一组可移动宝石");
+      return;
+    }
+
+    const firstGroup = this.getConnectedBlocks(firstSeed.row, firstSeed.col, firstSeed.color);
+    const firstIds = new Set(firstGroup.map((block) => block.id));
+    const secondSeed = candidates.find((block) => !firstIds.has(block.id));
+    const secondGroup = secondSeed
+      ? this.getConnectedBlocks(secondSeed.row, secondSeed.col, secondSeed.color)
+      : [];
+    const allTiles = this.getAllTiles();
+    const secondTargetCount = allTiles.filter((tile) => tile.color === secondSeed?.color).length;
+    const firstTargetCount = allTiles.filter((tile) => tile.color === firstSeed.color).length;
+
+    if (
+      firstGroup.length <= 0 ||
+      secondGroup.length <= 0 ||
+      firstGroup.length > TRAY_COLS ||
+      firstSeed.color === secondSeed?.color ||
+      firstTargetCount < firstGroup.length ||
+      secondTargetCount < secondGroup.length
+    ) {
+      this.failOpenCoreTutorial("第一关数据不符合两组交换教学条件");
+      return;
+    }
+
+    this.tutorialFirstColor = firstSeed.color;
+    this.tutorialSecondColor = secondSeed!.color;
+    this.tutorialFirstBlockIds = new Set(firstGroup.map((block) => block.id));
+    this.tutorialSecondBlockIds = new Set(secondGroup.map((block) => block.id));
+    this.setTutorialStep("core_select_first");
+  }
+
+  private failOpenCoreTutorial(reason: string) {
+    console.warn(`[gameScene] 跳过第一关新手引导：${reason}`);
+    TutorialProgress.completeCoreGuide();
+    this.clearTutorialPresentation();
+  }
+
+  private setTutorialStep(step: TutorialStep) {
+    this.tutorialStep = step;
+    this.tutorialPaused = step !== "none";
+    this.tutorialTransitioning = false;
+    if (step !== "none") {
+      this.disableMapInputForTutorial();
+    }
+    this.showCurrentTutorialStep();
+  }
+
+  private showCurrentTutorialStep() {
+    if (!this.isCoreTutorialStep(this.tutorialStep)) return;
+
+    let targets: Node[] = [];
+    let text = "";
+    switch (this.tutorialStep) {
+      case "core_select_first":
+        targets = this.blocks
+          .filter(
+            (block) =>
+              block.location === "board" &&
+              !block.collapsed &&
+              this.tutorialFirstBlockIds.has(block.id),
+          )
+          .map((block) => block.node);
+        text = "点击这组同色宝石，一次可以拿起整组";
+        break;
+      case "core_store_first":
+        targets = this.traySlots
+          .filter((slot) => this.isTraySlotActive(slot) && !slot.block)
+          .slice(0, 1)
+          .map((slot) => slot.node);
+        text = "点击下方空格，先把宝石暂存在托盘";
+        break;
+      case "core_select_second":
+        targets = this.blocks
+          .filter(
+            (block) =>
+              block.location === "board" &&
+              !block.collapsed &&
+              this.tutorialSecondBlockIds.has(block.id),
+          )
+          .map((block) => block.node);
+        text = "再点击另一组同色宝石";
+        break;
+      case "core_place_second":
+        targets = this.getAllTiles()
+          .filter((tile) => !tile.block && tile.color === this.tutorialSecondColor)
+          .map((tile) => tile.node);
+        text = "点击相同颜色的空位，把宝石放回去";
+        break;
+      case "core_select_tray":
+        targets = this.blocks
+          .filter((block) => block.location === "tray" && this.tutorialFirstBlockIds.has(block.id))
+          .map((block) => block.node);
+        text = "托盘里的宝石也能再次选中";
+        break;
+      case "core_place_last":
+        targets = this.getAllTiles()
+          .filter((tile) => !tile.block && tile.color === this.tutorialFirstColor)
+          .map((tile) => tile.node);
+        text = "把最后一组放回对应颜色，完成关卡";
+        break;
+      default:
+        return;
+    }
+
+    const proxy = this.createTutorialTargetProxy(targets);
+    const guideRoot = this.getGuideRoot();
+    if (!proxy || !guideRoot) {
+      this.failOpenCoreTutorial("引导目标节点不存在");
+      return;
+    }
+
+    const expectedStep = this.tutorialStep;
+    const visualToken = ++this.tutorialVisualToken;
+    void GuideOverlay.showClick({
+      root: guideRoot,
+      target: proxy,
+      name: GUIDE_ROOT_NAME,
+      text,
+      holePadding: new Vec2(12, 12),
+      touchPadding: new Vec2(8, 8),
+      fingerOffset: new Vec2(2, -2),
+      onTargetTap: () => this.performCoreTutorialAction(expectedStep),
+    })
+      .then((guide) => {
+        if (!guide && this.tutorialVisualToken === visualToken && this.tutorialStep === expectedStep) {
+          this.failOpenCoreTutorial("引导视觉层创建失败");
+        }
+      })
+      .catch((err) => {
+        console.warn("[gameScene] 第一关引导视觉异常", err);
+        if (this.tutorialVisualToken === visualToken && this.tutorialStep === expectedStep) {
+          this.failOpenCoreTutorial("引导视觉层运行异常");
+        }
+      });
+  }
+
+  /**
+   * 引导遮罩在独立的最高层 Canvas 中，不能稳定地把触摸穿透给场景节点。
+   * 因此由引导目标区域接收点击，再调用与真实节点完全相同的业务入口。
+   */
+  private performCoreTutorialAction(expectedStep: TutorialStep) {
+    if (
+      this.tutorialStep !== expectedStep ||
+      !this.isCoreTutorialStep(expectedStep) ||
+      this.tutorialTransitioning
+    ) {
+      return;
+    }
+
+    if (expectedStep === "core_select_first") {
+      const block = this.blocks.find(
+        (item) =>
+          item.location === "board" &&
+          !item.collapsed &&
+          this.tutorialFirstBlockIds.has(item.id),
+      );
+      if (block) this.onBlockClicked(block);
+      return;
+    }
+
+    if (expectedStep === "core_store_first") {
+      const slot = this.traySlots.find(
+        (item) => this.isTraySlotActive(item) && !item.block,
+      );
+      if (slot) this.onTraySlotClicked(slot);
+      return;
+    }
+
+    if (expectedStep === "core_select_second") {
+      const block = this.blocks.find(
+        (item) =>
+          item.location === "board" &&
+          !item.collapsed &&
+          this.tutorialSecondBlockIds.has(item.id),
+      );
+      if (block) this.onBlockClicked(block);
+      return;
+    }
+
+    if (expectedStep === "core_place_second") {
+      const tile = this.findTutorialPlacementTile(this.tutorialSecondColor);
+      if (tile) this.onTileClicked(tile);
+      return;
+    }
+
+    if (expectedStep === "core_select_tray") {
+      const block = this.blocks.find(
+        (item) =>
+          item.location === "tray" && this.tutorialFirstBlockIds.has(item.id),
+      );
+      if (block) this.onBlockClicked(block);
+      return;
+    }
+
+    if (expectedStep === "core_place_last") {
+      const tile = this.findTutorialPlacementTile(this.tutorialFirstColor);
+      if (tile) this.onTileClicked(tile);
+    }
+  }
+
+  private findTutorialPlacementTile(color: number): TileState | null {
+    const candidates = this.getAllTiles().filter(
+      (tile) => !tile.block && tile.color === color,
+    );
+    const selectedCount = this.selectedBlocks.filter(
+      (block) => block.color === color,
+    ).length;
+    if (selectedCount <= 1) return candidates[0] ?? null;
+
+    return (
+      candidates.find(
+        (tile) =>
+          this.getConnectedEmptyTiles(tile.row, tile.col, color).length >=
+          selectedCount,
+      ) ??
+      candidates[0] ??
+      null
+    );
+  }
+
+  private isCoreTutorialStep(step: TutorialStep): boolean {
+    return step.startsWith("core_");
+  }
+
+  private getAllTiles(): TileState[] {
+    const result: TileState[] = [];
+    for (const row of this.tiles) {
+      result.push(...row);
+    }
+    return result;
+  }
+
+  private isTutorialBlockAllowed(block: BlockState): boolean {
+    if (this.tutorialStep === "none") return true;
+    if (this.tutorialTransitioning || !block) return false;
+
+    if (this.tutorialStep === "core_select_first") {
+      return block.location === "board" && !block.collapsed && this.tutorialFirstBlockIds.has(block.id);
+    }
+    if (this.tutorialStep === "core_select_second") {
+      return block.location === "board" && !block.collapsed && this.tutorialSecondBlockIds.has(block.id);
+    }
+    if (this.tutorialStep === "core_select_tray") {
+      return block.location === "tray" && this.tutorialFirstBlockIds.has(block.id);
+    }
+    return false;
+  }
+
+  private isTutorialTraySlotAllowed(slot: TraySlotState): boolean {
+    if (this.tutorialStep === "none") return true;
+    if (this.tutorialTransitioning) return false;
+    return this.tutorialStep === "core_store_first" && this.isTraySlotActive(slot) && !slot.block;
+  }
+
+  private isTutorialTileAllowed(tile: TileState): boolean {
+    if (this.tutorialStep === "none") return true;
+    if (this.tutorialTransitioning || !tile || !!tile.block) return false;
+    if (this.tutorialStep === "core_place_second") {
+      return tile.color === this.tutorialSecondColor;
+    }
+    if (this.tutorialStep === "core_place_last") {
+      return tile.color === this.tutorialFirstColor;
+    }
+    return false;
+  }
+
+  private onTutorialBlockSelectionCompleted(block: BlockState) {
+    if (this.tutorialTransitioning) return;
+
+    if (
+      this.tutorialStep === "core_select_first" &&
+      block.location === "board" &&
+      this.selectedBlocks.length > 0 &&
+      this.selectedBlocks.every(
+        (selected) => selected.location === "board" && this.tutorialFirstBlockIds.has(selected.id),
+      )
+    ) {
+      this.setTutorialStep("core_store_first");
+      return;
+    }
+
+    if (
+      this.tutorialStep === "core_select_second" &&
+      block.location === "board" &&
+      this.selectedBlocks.length > 0 &&
+      this.selectedBlocks.every(
+        (selected) => selected.location === "board" && this.tutorialSecondBlockIds.has(selected.id),
+      )
+    ) {
+      this.setTutorialStep("core_place_second");
+      return;
+    }
+
+    if (
+      this.tutorialStep === "core_select_tray" &&
+      block.location === "tray" &&
+      this.selectedBlocks.length > 0 &&
+      this.selectedBlocks.every(
+        (selected) => selected.location === "tray" && this.tutorialFirstBlockIds.has(selected.id),
+      )
+    ) {
+      this.setTutorialStep("core_place_last");
+    }
+  }
+
+  private onTutorialTrayMoveCompleted() {
+    if (this.tutorialStep !== "core_store_first") return;
+    const firstBlocks = this.blocks.filter((block) => this.tutorialFirstBlockIds.has(block.id));
+    if (firstBlocks.length > 0 && firstBlocks.every((block) => block.location === "tray")) {
+      this.setTutorialStep("core_select_second");
+    }
+  }
+
+  private onTutorialTileMoveCompleted() {
+    if (this.tutorialStep === "core_place_second") {
+      const secondBlocks = this.blocks.filter((block) => this.tutorialSecondBlockIds.has(block.id));
+      if (
+        secondBlocks.length > 0 &&
+        secondBlocks.every((block) => block.location === "board" && block.collapsed)
+      ) {
+        this.setTutorialStep("core_select_tray");
+      }
+      return;
+    }
+
+    if (this.tutorialStep === "core_place_last") {
+      const firstBlocks = this.blocks.filter((block) => this.tutorialFirstBlockIds.has(block.id));
+      if (
+        firstBlocks.length > 0 &&
+        firstBlocks.every((block) => block.location === "board" && block.collapsed)
+      ) {
+        TutorialProgress.completeCoreGuide();
+        this.finishTutorialStep();
+      }
+    }
+  }
+
+  private startTrayExpandTutorial() {
+    // 第2关先隐藏“+”，玩家第一次把宝石放入托盘后再显示并聚光。
+    this.refreshAddTrayButton();
+    if (!this.addTrayBtn?.node?.isValid || !this.addTrayBtn.node.active) {
+      TutorialProgress.completeTrayExpandGuide();
+      return;
+    }
+
+    this.tutorialStep = "tray_expand";
+    this.tutorialPaused = true;
+    this.tutorialTransitioning = false;
+    this.disableMapInputForTutorial();
+    const guideRoot = this.getGuideRoot();
+    if (!guideRoot) {
+      TutorialProgress.completeTrayExpandGuide();
+      this.finishTutorialStep();
+      return;
+    }
+
+    const visualToken = ++this.tutorialVisualToken;
+    void GuideOverlay.showClick({
+      root: guideRoot,
+      target: this.addTrayBtn.node,
+      name: GUIDE_ROOT_NAME,
+      text: "托盘空间不够时可以扩格，本关第一次免费",
+      holePadding: new Vec2(22, 18),
+      touchPadding: new Vec2(16, 12),
+      fingerOffset: new Vec2(8, -5),
+      onTargetTap: () => {
+        if (this.tutorialStep === "tray_expand") this.onAddTrayClicked();
+      },
+    })
+      .then((guide) => {
+        if (
+          !guide &&
+          this.tutorialVisualToken === visualToken &&
+          this.tutorialStep === "tray_expand"
+        ) {
+          TutorialProgress.completeTrayExpandGuide();
+          this.finishTutorialStep();
+        }
+      })
+      .catch((err) => {
+        console.warn("[gameScene] 扩格引导视觉异常", err);
+        if (this.tutorialVisualToken === visualToken && this.tutorialStep === "tray_expand") {
+          TutorialProgress.completeTrayExpandGuide();
+          this.finishTutorialStep();
+        }
+      });
+  }
+
+  private isLevel2FreeExpandAvailable(): boolean {
+    return (
+      this.levelIndex === 2 &&
+      !TutorialProgress.isTrayExpandGuideDone() &&
+      this.activeTrayRows < MAX_TRAY_ROWS
+    );
+  }
+
+  private hasBrushGuideOpportunity(): boolean {
+    const trayBlocks = this.getAllTrayBlocksForClean();
+    return trayBlocks.length > 0 && this.collectTrayAutoSortOperations(trayBlocks).length > 0;
+  }
+
+  private startToolButtonTutorial(tool: ToolId) {
+    const target = this.getToolButton(tool)?.node;
+    if (!target?.isValid) {
+      this.skipToolTutorial(tool);
+      return;
+    }
+
+    const step: TutorialStep =
+      tool === "magic" ? "magic_button" : tool === "brush" ? "brush_button" : "magnet_button";
+    this.tutorialStep = step;
+    this.tutorialPaused = true;
+    this.tutorialTransitioning = false;
+    this.disableMapInputForTutorial();
+
+    if (this.pendingToolRewardAnimations.has(tool)) {
+      this.playToolUnlockReward(tool, target, () => this.showToolButtonTutorial(tool, target));
+      return;
+    }
+    this.showToolButtonTutorial(tool, target);
+  }
+
+  private showToolButtonTutorial(tool: ToolId, target: Node) {
+    if (this.tutorialStep === "none") return;
+    if (!target?.isValid) {
+      this.skipToolTutorial(tool);
+      return;
+    }
+    this.tutorialTransitioning = false;
+    const guideRoot = this.getGuideRoot();
+    if (!guideRoot) {
+      this.skipToolTutorial(tool);
+      return;
+    }
+
+    const text =
+      tool === "magic"
+        ? "点击魔法棒，再拖动3×3选框整理宝石"
+        : tool === "brush"
+          ? "点击扫把，把托盘中的宝石自动放回去"
+          : "点击磁铁，自动整理棋盘中的12颗宝石";
+    const expectedStep = this.tutorialStep;
+    const visualToken = ++this.tutorialVisualToken;
+    void GuideOverlay.showClick({
+      root: guideRoot,
+      target,
+      name: GUIDE_ROOT_NAME,
+      text,
+      holePadding: new Vec2(20, 22),
+      touchPadding: new Vec2(14, 14),
+      fingerOffset: new Vec2(10, -8),
+      onTargetTap: () => {
+        if (this.tutorialStep !== expectedStep) return;
+        if (tool === "magic") this.onMagicClicked();
+        else if (tool === "brush") this.onBrushClicked();
+        else this.onMagnetClicked();
+      },
+    })
+      .then((guide) => {
+        if (!guide && this.tutorialVisualToken === visualToken && this.tutorialStep === expectedStep) {
+          this.skipToolTutorial(tool);
+        }
+      })
+      .catch((err) => {
+        console.warn(`[gameScene] ${TOOL_DISPLAY_NAMES[tool]}按钮引导视觉异常`, err);
+        if (this.tutorialVisualToken === visualToken && this.tutorialStep === expectedStep) {
+          this.skipToolTutorial(tool);
+        }
+      });
+  }
+
+  private skipToolTutorial(tool: ToolId) {
+    if (tool === "magic" && this.magicSelecting) {
+      this.magicSelecting = false;
+      this.magicUses = ToolInventory.getCount("magic");
+      if (this.magicAreaNode?.isValid) this.magicAreaNode.active = false;
+      if (this.messageLabel) this.messageLabel.node.active = false;
+    }
+    ToolInventory.markGuideDone(tool);
+    this.pendingToolRewardAnimations.delete(tool);
+    this.refreshToolBadges();
+    this.finishTutorialStep();
+  }
+
+  private isToolActionAllowed(tool: ToolId): boolean {
+    if (!ToolInventory.isUnlocked(tool)) {
+      this.showMessage(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
+      return false;
+    }
+    if (this.tutorialTransitioning) return false;
+    if (this.tutorialStep === "none") return true;
+    return (
+      (tool === "magic" && this.tutorialStep === "magic_button") ||
+      (tool === "brush" && this.tutorialStep === "brush_button") ||
+      (tool === "magnet" && this.tutorialStep === "magnet_button")
+    );
+  }
+
+  private isActiveToolTutorial(tool: ToolId): boolean {
+    return (
+      (tool === "magic" && (this.tutorialStep === "magic_button" || this.tutorialStep === "magic_drag")) ||
+      (tool === "brush" && this.tutorialStep === "brush_button") ||
+      (tool === "magnet" && this.tutorialStep === "magnet_button")
+    );
+  }
+
+  private getToolButton(tool: ToolId): Button | null {
+    if (tool === "magic") return this.magicBtn;
+    if (tool === "brush") return this.clearBtn;
+    return this.magnetBtn;
+  }
+
+  private startMagicDragTutorial() {
+    if (!this.magicAreaNode?.isValid) {
+      this.skipToolTutorial("magic");
+      return;
+    }
+
+    const target = this.findBestMagicGuideTarget();
+    if (!target) {
+      this.skipToolTutorial("magic");
+      return;
+    }
+
+    this.tutorialStep = "magic_drag";
+    this.tutorialMagicTarget = { row: target.row, col: target.col };
+    const start = this.findMagicGuideStart(target);
+    this.magicAreaStartCenter = { row: start.row, col: start.col };
+    this.moveMagicAreaTo(start.row, start.col);
+    if (this.messageLabel) this.messageLabel.node.active = false;
+    this.showMagicDragTutorial();
+  }
+
+  private showMagicDragTutorial() {
+    if (
+      this.tutorialStep !== "magic_drag" ||
+      !this.magicAreaNode?.isValid ||
+      !this.tutorialMagicTarget
+    ) {
+      return;
+    }
+
+    const endTile = this.tiles[this.tutorialMagicTarget.row]?.[this.tutorialMagicTarget.col];
+    const guideRoot = this.getGuideRoot();
+    const interactionTarget = endTile?.node?.isValid
+      ? this.createTutorialTargetProxy([this.magicAreaNode, endTile.node])
+      : null;
+    if (!endTile?.node?.isValid || !guideRoot || !interactionTarget?.isValid) {
+      this.skipToolTutorial("magic");
+      return;
+    }
+
+    const expectedTarget = { ...this.tutorialMagicTarget };
+    const visualToken = ++this.tutorialVisualToken;
+    void GuideOverlay.showDrag({
+      root: guideRoot,
+      startTarget: this.magicAreaNode,
+      endTarget: endTile.node,
+      interactionTarget,
+      name: GUIDE_ROOT_NAME,
+      text: "按住3×3选框，拖到高亮区域后松手",
+      holePadding: new Vec2(12, 12),
+      touchPadding: new Vec2(8, 8),
+      dragDuration: 0.9,
+      onTargetTouchStart: (event) => {
+        if (this.tutorialStep === "magic_drag") this.onMagicAreaTouchStart(event);
+      },
+      onTargetTouchMove: (event) => {
+        if (this.tutorialStep === "magic_drag") this.onMagicAreaTouchMove(event);
+      },
+      onTargetTouchEnd: (event) => {
+        if (this.tutorialStep === "magic_drag") this.onMagicAreaTouchEnd(event);
+      },
+      onTargetTouchCancel: (event) => {
+        if (this.tutorialStep === "magic_drag") this.onMagicAreaTouchEnd(event);
+      },
+    })
+      .then((guide) => {
+        if (
+          !guide &&
+          this.tutorialVisualToken === visualToken &&
+          this.tutorialStep === "magic_drag" &&
+          this.tutorialMagicTarget?.row === expectedTarget.row &&
+          this.tutorialMagicTarget?.col === expectedTarget.col
+        ) {
+          this.skipToolTutorial("magic");
+        }
+      })
+      .catch((err) => {
+        console.warn("[gameScene] 魔法棒拖动引导视觉异常", err);
+        if (this.tutorialVisualToken === visualToken && this.tutorialStep === "magic_drag") {
+          this.skipToolTutorial("magic");
+        }
+      });
+  }
+
+  private findBestMagicGuideTarget(): TileState | null {
+    let best: TileState | null = null;
+    let bestScore = 0;
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) continue;
+        const area = this.getMagicAreaTiles(tile.row, tile.col);
+        const wrongCount = area.filter(
+          (areaTile) => !areaTile.block || areaTile.block.color !== areaTile.color,
+        ).length;
+        const score = wrongCount * 100 + area.length;
+        if (wrongCount > 0 && score > bestScore) {
+          best = tile;
+          bestScore = score;
+        }
+      }
+    }
+    return best;
+  }
+
+  private findMagicGuideStart(target: TileState): TileState {
+    let result = target;
+    let farthest = -1;
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (!tile || tile.color <= 0) continue;
+        const dr = tile.row - target.row;
+        const dc = tile.col - target.col;
+        const distance = dr * dr + dc * dc;
+        if (distance > farthest) {
+          result = tile;
+          farthest = distance;
+        }
+      }
+    }
+    return result;
+  }
+
+  private completeToolTutorial(tool: ToolId) {
+    const matchesStep =
+      (tool === "magic" && this.tutorialStep === "magic_drag") ||
+      (tool === "brush" && this.tutorialStep === "brush_button") ||
+      (tool === "magnet" && this.tutorialStep === "magnet_button");
+    if (!matchesStep) return;
+
+    ToolInventory.markGuideDone(tool);
+    this.pendingToolRewardAnimations.delete(tool);
+    this.tutorialMagicTarget = null;
+    this.refreshToolBadges();
+    this.finishTutorialStep();
+  }
+
+  private finishTutorialStep() {
+    this.clearTutorialPresentation();
+    this.scheduleOnce(() => this.tryStartTutorialForCurrentLevel(), 0.25);
+  }
+
+  private playToolUnlockReward(tool: ToolId, target: Node, onFinish: () => void) {
+    const guideRoot = this.getGuideRoot();
+    const rootTransform = guideRoot?.getComponent(UITransform);
+    const targetTransform = target.getComponent(UITransform);
+    if (!guideRoot || !rootTransform || !targetTransform) {
+      this.pendingToolRewardAnimations.delete(tool);
+      onFinish();
+      return;
+    }
+
+    this.tutorialTransitioning = true;
+    GuideOverlay.hide(guideRoot, GUIDE_ROOT_NAME);
+    this.destroyToolRewardNode();
+
+    const rewardRoot = this.createNode(GUIDE_REWARD_NAME, guideRoot, rootTransform.width, rootTransform.height);
+    rewardRoot.addComponent(BlockInputEvents);
+    const shade = rewardRoot.addComponent(Graphics);
+    shade.fillColor = new Color(0, 0, 0, 165);
+    shade.rect(
+      -rootTransform.width * rootTransform.anchorX,
+      -rootTransform.height * rootTransform.anchorY,
+      rootTransform.width,
+      rootTransform.height,
+    );
+    shade.fill();
+
+    const card = this.createNode("Card", rewardRoot, 470, 250);
+    card.setPosition(0, 45, 0);
+    const cardGraphics = card.addComponent(Graphics);
+    cardGraphics.fillColor = new Color(252, 246, 255, 255);
+    cardGraphics.strokeColor = new Color(139, 91, 202, 255);
+    cardGraphics.lineWidth = 5;
+    cardGraphics.roundRect(-235, -125, 470, 250, 32);
+    cardGraphics.fill();
+    cardGraphics.stroke();
+
+    const iconSource = this.findDeepChild(target, "MagicTool")?.getComponent(Sprite) || target.getComponentInChildren(Sprite);
+    const flyingIcon = this.createNode("RewardIcon", rewardRoot, 104, 104);
+    flyingIcon.setPosition(0, 88, 0);
+    const iconSprite = flyingIcon.addComponent(Sprite);
+    iconSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    iconSprite.spriteFrame = iconSource?.spriteFrame || this.lockFrame;
+
+    const textNode = this.createNode("Text", card, 420, 100);
+    textNode.setPosition(0, -48, 0);
+    const label = textNode.addComponent(Label);
+    label.string = `新道具解锁：${TOOL_DISPLAY_NAMES[tool]}\n免费获得 ×1`;
+    label.fontSize = 31;
+    label.lineHeight = 43;
+    label.color = new Color(91, 48, 139, 255);
+    label.horizontalAlign = HorizontalTextAlignment.CENTER;
+    label.verticalAlign = VerticalTextAlignment.CENTER;
+    label.overflow = Label.Overflow.SHRINK;
+    label.enableWrapText = true;
+    const outline = textNode.addComponent(LabelOutline);
+    outline.color = Color.WHITE;
+    outline.width = 2;
+
+    const targetWorld = targetTransform.convertToWorldSpaceAR(Vec3.ZERO);
+    const targetLocal = rootTransform.convertToNodeSpaceAR(targetWorld);
+    card.setScale(0.55, 0.55, 1);
+    flyingIcon.setScale(0.2, 0.2, 1);
+
+    tween(flyingIcon).to(0.28, { scale: Vec3.ONE }, { easing: "backOut" }).start();
+    tween(card)
+      .to(0.28, { scale: new Vec3(1.05, 1.05, 1) }, { easing: "backOut" })
+      .to(0.08, { scale: Vec3.ONE }, { easing: "quadOut" })
+      .delay(0.62)
+      .call(() => {
+        if (!rewardRoot.isValid || this.tutorialStep === "none") return;
+        card.active = false;
+        tween(flyingIcon)
+          .to(0.42, { position: targetLocal, scale: new Vec3(0.42, 0.42, 1) }, { easing: "quadInOut" })
+          .call(() => {
+            if (!this.node?.isValid || this.tutorialStep === "none") return;
+            ToolInventory.markUnlockRewardPresented(tool);
+            this.pendingToolRewardAnimations.delete(tool);
+            this.destroyToolRewardNode();
+            this.tutorialTransitioning = false;
+            onFinish();
+          })
+          .start();
+      })
+      .start();
+  }
+
+  private getGuideRoot(): Node | null {
+    const guideRoot = UIManager.instance?.getLayerNode(UILayer.Guide) || this.node || null;
+    guideRoot?.getComponent(Widget)?.updateAlignment();
+    const guideTransform = guideRoot?.getComponent(UITransform);
+    const sceneTransform = this.node?.getComponent(UITransform);
+    if (
+      guideTransform &&
+      sceneTransform &&
+      sceneTransform.width > 1 &&
+      sceneTransform.height > 1 &&
+      (Math.abs(guideTransform.width - sceneTransform.width) > 1 ||
+        Math.abs(guideTransform.height - sceneTransform.height) > 1)
+    ) {
+      guideTransform.setContentSize(sceneTransform.contentSize);
+    }
+    return guideRoot;
+  }
+
+  private createTutorialTargetProxy(nodes: Node[]): Node | null {
+    this.destroyTutorialTargetProxy();
+    const guideRoot = this.getGuideRoot();
+    const rootTransform = guideRoot?.getComponent(UITransform);
+    if (!guideRoot || !rootTransform || nodes.length === 0) return null;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const node of nodes) {
+      const transform = node?.getComponent(UITransform);
+      if (!transform || !node.isValid) continue;
+      const left = -transform.width * transform.anchorX;
+      const right = transform.width * (1 - transform.anchorX);
+      const bottom = -transform.height * transform.anchorY;
+      const top = transform.height * (1 - transform.anchorY);
+      const corners = [
+        new Vec3(left, bottom, 0),
+        new Vec3(right, bottom, 0),
+        new Vec3(right, top, 0),
+        new Vec3(left, top, 0),
+      ];
+      for (const corner of corners) {
+        const local = rootTransform.convertToNodeSpaceAR(transform.convertToWorldSpaceAR(corner));
+        minX = Math.min(minX, local.x);
+        minY = Math.min(minY, local.y);
+        maxX = Math.max(maxX, local.x);
+        maxY = Math.max(maxY, local.y);
+      }
+    }
+
+    if (!Number.isFinite(minX) || maxX <= minX || maxY <= minY) return null;
+    const proxy = this.createNode(GUIDE_PROXY_NAME, guideRoot, maxX - minX, maxY - minY);
+    proxy.setPosition((minX + maxX) * 0.5, (minY + maxY) * 0.5, 0);
+    this.tutorialTargetProxy = proxy;
+    return proxy;
+  }
+
+  private destroyTutorialTargetProxy() {
+    if (this.tutorialTargetProxy?.isValid) {
+      this.tutorialTargetProxy.removeFromParent();
+      this.tutorialTargetProxy.destroy();
+    }
+    this.tutorialTargetProxy = null;
+  }
+
+  private destroyToolRewardNode() {
+    const root = this.getGuideRoot()?.getChildByName(GUIDE_REWARD_NAME);
+    if (!root?.isValid) return;
+    const stop = (node: Node) => {
+      Tween.stopAllByTarget(node);
+      node.children.forEach(stop);
+    };
+    stop(root);
+    root.removeFromParent();
+    root.destroy();
+  }
+
+  private disableMapInputForTutorial() {
+    if (!this.mapControl || this.tutorialMapInputState) return;
+    this.tutorialMapInputState = {
+      pinch: this.mapControl.enablePinchZoom,
+      wheel: this.mapControl.enableMouseWheelZoom,
+      drag: this.mapControl.enableDrag,
+    };
+    this.mapControl.enablePinchZoom = false;
+    this.mapControl.enableMouseWheelZoom = false;
+    this.mapControl.enableDrag = false;
+  }
+
+  private restoreMapInputAfterTutorial() {
+    if (!this.mapControl || !this.tutorialMapInputState) return;
+    this.mapControl.enablePinchZoom = this.tutorialMapInputState.pinch;
+    this.mapControl.enableMouseWheelZoom = this.tutorialMapInputState.wheel;
+    this.mapControl.enableDrag = this.tutorialMapInputState.drag;
+    this.tutorialMapInputState = null;
+  }
+
+  private clearTutorialPresentation(resetStep = true) {
+    this.tutorialVisualToken++;
+    GuideOverlay.hide(undefined, GUIDE_ROOT_NAME);
+    this.destroyTutorialTargetProxy();
+    this.destroyToolRewardNode();
+    this.tutorialPaused = false;
+    this.tutorialTransitioning = false;
+    this.tutorialMagicTarget = null;
+    this.restoreMapInputAfterTutorial();
+    if (resetStep) {
+      this.tutorialStep = "none";
+      this.tutorialFirstColor = 0;
+      this.tutorialSecondColor = 0;
+      this.tutorialFirstBlockIds.clear();
+      this.tutorialSecondBlockIds.clear();
+    }
   }
 
   private onFeedStateChanged = (state: FeedAcquisitionState) => {
@@ -3072,16 +4279,13 @@ export class gameScene extends Component {
     if (!this.feedAcquisition || this.feedGuideShown) return;
 
     this.feedGuideShown = true;
-    const content = "点击同色宝石，把它们放回对应位置";
-    this.showMessage(content);
-    this.scheduleOnce(() => {
-      if (this.messageLabel?.string === content) this.messageLabel.node.active = false;
-    }, FEED_ACQUISITION_GUIDE_SECONDS);
+    this.tryStartTutorialForCurrentLevel();
   }
 
   private finishFeedExperience() {
     if (!this.feedMode) return;
 
+    this.clearTutorialPresentation();
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     this.feedMode = false;
     this.feedAcquisition = false;
@@ -3112,6 +4316,7 @@ export class gameScene extends Component {
   }
 
   protected onDestroy() {
+    this.clearTutorialPresentation();
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     this.unbindFeedFallbackTouch();
@@ -3313,6 +4518,7 @@ export class gameScene extends Component {
   }
 
   private clearBoard() {
+    this.clearTutorialPresentation();
     this.magicSelecting = false;
     if (this.magicAreaNode?.isValid) this.magicAreaNode.destroy();
     this.magicAreaNode = null;
@@ -3356,6 +4562,7 @@ export class gameScene extends Component {
 
   private createNode(name: string, parent: Node, width: number, height: number): Node {
     const node = new Node(name);
+    node.layer = parent.layer;
     parent.addChild(node);
     const transform = node.addComponent(UITransform);
     transform.setContentSize(width, height);
