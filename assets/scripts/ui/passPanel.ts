@@ -102,12 +102,18 @@ export class passPanel extends UIBase {
     const transform = this.previewSprite?.node.getComponent(UITransform);
     if (!transform) return;
 
-    const sourceSize = frame.originalSize;
-    const sourceWidth = Math.max(1, sourceSize.width);
-    const sourceHeight = Math.max(1, sourceSize.height);
+    /**
+     * 关卡预览图带有不同大小的透明留白。使用 originalSize 会把这些透明像素
+     * 也算进适配尺寸，像 Level2 这类上下留白较多的图片会被高度提前限制，
+     * 最终横向明显变窄。Sprite 当前使用裁剪模式，因此应按实际纹理区域适配。
+     */
+    this.previewSprite.trim = true;
+    const sourceRect = frame.rect;
+    const sourceWidth = Math.max(1, sourceRect.width);
+    const sourceHeight = Math.max(1, sourceRect.height);
     const maxWidth = Math.max(1, this.previewBounds.width || transform.width);
     const maxHeight = Math.max(1, this.previewBounds.height || transform.height);
-    const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight, 1);
+    const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight);
 
     transform.setContentSize(sourceWidth * scale, sourceHeight * scale);
   }

@@ -4,6 +4,7 @@ import {
   createFeedRevisitExtra,
   FEED_REVISIT_CHALLENGE_LEVEL,
   FEED_REVISIT_CONTENT_ID,
+  FEED_REVISIT_LEGACY_CHALLENGE_LEVELS,
   FEED_REVISIT_PRODUCTION_DELAY_MS,
   FEED_REVISIT_SCENE,
   FEED_REVISIT_TEST_DELAY_MS,
@@ -363,9 +364,14 @@ export class FeedRevisitService {
     if (!extra) return 0;
     try {
       const data = JSON.parse(extra);
+      const challengeLevel = Number(data?.level);
+      const supportedChallengeLevels: readonly number[] = [
+        FEED_REVISIT_CHALLENGE_LEVEL,
+        ...FEED_REVISIT_LEGACY_CHALLENGE_LEVELS,
+      ];
       if (
         data?.event !== "daily_gem_challenge" ||
-        Number(data?.level) !== FEED_REVISIT_CHALLENGE_LEVEL ||
+        supportedChallengeLevels.indexOf(challengeLevel) < 0 ||
         !Number.isFinite(Number(data?.readyAt))
       ) {
         return 0;

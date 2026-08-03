@@ -1,5 +1,20 @@
 import { EnvTool } from "./framework/Platform/sdk/EnvTool";
 
 export const GameConfig = {
+  debugLogEnabled: EnvTool.isByteDanceMiniGame() ? false : true,
   showAd: EnvTool.isByteDanceMiniGame() ? true : false, // 是否显示广告
 };
+
+/**
+ * 保留原始 console.log，避免重复应用配置时把已经禁用的空函数当成原实现。
+ * warn / error 不属于普通调试打印，始终保留，便于正式环境排查故障。
+ */
+const originalConsoleLog = console.log.bind(console);
+const disabledConsoleLog: typeof console.log = () => {};
+
+export function applyDebugLogConfig(): void {
+  console.log = GameConfig.debugLogEnabled ? originalConsoleLog : disabledConsoleLog;
+}
+
+// GameConfig 会在启动场景加载 SdkUtils 时初始化，因此能统一接管后续业务日志。
+applyDebugLogConfig();

@@ -158,6 +158,7 @@ const MAGNET_SORT_COUNT = 12;
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
 const LAST_STANDARD_LEVEL = 222;
+const REPLAY_START_LEVEL = 10;
 const FEED_ACQUISITION_LEVEL = 1;
 const FEED_ACQUISITION_SECONDS = 60;
 const FEED_ACQUISITION_REVIVE_SECONDS = 45;
@@ -165,6 +166,7 @@ const FEED_EXTERNAL_UI_DELAY_MS = 5000;
 const GUIDE_ROOT_NAME = "__GemBeginnerGuide";
 const GUIDE_REWARD_NAME = "__GemToolUnlockReward";
 const GUIDE_PROXY_NAME = "__GemGuideTargetProxy";
+const TOOL_UNLOCK_REWARD_AMOUNT = 1;
 const TOOL_UNLOCK_LEVELS: Record<ToolId, number> = {
   magic: 3,
   brush: 5,
@@ -174,6 +176,11 @@ const TOOL_DISPLAY_NAMES: Record<ToolId, string> = {
   magic: "魔法棒",
   brush: "扫把",
   magnet: "磁铁",
+};
+const TOOL_REWARD_DESCRIPTIONS: Record<ToolId, string> = {
+  magic: "拖动魔法区域，自动整理选中的 3×3 宝石",
+  brush: "自动把托盘里的宝石放回对应颜色的位置",
+  magnet: "自动整理棋盘中的 12 颗宝石",
 };
 const CONNECTED_DIRECTIONS: Array<[number, number]> = [
   [-1, -1],
@@ -330,6 +337,7 @@ export class gameScene extends Component {
   private timerRunningBeforeFeedPause = false;
   private levelCompletionHandled = false;
   private feedChallengeRewardGranted = false;
+  private feedChallengeRewardTool: ToolId | null = null;
 
   private tutorialStep: TutorialStep = "none";
   private tutorialPaused = false;
@@ -660,7 +668,7 @@ export class gameScene extends Component {
     for (const { button, tool } of tools) {
       if (!button?.node) continue;
       const count = ToolInventory.getCount(tool);
-      const unlocked = ToolInventory.isUnlocked(tool);
+      const unlocked = this.isToolUnlocked(tool);
       const countBadge = button.node.getChildByName("CountBadge");
       const adBadge = button.node.getChildByName("AdBadge");
       const countLabel = countBadge?.getChildByName("Count")?.getComponent(Label);
@@ -813,6 +821,7 @@ export class gameScene extends Component {
     this.timerRunning = false;
     this.levelCompletionHandled = false;
     this.feedChallengeRewardGranted = false;
+    this.feedChallengeRewardTool = null;
     this.levelData = null;
     this.clearBoard();
 
@@ -1952,7 +1961,7 @@ export class gameScene extends Component {
 
   private async prepareTool(tool: ToolId, onReady: () => void): Promise<boolean> {
     if (this.inputLocked) return false;
-    if (!ToolInventory.isUnlocked(tool)) {
+    if (!this.isToolUnlocked(tool)) {
       this.showMessage(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
       return false;
     }
@@ -3182,10 +3191,16 @@ export class gameScene extends Component {
       );
       this.feedChallengeRewardGranted = canClaimReward;
       if (canClaimReward) {
-        ToolInventory.addMany({ magic: 1, brush: 1, magnet: 1 });
+        const rewardTools: ToolId[] = ["magic", "brush", "magnet"];
+        const rewardTool = rewardTools[Math.floor(Math.random() * rewardTools.length)];
+        this.feedChallengeRewardTool = rewardTool;
+        ToolInventory.add(rewardTool, 1);
         this.refreshToolBadges();
       }
       FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
+    } else if (!this.feedMode && this.levelIndex >= LAST_STANDARD_LEVEL) {
+      // 正式关卡全部完成后进入重玩循环；立即保存，点击主页或直接退出也不会重复第 222 关。
+      sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(REPLAY_START_LEVEL));
     }
     this.openPassPanel();
   }
@@ -3220,19 +3235,24 @@ export class gameScene extends Component {
     if (!manager) return;
 
     const isRevisitChallenge = this.feedRevisitChallenge;
+    const isReplayEntry = !isRevisitChallenge && this.levelIndex >= LAST_STANDARD_LEVEL;
     const data = {
       level: this.levelIndex,
       title: isRevisitChallenge ? "挑战完成" : undefined,
       levelText: isRevisitChallenge
-        ? this.feedChallengeRewardGranted
-          ? "奖励：三种道具各 +1"
+        ? this.feedChallengeRewardGranted && this.feedChallengeRewardTool
+          ? `奖励：${TOOL_DISPLAY_NAMES[this.feedChallengeRewardTool]} ×1`
           : "本期挑战已完成"
         : undefined,
-      nextText: isRevisitChallenge ? "继续闯关" : undefined,
+      nextText: isRevisitChallenge ? "继续闯关" : isReplayEntry ? "重玩" : undefined,
       onNext: () => {
         this.finishFeedExperience();
         this.feedRevisitChallenge = false;
-        this.levelIndex = isRevisitChallenge ? this.getStoredLevelIndex() : this.levelIndex + 1;
+        this.levelIndex = isRevisitChallenge
+          ? this.getStoredLevelIndex()
+          : isReplayEntry
+            ? REPLAY_START_LEVEL
+            : this.levelIndex + 1;
         void this.loadLevel(this.levelIndex);
       },
       onHome: () => {
@@ -3250,14 +3270,7 @@ export class gameScene extends Component {
 
   private ensureUnlocksForCurrentLevel() {
     if (this.feedRevisitChallenge) {
-      // 老版本存档只有数量，没有 unlocked 标记。复访挑战先按正式进度补齐解锁，
-      // 但不在特殊关卡中发首解奖励，也不触发新手教学。
-      const standardLevel = this.getStoredLevelIndex();
-      if (standardLevel >= 2) TutorialProgress.unlockTrayExpand();
-      const tools: ToolId[] = ["magic", "brush", "magnet"];
-      for (const tool of tools) {
-        if (standardLevel >= TOOL_UNLOCK_LEVELS[tool]) ToolInventory.unlock(tool);
-      }
+      // 每日挑战临时开放全部道具，不改动正式关卡的永久解锁和引导进度。
       this.refreshToolBadges();
       return;
     }
@@ -3269,7 +3282,7 @@ export class gameScene extends Component {
     const tools: ToolId[] = ["magic", "brush", "magnet"];
     for (const tool of tools) {
       if (this.levelIndex < TOOL_UNLOCK_LEVELS[tool]) continue;
-      if (ToolInventory.grantUnlockReward(tool, 1)) {
+      if (ToolInventory.grantUnlockReward(tool, TOOL_UNLOCK_REWARD_AMOUNT)) {
         this.pendingToolRewardAnimations.add(tool);
       } else {
         ToolInventory.unlock(tool);
@@ -3318,6 +3331,16 @@ export class gameScene extends Component {
     }
 
     const tools: ToolId[] = ["magic", "brush", "magnet"];
+    /**
+     * 直接跳关或清空测试存档时，旧教学可能仍未完成。当前关新解锁的道具
+     * 必须优先展示，否则第 5 关会先补魔法棒、第 7 关会先补扫把，看起来就像
+     * 本关道具引导没有触发。正常顺序游玩时这个排序不会改变已有流程。
+     */
+    tools.sort((a, b) => {
+      const aUnlocksNow = TOOL_UNLOCK_LEVELS[a] === this.levelIndex ? 0 : 1;
+      const bUnlocksNow = TOOL_UNLOCK_LEVELS[b] === this.levelIndex ? 0 : 1;
+      return aUnlocksNow - bUnlocksNow || TOOL_UNLOCK_LEVELS[a] - TOOL_UNLOCK_LEVELS[b];
+    });
     for (const tool of tools) {
       if (
         this.levelIndex < TOOL_UNLOCK_LEVELS[tool] ||
@@ -3328,6 +3351,15 @@ export class gameScene extends Component {
       }
 
       if (tool === "brush" && !this.hasBrushGuideOpportunity()) {
+        /**
+         * 扫把只有在托盘里存在可放回的宝石时才能演示实际效果，但首次解锁奖励
+         * 不应因此被延后。第五关先展示领取弹窗；领取完成后恢复游戏，等玩家把
+         * 宝石放进托盘，moveBoardBlocksToTray 会再次检查并启动按钮教学。
+         */
+        if (this.pendingToolRewardAnimations.has(tool)) {
+          this.startToolButtonTutorial(tool, true);
+          return;
+        }
         continue;
       }
 
@@ -3745,7 +3777,7 @@ export class gameScene extends Component {
     return trayBlocks.length > 0 && this.collectTrayAutoSortOperations(trayBlocks).length > 0;
   }
 
-  private startToolButtonTutorial(tool: ToolId) {
+  private startToolButtonTutorial(tool: ToolId, deferButtonGuide = false) {
     const target = this.getToolButton(tool)?.node;
     if (!target?.isValid) {
       this.skipToolTutorial(tool);
@@ -3760,7 +3792,17 @@ export class gameScene extends Component {
     this.disableMapInputForTutorial();
 
     if (this.pendingToolRewardAnimations.has(tool)) {
-      this.playToolUnlockReward(tool, target, () => this.showToolButtonTutorial(tool, target));
+      this.playToolUnlockReward(tool, target, () => {
+        if (deferButtonGuide) {
+          this.finishTutorialStep();
+          return;
+        }
+        this.showToolButtonTutorial(tool, target);
+      });
+      return;
+    }
+    if (deferButtonGuide) {
+      this.finishTutorialStep();
       return;
     }
     this.showToolButtonTutorial(tool, target);
@@ -3829,7 +3871,7 @@ export class gameScene extends Component {
   }
 
   private isToolActionAllowed(tool: ToolId): boolean {
-    if (!ToolInventory.isUnlocked(tool)) {
+    if (!this.isToolUnlocked(tool)) {
       this.showMessage(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
       return false;
     }
@@ -3840,6 +3882,11 @@ export class gameScene extends Component {
       (tool === "brush" && this.tutorialStep === "brush_button") ||
       (tool === "magnet" && this.tutorialStep === "magnet_button")
     );
+  }
+
+  /** 每日复访挑战绕过正式进度锁，但不把临时权限写入 ToolInventory。 */
+  private isToolUnlocked(tool: ToolId): boolean {
+    return this.feedRevisitChallenge || ToolInventory.isUnlocked(tool);
   }
 
   private isActiveToolTutorial(tool: ToolId): boolean {
@@ -4011,80 +4058,286 @@ export class gameScene extends Component {
     GuideOverlay.hide(guideRoot, GUIDE_ROOT_NAME);
     this.destroyToolRewardNode();
 
-    const rewardRoot = this.createNode(GUIDE_REWARD_NAME, guideRoot, rootTransform.width, rootTransform.height);
+    const rootWidth = Math.max(1, rootTransform.width);
+    const rootHeight = Math.max(1, rootTransform.height);
+    const rewardRoot = this.createNode(GUIDE_REWARD_NAME, guideRoot, rootWidth, rootHeight);
+    rewardRoot.setSiblingIndex(guideRoot.children.length - 1);
     rewardRoot.addComponent(BlockInputEvents);
     const shade = rewardRoot.addComponent(Graphics);
-    shade.fillColor = new Color(0, 0, 0, 165);
+    shade.fillColor = new Color(0, 0, 0, 188);
     shade.rect(
-      -rootTransform.width * rootTransform.anchorX,
-      -rootTransform.height * rootTransform.anchorY,
-      rootTransform.width,
-      rootTransform.height,
+      -rootWidth * rootTransform.anchorX,
+      -rootHeight * rootTransform.anchorY,
+      rootWidth,
+      rootHeight,
     );
     shade.fill();
 
-    const card = this.createNode("Card", rewardRoot, 470, 250);
-    card.setPosition(0, 45, 0);
+    /**
+     * 以 750×1334 为基准做统一缩放，横竖屏或较窄设备只缩小整张卡片，
+     * 不单独拉伸宽高。卡片内的图标还会按 SpriteFrame 实际裁剪区域二次等比适配。
+     */
+    const baseCardWidth = 560;
+    const baseCardHeight = 420;
+    const layoutScale = Math.max(
+      0.01,
+      Math.min(1, (rootWidth * 0.9) / baseCardWidth, (rootHeight * 0.84) / baseCardHeight),
+    );
+    const cardWidth = baseCardWidth * layoutScale;
+    const cardHeight = baseCardHeight * layoutScale;
+    const card = this.createNode("Card", rewardRoot, cardWidth, cardHeight);
+    card.setPosition(0, Math.min(44, rootHeight * 0.035), 0);
     const cardGraphics = card.addComponent(Graphics);
-    cardGraphics.fillColor = new Color(252, 246, 255, 255);
-    cardGraphics.strokeColor = new Color(139, 91, 202, 255);
-    cardGraphics.lineWidth = 5;
-    cardGraphics.roundRect(-235, -125, 470, 250, 32);
+    cardGraphics.fillColor = new Color(249, 244, 255, 255);
+    cardGraphics.strokeColor = new Color(128, 87, 174, 255);
+    cardGraphics.lineWidth = Math.max(3, 5 * layoutScale);
+    cardGraphics.roundRect(
+      -cardWidth * 0.5,
+      -cardHeight * 0.5,
+      cardWidth,
+      cardHeight,
+      30 * layoutScale,
+    );
     cardGraphics.fill();
     cardGraphics.stroke();
 
-    const iconSource = this.findDeepChild(target, "MagicTool")?.getComponent(Sprite) || target.getComponentInChildren(Sprite);
-    const flyingIcon = this.createNode("RewardIcon", rewardRoot, 104, 104);
-    flyingIcon.setPosition(0, 88, 0);
-    const iconSprite = flyingIcon.addComponent(Sprite);
-    iconSprite.sizeMode = Sprite.SizeMode.CUSTOM;
-    iconSprite.spriteFrame = iconSource?.spriteFrame || this.lockFrame;
+    const headerHeight = 68 * layoutScale;
+    const header = this.createNode("Header", card, cardWidth - 34 * layoutScale, headerHeight);
+    header.setPosition(0, cardHeight * 0.5 - 18 * layoutScale - headerHeight * 0.5, 0);
+    const headerGraphics = header.addComponent(Graphics);
+    headerGraphics.fillColor = new Color(112, 78, 157, 255);
+    headerGraphics.roundRect(
+      -(cardWidth - 34 * layoutScale) * 0.5,
+      -headerHeight * 0.5,
+      cardWidth - 34 * layoutScale,
+      headerHeight,
+      15 * layoutScale,
+    );
+    headerGraphics.fill();
 
-    const textNode = this.createNode("Text", card, 420, 100);
-    textNode.setPosition(0, -48, 0);
-    const label = textNode.addComponent(Label);
-    label.string = `新道具解锁：${TOOL_DISPLAY_NAMES[tool]}\n免费获得 ×1`;
-    label.fontSize = 31;
-    label.lineHeight = 43;
-    label.color = new Color(91, 48, 139, 255);
-    label.horizontalAlign = HorizontalTextAlignment.CENTER;
-    label.verticalAlign = VerticalTextAlignment.CENTER;
-    label.overflow = Label.Overflow.SHRINK;
-    label.enableWrapText = true;
-    const outline = textNode.addComponent(LabelOutline);
-    outline.color = Color.WHITE;
-    outline.width = 2;
+    const titleNode = this.createNode("Title", header, cardWidth - 76 * layoutScale, 52 * layoutScale);
+    const titleLabel = titleNode.addComponent(Label);
+    titleLabel.string = TOOL_DISPLAY_NAMES[tool];
+    titleLabel.fontSize = Math.max(22, Math.round(34 * layoutScale));
+    titleLabel.lineHeight = Math.max(28, Math.round(43 * layoutScale));
+    titleLabel.color = Color.WHITE;
+    titleLabel.horizontalAlign = HorizontalTextAlignment.CENTER;
+    titleLabel.verticalAlign = VerticalTextAlignment.CENTER;
+    titleLabel.overflow = Label.Overflow.SHRINK;
 
-    const targetWorld = targetTransform.convertToWorldSpaceAR(Vec3.ZERO);
-    const targetLocal = rootTransform.convertToNodeSpaceAR(targetWorld);
-    card.setScale(0.55, 0.55, 1);
-    flyingIcon.setScale(0.2, 0.2, 1);
+    const iconSource =
+      this.findDeepChild(target, "MagicTool")?.getComponent(Sprite) ||
+      target.getComponentInChildren(Sprite);
+    const iconFrame = iconSource?.spriteFrame || this.lockFrame;
+    const iconPlateWidth = 150 * layoutScale;
+    const iconPlateHeight = 132 * layoutScale;
+    const iconPlate = this.createNode("IconPlate", card, iconPlateWidth, iconPlateHeight);
+    iconPlate.setPosition(0, 55 * layoutScale, 0);
+    const iconPlateGraphics = iconPlate.addComponent(Graphics);
+    iconPlateGraphics.fillColor = new Color(231, 222, 241, 255);
+    iconPlateGraphics.strokeColor = new Color(198, 181, 219, 255);
+    iconPlateGraphics.lineWidth = Math.max(2, 3 * layoutScale);
+    iconPlateGraphics.roundRect(
+      -iconPlateWidth * 0.5,
+      -iconPlateHeight * 0.5,
+      iconPlateWidth,
+      iconPlateHeight,
+      18 * layoutScale,
+    );
+    iconPlateGraphics.fill();
+    iconPlateGraphics.stroke();
 
-    tween(flyingIcon).to(0.28, { scale: Vec3.ONE }, { easing: "backOut" }).start();
+    const cardIcon = this.createNode("RewardIcon", iconPlate, 1, 1);
+    this.fitToolRewardIcon(cardIcon, iconFrame, 112 * layoutScale, 104 * layoutScale);
+
+    const descriptionNode = this.createNode(
+      "Description",
+      card,
+      cardWidth - 70 * layoutScale,
+      68 * layoutScale,
+    );
+    descriptionNode.setPosition(0, -49 * layoutScale, 0);
+    const descriptionLabel = descriptionNode.addComponent(Label);
+    descriptionLabel.string = TOOL_REWARD_DESCRIPTIONS[tool];
+    descriptionLabel.fontSize = Math.max(18, Math.round(25 * layoutScale));
+    descriptionLabel.lineHeight = Math.max(24, Math.round(33 * layoutScale));
+    descriptionLabel.color = new Color(85, 65, 105, 255);
+    descriptionLabel.horizontalAlign = HorizontalTextAlignment.CENTER;
+    descriptionLabel.verticalAlign = VerticalTextAlignment.CENTER;
+    descriptionLabel.overflow = Label.Overflow.SHRINK;
+    descriptionLabel.enableWrapText = true;
+
+    const claimWidth = 310 * layoutScale;
+    const claimHeight = 74 * layoutScale;
+    const claimNode = this.createNode("ClaimButton", card, claimWidth, claimHeight);
+    claimNode.setPosition(0, -145 * layoutScale, 0);
+    const claimGraphics = claimNode.addComponent(Graphics);
+    claimGraphics.fillColor = new Color(67, 190, 91, 255);
+    claimGraphics.strokeColor = new Color(221, 255, 206, 255);
+    claimGraphics.lineWidth = Math.max(2, 3 * layoutScale);
+    claimGraphics.roundRect(
+      -claimWidth * 0.5,
+      -claimHeight * 0.5,
+      claimWidth,
+      claimHeight,
+      claimHeight * 0.22,
+    );
+    claimGraphics.fill();
+    claimGraphics.stroke();
+    const claimButton = claimNode.addComponent(Button);
+
+    const claimLabelNode = this.createNode(
+      "Label",
+      claimNode,
+      claimWidth - 28 * layoutScale,
+      claimHeight - 12 * layoutScale,
+    );
+    const claimLabel = claimLabelNode.addComponent(Label);
+    claimLabel.string = `免费获得 ×${TOOL_UNLOCK_REWARD_AMOUNT}`;
+    claimLabel.fontSize = Math.max(20, Math.round(29 * layoutScale));
+    claimLabel.lineHeight = Math.max(26, Math.round(37 * layoutScale));
+    claimLabel.color = Color.WHITE;
+    claimLabel.horizontalAlign = HorizontalTextAlignment.CENTER;
+    claimLabel.verticalAlign = VerticalTextAlignment.CENTER;
+    claimLabel.overflow = Label.Overflow.SHRINK;
+
+    // 奖励已提前安全落盘；弹窗期间先隐藏角标，飞入按钮后再展示最终数量。
+    const countBadge = target.getChildByName("CountBadge");
+    if (countBadge) countBadge.active = false;
+
+    let claimed = false;
+    claimNode.on(Button.EventType.CLICK, () => {
+      if (claimed || !rewardRoot.isValid || this.tutorialStep === "none") return;
+      claimed = true;
+      claimButton.interactable = false;
+
+      const cardIconTransform = cardIcon.getComponent(UITransform);
+      const targetIconTransform = iconSource?.node.getComponent(UITransform) || targetTransform;
+      if (!cardIconTransform || !targetIconTransform) {
+        ToolInventory.markUnlockRewardPresented(tool);
+        this.pendingToolRewardAnimations.delete(tool);
+        this.refreshToolBadges();
+        this.destroyToolRewardNode();
+        this.tutorialTransitioning = false;
+        onFinish();
+        return;
+      }
+
+      const startWorld = cardIconTransform.convertToWorldSpaceAR(Vec3.ZERO);
+      const startLocal = rootTransform.convertToNodeSpaceAR(startWorld);
+      const targetWorld = targetIconTransform.convertToWorldSpaceAR(Vec3.ZERO);
+      const targetLocal = rootTransform.convertToNodeSpaceAR(targetWorld);
+      const flyingIcon = this.createNode("FlyingRewardIcon", rewardRoot, 1, 1);
+      this.fitToolRewardIcon(
+        flyingIcon,
+        iconFrame,
+        cardIconTransform.width,
+        cardIconTransform.height,
+      );
+      flyingIcon.setPosition(startLocal);
+      cardIcon.active = false;
+
+      const flyingTransform = flyingIcon.getComponent(UITransform);
+      const destinationScale = flyingTransform
+        ? Math.max(
+            0.12,
+            Math.min(
+              targetIconTransform.width / Math.max(1, flyingTransform.width),
+              targetIconTransform.height / Math.max(1, flyingTransform.height),
+            ),
+          )
+        : 0.45;
+
+      tween(card)
+        .to(0.16, { scale: new Vec3(0.86, 0.86, 1) }, { easing: "quadIn" })
+        .call(() => {
+          if (card.isValid) card.active = false;
+        })
+        .start();
+
+      flyingIcon.setScale(0.82, 0.82, 1);
+      tween(flyingIcon)
+        .to(0.12, { scale: new Vec3(1.12, 1.12, 1) }, { easing: "backOut" })
+        .to(
+          0.46,
+          {
+            position: targetLocal,
+            scale: new Vec3(destinationScale, destinationScale, 1),
+          },
+          { easing: "quadInOut" },
+        )
+        .call(() => {
+          if (!this.node?.isValid || this.tutorialStep === "none") return;
+          ToolInventory.markUnlockRewardPresented(tool);
+          this.pendingToolRewardAnimations.delete(tool);
+          this.refreshToolBadges();
+
+          const badge = target.getChildByName("CountBadge");
+          if (badge?.active) {
+            const finalScale = badge.scale.clone();
+            badge.setScale(finalScale.x * 0.35, finalScale.y * 0.35, finalScale.z);
+            tween(badge)
+              .to(0.18, { scale: finalScale }, { easing: "backOut" })
+              .start();
+          }
+
+          this.destroyToolRewardNode();
+          this.tutorialTransitioning = false;
+          onFinish();
+        })
+        .start();
+    });
+
+    card.setScale(0.74, 0.74, 1);
+    cardIcon.setScale(0.2, 0.2, 1);
+    tween(cardIcon)
+      .delay(0.1)
+      .to(0.24, { scale: Vec3.ONE }, { easing: "backOut" })
+      .start();
     tween(card)
-      .to(0.28, { scale: new Vec3(1.05, 1.05, 1) }, { easing: "backOut" })
+      .to(0.24, { scale: new Vec3(1.04, 1.04, 1) }, { easing: "backOut" })
       .to(0.08, { scale: Vec3.ONE }, { easing: "quadOut" })
-      .delay(0.62)
-      .call(() => {
-        if (!rewardRoot.isValid || this.tutorialStep === "none") return;
-        card.active = false;
-        tween(flyingIcon)
-          .to(0.42, { position: targetLocal, scale: new Vec3(0.42, 0.42, 1) }, { easing: "quadInOut" })
-          .call(() => {
-            if (!this.node?.isValid || this.tutorialStep === "none") return;
-            ToolInventory.markUnlockRewardPresented(tool);
-            this.pendingToolRewardAnimations.delete(tool);
-            this.destroyToolRewardNode();
-            this.tutorialTransitioning = false;
-            onFinish();
-          })
-          .start();
-      })
       .start();
   }
 
+  /** 按图片实际有效区域等比缩放，避免不同道具图标被强制拉成正方形。 */
+  private fitToolRewardIcon(
+    node: Node,
+    frame: SpriteFrame | null,
+    maxWidth: number,
+    maxHeight: number,
+  ): Sprite {
+    const transform = node.getComponent(UITransform) || node.addComponent(UITransform);
+    const sprite = node.getComponent(Sprite) || node.addComponent(Sprite);
+    sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    sprite.trim = true;
+    sprite.spriteFrame = frame;
+
+    const sourceRect = frame?.rect;
+    const sourceWidth = Math.max(1, sourceRect?.width || maxWidth);
+    const sourceHeight = Math.max(1, sourceRect?.height || maxHeight);
+    const scale = Math.min(
+      Math.max(1, maxWidth) / sourceWidth,
+      Math.max(1, maxHeight) / sourceHeight,
+    );
+    transform.setContentSize(sourceWidth * scale, sourceHeight * scale);
+    return sprite;
+  }
+
   private getGuideRoot(): Node | null {
-    const guideRoot = UIManager.instance?.getLayerNode(UILayer.Guide) || this.node || null;
+    /**
+     * 游戏内引导必须和棋盘使用同一个 Canvas 坐标系。
+     *
+     * UIManager 的 GlobalCanvas 是运行时创建的常驻 Canvas；如果它没有完成
+     * Camera / 屏幕原点对齐，引导节点虽然创建成功，实际位置却会偏出画面。
+     * 这时教程状态已经暂停计时并限制输入，玩家看到的现象就是整关卡死。
+     *
+     * gameScene 本身挂在场景 Canvas 上，因此优先直接使用当前节点。只有当前
+     * 场景节点不可用时，才退回全局 Guide 层。
+     */
+    const guideRoot = this.node?.isValid
+      ? this.node
+      : UIManager.instance?.getLayerNode(UILayer.Guide) || null;
     guideRoot?.getComponent(Widget)?.updateAlignment();
     const guideTransform = guideRoot?.getComponent(UITransform);
     const sceneTransform = this.node?.getComponent(UITransform);

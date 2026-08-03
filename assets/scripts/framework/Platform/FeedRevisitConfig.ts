@@ -9,10 +9,14 @@ export const FEED_REVISIT_CONTENT_ID = "CONTENT14256097026";
 /** 抖音固定场景：3 = 重要事件掉落。 */
 export const FEED_REVISIT_SCENE = 3;
 
-/** 项目中独立于正式 1～222 关的每日挑战关。 */
-export const FEED_REVISIT_CHALLENGE_LEVEL = 300;
-export const FEED_REVISIT_CHALLENGE_SECONDS = 60;
-export const FEED_REVISIT_REVIVE_SECONDS = 45;
+/** 每日挑战复用正式关卡中难度最高的第 222 关。 */
+export const FEED_REVISIT_CHALLENGE_LEVEL = 222;
+/** 与第 222 关的压力难度曲线一致，难度来自棋盘本身，而不是不可完成的超短倒计时。 */
+export const FEED_REVISIT_CHALLENGE_SECONDS = 425;
+export const FEED_REVISIT_REVIVE_SECONDS = 150;
+
+/** 兼容改版前已经排期、extra 中仍记录第 300 关的复访事件。 */
+export const FEED_REVISIT_LEGACY_CHALLENGE_LEVELS = [300] as const;
 
 /** 测试/预览版便于真机验收；正式版保持每日一次。 */
 export const FEED_REVISIT_TEST_DELAY_MS = 60 * 1000;
