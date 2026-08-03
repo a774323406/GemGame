@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1080" height="1440" viewBox="0 0 1080 1440">
+  <image x="0" y="0" width="1080" height="1440"
+         xlink:href="revisit-random-daily-cover-art.png" preserveAspectRatio="xMidYMid slice"/>
+  <image x="390" y="12" width="300" height="211"
+         xlink:href="../../assets/res/texture/LOGO.png" preserveAspectRatio="xMidYMid meet"/>
+  <rect x="55" y="1190" width="970" height="190" rx="48" fill="#34145c" fill-opacity="0.80"/>
+  <text x="540" y="1270" text-anchor="middle"
+        font-family="Wawati SC, Yuanti SC, PingFang SC, sans-serif" font-size="70" font-weight="900"
+        fill="#fff7a8" stroke="#8d39d6" stroke-width="20" paint-order="stroke fill">今天会抽到哪一关？</text>
+  <text x="540" y="1340" text-anchor="middle"
+        font-family="Wawati SC, Yuanti SC, PingFang SC, sans-serif" font-size="42" font-weight="700"
+        fill="#ffffff" stroke="#ec5aa8" stroke-width="8" paint-order="stroke fill">每日随机挑战 · 通关得道具</text>
+</svg>

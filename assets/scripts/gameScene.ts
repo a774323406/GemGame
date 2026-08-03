@@ -8,6 +8,8 @@ import {
   Director,
   EffectAsset,
   EventTouch,
+  game,
+  Game,
   Graphics,
   Label,
   LabelOutline,
@@ -47,11 +49,7 @@ import {
   FeedAcquisitionService,
   FeedAcquisitionState,
 } from "./framework/Platform/FeedAcquisitionService";
-import {
-  FEED_REVISIT_CHALLENGE_LEVEL,
-  FEED_REVISIT_CHALLENGE_SECONDS,
-  FEED_REVISIT_REVIVE_SECONDS,
-} from "./framework/Platform/FeedRevisitConfig";
+import { resolveFeedRevisitChallengeLevel } from "./framework/Platform/FeedRevisitConfig";
 import { FeedRevisitService } from "./framework/Platform/FeedRevisitService";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
@@ -59,6 +57,7 @@ const { ccclass, property } = _decorator;
 
 type Matrix = number[][];
 type BlockLocation = "board" | "tray";
+type CountdownWarningState = "stopped" | "paused" | "playing";
 type TutorialStep =
   | "none"
   | "core_select_first"
@@ -155,6 +154,9 @@ const TRAY_COLS = 12;
 const MAX_TRAY_ROWS = 3;
 const MAX_TRAY_SLOTS = TRAY_COLS * MAX_TRAY_ROWS;
 const MAGNET_SORT_COUNT = 12;
+const COUNTDOWN_WARNING_SECONDS = 30;
+const COUNTDOWN_BREATH_SCALE = 1.1;
+const COUNTDOWN_BREATH_HALF_CYCLE = 0.48;
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
 const LAST_STANDARD_LEVEL = 222;
@@ -324,6 +326,10 @@ export class gameScene extends Component {
   private currentReviveBonusSeconds = 90;
   private timerRunning = false;
   private lastDisplayedSecond = -1;
+  private countdownWarningState: CountdownWarningState = "stopped";
+  private timerLabelBaseScale = Vec3.ONE.clone();
+  private appHidden = false;
+  private adPaused = false;
   private blockIdSeed = 0;
   private feedMode = false;
   private feedAcquisition = false;
@@ -369,6 +375,12 @@ export class gameScene extends Component {
   private glowMaterials = new Map<number, Material>();
   private glowFlashTokens = new Map<number, number>();
 
+  protected onLoad() {
+    game.on(Game.EVENT_HIDE, this.onGameHide, this);
+    game.on(Game.EVENT_SHOW, this.onGameShow, this);
+    director.on(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onAdPauseChanged, this);
+  }
+
   protected async start() {
     FeedAcquisitionService.init();
     this.feedMode = FeedAcquisitionService.isActive();
@@ -381,7 +393,7 @@ export class gameScene extends Component {
     await this.prepareScene();
     await this.loadAssets();
     this.levelIndex = this.feedRevisitChallenge
-      ? FEED_REVISIT_CHALLENGE_LEVEL
+      ? resolveFeedRevisitChallengeLevel(FeedAcquisitionService.getExtra())
       : this.feedAcquisition
         ? FEED_ACQUISITION_LEVEL
         : this.getStoredLevelIndex();
@@ -461,6 +473,7 @@ export class gameScene extends Component {
     this.messageLabel ||= this.findDeepChild(this.hudRoot, "MessageLabel")?.getComponent(Label) || null;
     if (this.timerLabel) {
       this.timerNormalColor = this.timerLabel.color.clone();
+      this.timerLabelBaseScale = this.timerLabel.node.scale.clone();
     }
 
     /**
@@ -496,7 +509,7 @@ export class gameScene extends Component {
 
   private onSettingClicked() {
     if (this.tutorialStep !== "none" || this.tutorialTransitioning) {
-      this.showMessage("请先完成当前引导");
+      this.showFloatingTip("请先完成当前引导");
       return;
     }
     if (this.inputLocked) return;
@@ -518,6 +531,7 @@ export class gameScene extends Component {
     this.timerRunningBeforeSettings = this.timerRunning;
     this.inputLocked = true;
     this.timerRunning = false;
+    this.syncCountdownWarningState();
 
     const panel = manager.open(
       uiName.settingPanel,
@@ -569,6 +583,7 @@ export class gameScene extends Component {
     }
     this.inputLockedBeforeSettings = false;
     this.timerRunningBeforeSettings = false;
+    this.syncCountdownWarningState();
     if (restoreGameState && !feedStillBlocking) {
       this.scheduleOnce(() => this.tryStartTutorialForCurrentLevel(), 0);
     }
@@ -819,6 +834,7 @@ export class gameScene extends Component {
     this.clearTutorialPresentation();
     this.inputLocked = true;
     this.timerRunning = false;
+    this.resetCountdownWarning();
     this.levelCompletionHandled = false;
     this.feedChallengeRewardGranted = false;
     this.feedChallengeRewardTool = null;
@@ -845,17 +861,13 @@ export class gameScene extends Component {
       this.levelTimeSeconds,
       this.reviveBonusSeconds,
     );
-    // 推荐流体验不参与正式 1～222 关的商业化难度曲线。
-    this.currentLevelTimeSeconds = this.feedRevisitChallenge
-      ? FEED_REVISIT_CHALLENGE_SECONDS
-      : this.feedAcquisition
-        ? FEED_ACQUISITION_SECONDS
-        : timing.initialSeconds;
-    this.currentReviveBonusSeconds = this.feedRevisitChallenge
-      ? FEED_REVISIT_REVIVE_SECONDS
-      : this.feedAcquisition
-        ? FEED_ACQUISITION_REVIVE_SECONDS
-        : timing.reviveSeconds;
+    // 获客体验使用独立固定时间；每日挑战沿用随机正式关卡自身的计时。
+    this.currentLevelTimeSeconds = this.feedAcquisition
+      ? FEED_ACQUISITION_SECONDS
+      : timing.initialSeconds;
+    this.currentReviveBonusSeconds = this.feedAcquisition
+      ? FEED_ACQUISITION_REVIVE_SECONDS
+      : timing.reviveSeconds;
     console.log(`[gameScene] Level ${this.levelIndex} difficulty`, timing);
     if (this.levelLabel) {
       this.levelLabel.string = this.feedRevisitChallenge ? "每日宝石挑战" : `LEVEL ${this.levelIndex}`;
@@ -894,16 +906,19 @@ export class gameScene extends Component {
   }
 
   protected update(deltaTime: number) {
-    if (!this.timerRunning || this.inputLocked || this.tutorialPaused || PlayData.Instance.ispause || !this.levelData) {
-      return;
-    }
+    const clockAdvancing = this.isLevelClockAdvancing();
+    this.syncCountdownWarningState(clockAdvancing);
+    if (!clockAdvancing) return;
 
     this.remainingTime = Math.max(0, this.remainingTime - deltaTime);
     this.refreshTimerLabel();
+    // 同一帧从 30 秒以上跨入警戒区时立即开始，不等待下一帧。
+    this.syncCountdownWarningState(true);
     if (this.remainingTime > 0) return;
 
     this.timerRunning = false;
     this.inputLocked = true;
+    this.resetCountdownWarning();
     this.openFailPanel();
   }
 
@@ -1337,7 +1352,7 @@ export class gameScene extends Component {
   private moveBoardBlocksToTray(blocks: BlockState[], startSlotIndex: number, onComplete?: () => void) {
     const slots = this.collectEmptyTraySlots(startSlotIndex, blocks.length);
     if (slots.length === 0) {
-      this.showMessage("Tray Full");
+      this.showFloatingTip("托盘已满");
       return;
     }
 
@@ -1962,7 +1977,7 @@ export class gameScene extends Component {
   private async prepareTool(tool: ToolId, onReady: () => void): Promise<boolean> {
     if (this.inputLocked) return false;
     if (!this.isToolUnlocked(tool)) {
-      this.showMessage(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
+      this.showFloatingTip(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
       return false;
     }
     if (ToolInventory.has(tool)) {
@@ -2331,7 +2346,7 @@ export class gameScene extends Component {
     const trayBlocks = this.getAllTrayBlocksForClean();
 
     if (trayBlocks.length === 0) {
-      TipsManager.Instance.show("空白格子没有钻石");
+      this.showFloatingTip("空白格子没有钻石");
       return false;
     }
 
@@ -2343,7 +2358,7 @@ export class gameScene extends Component {
        * 保留一次提示，同时把下方槽位压缩一下，让玩家看到 clear 有反馈。
        */
       this.sortTrayBlocks();
-      TipsManager.Instance.show("暂无可整理的钻石");
+      this.showFloatingTip("暂无可整理的钻石");
       return false;
     }
 
@@ -2690,7 +2705,7 @@ export class gameScene extends Component {
     const operations = this.collectMagnetSortOperations(maxCount);
 
     if (operations.length <= 0) {
-      TipsManager.Instance.show("无钻石可以吸附");
+      this.showFloatingTip("无钻石可以吸附");
       return false;
     }
 
@@ -3181,6 +3196,7 @@ export class gameScene extends Component {
     this.levelCompletionHandled = true;
     this.timerRunning = false;
     this.inputLocked = true;
+    this.resetCountdownWarning();
     if (this.messageLabel) this.messageLabel.node.active = false;
 
     if (this.feedRevisitChallenge) {
@@ -3220,6 +3236,7 @@ export class gameScene extends Component {
           this.refreshTimerLabel();
           this.inputLocked = false;
           this.timerRunning = true;
+          this.syncCountdownWarningState();
         }, true),
       onHome: () => {
         this.finishFeedExperience();
@@ -3414,13 +3431,19 @@ export class gameScene extends Component {
   }
 
   private setTutorialStep(step: TutorialStep) {
+    this.beginTutorialStep(step);
+    this.showCurrentTutorialStep();
+  }
+
+  /** 引导步骤及其奖励/切换动画期间，关卡时间和倒计时警告都暂停。 */
+  private beginTutorialStep(step: TutorialStep) {
     this.tutorialStep = step;
     this.tutorialPaused = step !== "none";
     this.tutorialTransitioning = false;
     if (step !== "none") {
       this.disableMapInputForTutorial();
+      this.syncCountdownWarningState(false);
     }
-    this.showCurrentTutorialStep();
   }
 
   private showCurrentTutorialStep() {
@@ -3721,10 +3744,7 @@ export class gameScene extends Component {
       return;
     }
 
-    this.tutorialStep = "tray_expand";
-    this.tutorialPaused = true;
-    this.tutorialTransitioning = false;
-    this.disableMapInputForTutorial();
+    this.beginTutorialStep("tray_expand");
     const guideRoot = this.getGuideRoot();
     if (!guideRoot) {
       TutorialProgress.completeTrayExpandGuide();
@@ -3786,10 +3806,7 @@ export class gameScene extends Component {
 
     const step: TutorialStep =
       tool === "magic" ? "magic_button" : tool === "brush" ? "brush_button" : "magnet_button";
-    this.tutorialStep = step;
-    this.tutorialPaused = true;
-    this.tutorialTransitioning = false;
-    this.disableMapInputForTutorial();
+    this.beginTutorialStep(step);
 
     if (this.pendingToolRewardAnimations.has(tool)) {
       this.playToolUnlockReward(tool, target, () => {
@@ -3872,7 +3889,7 @@ export class gameScene extends Component {
 
   private isToolActionAllowed(tool: ToolId): boolean {
     if (!this.isToolUnlocked(tool)) {
-      this.showMessage(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
+      this.showFloatingTip(`第${TOOL_UNLOCK_LEVELS[tool]}关解锁${TOOL_DISPLAY_NAMES[tool]}`);
       return false;
     }
     if (this.tutorialTransitioning) return false;
@@ -3915,7 +3932,7 @@ export class gameScene extends Component {
       return;
     }
 
-    this.tutorialStep = "magic_drag";
+    this.beginTutorialStep("magic_drag");
     this.tutorialMagicTarget = { row: target.row, col: target.col };
     const start = this.findMagicGuideStart(target);
     this.magicAreaStartCenter = { row: start.row, col: start.col };
@@ -4324,7 +4341,7 @@ export class gameScene extends Component {
     return sprite;
   }
 
-  private getGuideRoot(): Node | null {
+  private getGuideRoot(updateLayout = true): Node | null {
     /**
      * 游戏内引导必须和棋盘使用同一个 Canvas 坐标系。
      *
@@ -4338,7 +4355,17 @@ export class gameScene extends Component {
     const guideRoot = this.node?.isValid
       ? this.node
       : UIManager.instance?.getLayerNode(UILayer.Guide) || null;
-    guideRoot?.getComponent(Widget)?.updateAlignment();
+    if (!guideRoot?.isValid) return null;
+
+    const guideWidget = guideRoot.getComponent(Widget);
+    if (
+      updateLayout &&
+      guideWidget?.isValid &&
+      guideWidget.node?.isValid &&
+      guideWidget.node.parent?.isValid
+    ) {
+      guideWidget.updateAlignment();
+    }
     const guideTransform = guideRoot?.getComponent(UITransform);
     const sceneTransform = this.node?.getComponent(UITransform);
     if (
@@ -4402,7 +4429,8 @@ export class gameScene extends Component {
   }
 
   private destroyToolRewardNode() {
-    const root = this.getGuideRoot()?.getChildByName(GUIDE_REWARD_NAME);
+    // 清理可能发生在场景销毁阶段，此时 Widget 的父节点已经为空，不能再刷新布局。
+    const root = this.getGuideRoot(false)?.getChildByName(GUIDE_REWARD_NAME);
     if (!root?.isValid) return;
     const stop = (node: Node) => {
       Tween.stopAllByTarget(node);
@@ -4449,6 +4477,8 @@ export class gameScene extends Component {
       this.tutorialFirstBlockIds.clear();
       this.tutorialSecondBlockIds.clear();
     }
+    // 下一帧由倒计时主循环根据设置、广告和前后台状态决定是否恢复。
+    this.syncCountdownWarningState(false);
   }
 
   private onFeedStateChanged = (state: FeedAcquisitionState) => {
@@ -4472,6 +4502,7 @@ export class gameScene extends Component {
       this.inputLocked = true;
       this.timerRunning = false;
       PlayData.Instance.ispause = true;
+      this.syncCountdownWarningState(false);
       AudioManager.pauseAll();
       return;
     }
@@ -4480,6 +4511,7 @@ export class gameScene extends Component {
       this.inputLocked = true;
       this.timerRunning = false;
       PlayData.Instance.ispause = true;
+      this.syncCountdownWarningState(false);
       return;
     }
 
@@ -4490,6 +4522,7 @@ export class gameScene extends Component {
       this.feedPauseApplied = false;
       this.inputLocked = false;
       this.timerRunning = true;
+      this.syncCountdownWarningState();
       this.showFeedAcquisitionGuide();
       // AudioManager.playMusic(soundName.levelBgm);
       return;
@@ -4505,6 +4538,7 @@ export class gameScene extends Component {
       this.timerRunning = true;
       // AudioManager.playMusic(soundName.levelBgm);
     }
+    this.syncCountdownWarningState();
   }
 
   private bindFeedFallbackTouch() {
@@ -4561,14 +4595,29 @@ export class gameScene extends Component {
   }
 
   private showFeedExternalUiGuardTip() {
-    const content = "挑战开始 5 秒后可使用";
-    this.showMessage(content);
-    this.scheduleOnce(() => {
-      if (this.messageLabel?.string === content) this.messageLabel.node.active = false;
-    }, 1.2);
+    this.showFloatingTip("挑战开始 5 秒后可使用");
+  }
+
+  private onGameHide() {
+    this.appHidden = true;
+    this.syncCountdownWarningState(false);
+  }
+
+  private onGameShow() {
+    this.appHidden = false;
+    this.syncCountdownWarningState();
+  }
+
+  private onAdPauseChanged(paused: boolean) {
+    this.adPaused = paused;
+    this.syncCountdownWarningState();
   }
 
   protected onDestroy() {
+    game.off(Game.EVENT_HIDE, this.onGameHide, this);
+    game.off(Game.EVENT_SHOW, this.onGameShow, this);
+    director.off(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onAdPauseChanged, this);
+    this.resetCountdownWarning();
     this.clearTutorialPresentation();
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
@@ -4753,6 +4802,99 @@ export class gameScene extends Component {
     }
     this.messageLabel.string = text;
     this.messageLabel.node.active = true;
+  }
+
+  /** 操作反馈统一走短时飘字，不占用需要持续展示状态的 MessageLabel。 */
+  private showFloatingTip(text: string) {
+    if (!text) return;
+    TipsManager.Instance.show(text);
+  }
+
+  /** 游戏倒计时实际是否正在推进；提示音和呼吸动画必须与这个状态完全一致。 */
+  private isLevelClockAdvancing(): boolean {
+    return (
+      !this.appHidden &&
+      !this.adPaused &&
+      this.timerRunning &&
+      !this.inputLocked &&
+      !this.tutorialPaused &&
+      this.tutorialStep === "none" &&
+      !this.tutorialTransitioning &&
+      !PlayData.Instance.ispause &&
+      !!this.levelData &&
+      !this.levelCompletionHandled &&
+      this.remainingTime > 0
+    );
+  }
+
+  /**
+   * 最后 30 秒进入警戒状态：循环提示音 + 时间文本呼吸。
+   * 临时暂停保留音频进度；离开警戒区、过关、失败或换关时从头停止。
+   */
+  private syncCountdownWarningState(clockAdvancing = this.isLevelClockAdvancing()) {
+    const shouldWarn =
+      !!this.levelData &&
+      !this.levelCompletionHandled &&
+      this.remainingTime > 0 &&
+      this.remainingTime <= COUNTDOWN_WARNING_SECONDS;
+    const nextState: CountdownWarningState = shouldWarn
+      ? clockAdvancing
+        ? "playing"
+        : "paused"
+      : "stopped";
+
+    if (nextState === this.countdownWarningState) return;
+    this.countdownWarningState = nextState;
+
+    if (nextState === "playing") {
+      void AudioManager.playLoopEffectByName(soundName.countDown);
+      this.startTimerBreathing();
+      return;
+    }
+
+    this.stopTimerBreathing();
+    if (nextState === "paused") {
+      AudioManager.pauseLoopEffect(soundName.countDown);
+    } else {
+      AudioManager.stopLoopEffect(soundName.countDown);
+    }
+  }
+
+  private startTimerBreathing() {
+    const timerNode = this.timerLabel?.node;
+    if (!timerNode?.isValid) return;
+
+    Tween.stopAllByTarget(timerNode);
+    timerNode.setScale(this.timerLabelBaseScale);
+    const breathScale = new Vec3(
+      this.timerLabelBaseScale.x * COUNTDOWN_BREATH_SCALE,
+      this.timerLabelBaseScale.y * COUNTDOWN_BREATH_SCALE,
+      this.timerLabelBaseScale.z,
+    );
+    tween(timerNode)
+      .repeatForever(
+        tween(timerNode)
+          .to(COUNTDOWN_BREATH_HALF_CYCLE, { scale: breathScale }, { easing: "sineInOut" })
+          .to(
+            COUNTDOWN_BREATH_HALF_CYCLE,
+            { scale: this.timerLabelBaseScale.clone() },
+            { easing: "sineInOut" },
+          ),
+      )
+      .start();
+  }
+
+  private stopTimerBreathing() {
+    const timerNode = this.timerLabel?.node;
+    if (!timerNode?.isValid) return;
+    Tween.stopAllByTarget(timerNode);
+    timerNode.setScale(this.timerLabelBaseScale);
+  }
+
+  private resetCountdownWarning() {
+    this.countdownWarningState = "stopped";
+    AudioManager.stopLoopEffect(soundName.countDown);
+    this.stopTimerBreathing();
   }
 
   private refreshTimerLabel() {

@@ -16,6 +16,8 @@ export default class AudioManager {
   private static bgmAudioSource: AudioSource | null = null;
   // 音效的 AudioSource 组件
   private static effectAudioSource: AudioSource | null = null;
+  // 需要持续循环的音效通道（当前用于最后 30 秒倒计时）
+  private static loopEffectAudioSource: AudioSource | null = null;
   // 音频管理节点
   private static audioNode: Node | null = null;
   private static hasSetSoundEvent: boolean = false;
@@ -23,6 +25,11 @@ export default class AudioManager {
   private static currentBgmName: soundName | null = null;
   /** 音效兜底加载队列，避免同一个音效被重复加载 */
   private static effectClipLoadingMap = new Map<string, Promise<AudioClip | null>>();
+  /** 当前循环音效；暂停时保留名称和播放进度，恢复后继续播放。 */
+  private static currentLoopEffectName: string | null = null;
+  private static loopEffectRequested = false;
+  private static loopEffectPaused = false;
+  private static loopEffectRequestToken = 0;
   /**
    * 初始化音频组件
    * 创建用于播放背景音乐和音效的 AudioSource 组件
@@ -41,6 +48,10 @@ export default class AudioManager {
       this.effectAudioSource = this.audioNode.addComponent(AudioSource);
       this.effectAudioSource.loop = false;
       this.effectAudioSource.volume = 1;
+      // 循环提示音必须使用独立通道，避免普通按钮/宝石音效把它覆盖或打断。
+      this.loopEffectAudioSource = this.audioNode.addComponent(AudioSource);
+      this.loopEffectAudioSource.loop = true;
+      this.loopEffectAudioSource.volume = 1;
     }
   }
 
@@ -393,6 +404,80 @@ export default class AudioManager {
   }
 
   /**
+   * 播放或恢复一个循环音效。
+   * 异步加载期间如果游戏进入暂停/切换关卡，requestToken 会阻止旧请求误播放。
+   */
+  static async playLoopEffectByName(name: string) {
+    if (!name) return;
+    this.initAudioSources();
+    if (!this.loopEffectAudioSource) return;
+
+    this.currentLoopEffectName = name;
+    this.loopEffectRequested = true;
+    this.loopEffectPaused = false;
+    const requestToken = ++this.loopEffectRequestToken;
+
+    if (!this.canPlaySound()) {
+      this.loopEffectAudioSource.pause();
+      return;
+    }
+
+    let clip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
+    if (!clip) clip = await this.loadEffectClipByName(name);
+
+    if (
+      !clip ||
+      !this.loopEffectAudioSource ||
+      requestToken !== this.loopEffectRequestToken ||
+      !this.loopEffectRequested ||
+      this.loopEffectPaused ||
+      this.currentLoopEffectName !== name ||
+      !this.canPlaySound()
+    ) {
+      return;
+    }
+
+    if (this.loopEffectAudioSource.clip !== clip) {
+      this.loopEffectAudioSource.stop();
+      this.loopEffectAudioSource.clip = clip;
+    }
+    this.loopEffectAudioSource.loop = true;
+    if (!(this.loopEffectAudioSource as any).playing) {
+      this.loopEffectAudioSource.play();
+    }
+  }
+
+  /** 暂停循环音效并保留进度，供设置、广告和切后台恢复。 */
+  static pauseLoopEffect(name?: string) {
+    if (name && this.currentLoopEffectName !== name) return;
+    if (!this.loopEffectRequested && !this.loopEffectAudioSource?.clip) return;
+
+    this.loopEffectPaused = true;
+    this.loopEffectRequestToken++;
+    this.loopEffectAudioSource?.pause();
+  }
+
+  /** 仅恢复暂停前确实处于请求状态的循环音效。 */
+  static resumeLoopEffect(name?: string) {
+    const targetName = name || this.currentLoopEffectName;
+    if (!targetName || !this.loopEffectRequested) return;
+    void this.playLoopEffectByName(targetName);
+  }
+
+  /** 完全停止循环音效；下次播放会从音频开头开始。 */
+  static stopLoopEffect(name?: string) {
+    if (name && this.currentLoopEffectName !== name) return;
+    this.loopEffectRequestToken++;
+    this.loopEffectRequested = false;
+    this.loopEffectPaused = false;
+    this.currentLoopEffectName = null;
+    if (this.loopEffectAudioSource) {
+      this.loopEffectAudioSource.stop();
+      this.loopEffectAudioSource.clip = null;
+    }
+  }
+
+  /**
    * 停止当前背景音乐
    */
   static stopMusic() {
@@ -409,6 +494,7 @@ export default class AudioManager {
     if (this.effectAudioSource) {
       this.effectAudioSource.stop();
     }
+    this.stopLoopEffect();
   }
 
   /**
@@ -421,18 +507,20 @@ export default class AudioManager {
     if (this.effectAudioSource) {
       this.effectAudioSource.pause();
     }
+    this.pauseLoopEffect();
   }
 
   /**
    * 恢复所有音频
    */
   static resumeAll() {
-    if (this.bgmAudioSource && this.bgmAudioSource.clip) {
+    if (this.bgmAudioSource && this.bgmAudioSource.clip && this.canPlayMusic()) {
       this.bgmAudioSource.play();
     }
-    if (this.effectAudioSource && this.effectAudioSource.clip) {
+    if (this.effectAudioSource && this.effectAudioSource.clip && this.canPlaySound()) {
       this.effectAudioSource.play();
     }
+    this.resumeLoopEffect();
   }
 
   /**

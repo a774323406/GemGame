@@ -788,11 +788,7 @@
     "__prefab": {
       "__id__": 31
     },
-    "clickEvents": [
-      {
-        "__id__": 32
-      }
-    ],
+    "clickEvents": [],
     "_interactable": true,
     "_transition": 3,
     "_normalColor": {

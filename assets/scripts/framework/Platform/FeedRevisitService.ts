@@ -2,12 +2,13 @@ import { sys } from "cc";
 import { EnvTool } from "./sdk/EnvTool";
 import {
   createFeedRevisitExtra,
-  FEED_REVISIT_CHALLENGE_LEVEL,
   FEED_REVISIT_CONTENT_ID,
   FEED_REVISIT_LEGACY_CHALLENGE_LEVELS,
   FEED_REVISIT_PRODUCTION_DELAY_MS,
   FEED_REVISIT_SCENE,
   FEED_REVISIT_TEST_DELAY_MS,
+  isFeedRevisitChallengeLevel,
+  pickFeedRevisitChallengeLevel,
 } from "./FeedRevisitConfig";
 
 const STORAGE_READY_AT_KEY = "gem_sort_feed_revisit_ready_at_v1";
@@ -275,6 +276,8 @@ export class FeedRevisitService {
     }
 
     const readyAt = Date.now() + this.getReadyDelayMs(api);
+    const challengeLevel = pickFeedRevisitChallengeLevel();
+    const challengeExtra = createFeedRevisitExtra(readyAt, challengeLevel);
     return new Promise<boolean>((resolve) => {
       try {
         api.storeFeedData({
@@ -284,11 +287,13 @@ export class FeedRevisitService {
           operator: ">=",
           rightValue: String(readyAt),
           status: 1,
-          extra: createFeedRevisitExtra(readyAt),
+          extra: challengeExtra,
           success: () => {
             sys.localStorage.setItem(STORAGE_CONTENT_ID_KEY, contentId);
             sys.localStorage.setItem(STORAGE_READY_AT_KEY, String(readyAt));
-            console.log(`[FeedRevisit] 每日挑战已排期: ${new Date(readyAt).toISOString()}`);
+            console.log(
+              `[FeedRevisit] 每日挑战第 ${challengeLevel} 关已排期: ${new Date(readyAt).toISOString()}`,
+            );
             resolve(true);
           },
           fail: (err: any) => {
@@ -365,13 +370,12 @@ export class FeedRevisitService {
     try {
       const data = JSON.parse(extra);
       const challengeLevel = Number(data?.level);
-      const supportedChallengeLevels: readonly number[] = [
-        FEED_REVISIT_CHALLENGE_LEVEL,
-        ...FEED_REVISIT_LEGACY_CHALLENGE_LEVELS,
-      ];
+      const isLegacyChallenge = (
+        FEED_REVISIT_LEGACY_CHALLENGE_LEVELS as readonly number[]
+      ).indexOf(challengeLevel) >= 0;
       if (
         data?.event !== "daily_gem_challenge" ||
-        supportedChallengeLevels.indexOf(challengeLevel) < 0 ||
+        (!isFeedRevisitChallengeLevel(challengeLevel) && !isLegacyChallenge) ||
         !Number.isFinite(Number(data?.readyAt))
       ) {
         return 0;

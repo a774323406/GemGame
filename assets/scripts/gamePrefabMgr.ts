@@ -12,6 +12,7 @@ export enum uiName {
 export enum soundName {
   bgm = "bgm",
   buttonClick = "buttonClick",
+  countDown = "countDown",
   fail = "fail",
   up = "up",
   down = "down",
@@ -21,6 +22,10 @@ const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
   [uiName.passPanel]: "65eb9f3d-bf6f-4aee-ad4b-0fa7a52134fa",
   [uiName.failPanel]: "531ebd07-e609-43e5-95d5-f1924f345cf6",
   [uiName.rewardPanel]: "f3072c33-e0bf-4d2b-a3a3-d1405c37a1f1",
+};
+
+const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
+  [soundName.countDown]: "bb6dc42a-4883-4049-a42f-dfedede2d19c",
 };
 
 type LoadTask = {
@@ -207,7 +212,14 @@ export default class gamePrefabMgr {
       this.addTask(`加载音效: ${sname}`, async () => {
         console.log("[gamePrefabMgr] 开始加载音效 =", sname, "path =", path);
 
-        const asset = await ResourceManager.ins.loadBundleAsset<AudioClip>(bundleName, path, AudioClip);
+        let asset: AudioClip;
+        try {
+          asset = await ResourceManager.ins.loadBundleAsset<AudioClip>(bundleName, path, AudioClip);
+        } catch (pathError) {
+          const uuid = SOUND_ASSET_UUIDS[sname as soundName];
+          if (!uuid) throw pathError;
+          asset = await ResourceManager.ins.loadAssetByUuid<AudioClip>(uuid);
+        }
 
         if (!asset) {
           throw new Error(`[gamePrefabMgr] 音效资源为空: ${sname}, path=${path}`);

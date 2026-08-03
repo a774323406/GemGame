@@ -21,11 +21,13 @@ const MIN_LEVEL_SECONDS = 60;
 const MAX_LEVEL_SECONDS = 600;
 const MIN_REVIVE_SECONDS = 30;
 const DEFAULT_MAX_REVIVE_SECONDS = 180;
-const PRESSURE_TIME_FACTOR = 0.78;
+const LEVEL_TIME_BUFFER_FACTOR = 1.5;
+const PRESSURE_TIME_FACTOR = 1.2;
+const PRESSURE_LEVEL_MAX_SECONDS = 300;
 
 /**
- * 这些关卡本身就是数据中的难度尖峰，时间压缩约 22%。
- * 玩家熟练操作可以一次通过；差一点时，复活广告能提供有价值的补时。
+ * 这些关卡本身就是数据中的难度尖峰，因此在基础时间上额外增加 20%。
+ * 为避免单关过长，压力关初始时间最多为 5 分钟。
  */
 const PRESSURE_LEVELS = new Set([
   10, 21, 30, 37, 50, 67, 75, 91, 100, 119, 131, 147, 158, 169, 187, 202, 222,
@@ -141,10 +143,22 @@ export function calculateLevelTiming(
     misplacedGroupCount * 1.2 +
     colors.size * 2 +
     Math.sqrt(tileCount) * 0.6;
-  const baseSeconds = roundToFive(clamp(estimatedSeconds, MIN_LEVEL_SECONDS, MAX_LEVEL_SECONDS));
+  const baseSeconds = roundToFive(
+    clamp(
+      estimatedSeconds * LEVEL_TIME_BUFFER_FACTOR,
+      MIN_LEVEL_SECONDS,
+      MAX_LEVEL_SECONDS,
+    ),
+  );
   const isPressureLevel = PRESSURE_LEVELS.has(levelIndex);
   const initialSeconds = isPressureLevel
-    ? roundToFive(Math.max(MIN_LEVEL_SECONDS, baseSeconds * PRESSURE_TIME_FACTOR))
+    ? roundToFive(
+        clamp(
+          baseSeconds * PRESSURE_TIME_FACTOR,
+          MIN_LEVEL_SECONDS,
+          PRESSURE_LEVEL_MAX_SECONDS,
+        ),
+      )
     : baseSeconds;
   const configuredMaxRevive = Math.max(
     MIN_REVIVE_SECONDS,

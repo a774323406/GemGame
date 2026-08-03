@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1080" height="1440" viewBox="0 0 1080 1440">
+  <image x="0" y="0" width="1080" height="1440"
+         xlink:href="acquisition-feed-cover-art.png" preserveAspectRatio="xMidYMid slice"/>
+  <image x="385" y="18" width="310" height="219"
+         xlink:href="../../assets/res/texture/LOGO.png" preserveAspectRatio="xMidYMid meet"/>
+  <rect x="70" y="1210" width="940" height="175" rx="48" fill="#34145c" fill-opacity="0.80"/>
+  <text x="540" y="1290" text-anchor="middle"
+        font-family="Source Han Sans SC, PingFang SC, sans-serif" font-size="76" font-weight="900"
+        fill="#ffffff" stroke="#ff5c8c" stroke-width="16" paint-order="stroke fill">就差最后一颗！</text>
+  <text x="540" y="1352" text-anchor="middle"
+        font-family="Source Han Sans SC, PingFang SC, sans-serif" font-size="40" font-weight="700"
+        fill="#fff28a" stroke="#34145c" stroke-width="5" paint-order="stroke fill">点一下，立即挑战</text>
+</svg>

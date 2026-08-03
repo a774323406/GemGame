@@ -602,11 +602,7 @@
     "__prefab": {
       "__id__": 23
     },
-    "clickEvents": [
-      {
-        "__id__": 24
-      }
-    ],
+    "clickEvents": [],
     "_interactable": true,
     "_transition": 3,
     "_normalColor": {

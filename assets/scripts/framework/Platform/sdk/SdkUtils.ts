@@ -15,6 +15,7 @@ import { GameConfig } from "../../../GameConfig";
 import { adLoadPanel } from "../../../ui/adLoadPanel";
 
 export class SdkUtils {
+  static readonly EVENT_AD_PAUSE_CHANGED = "sdk_rewarded_video_pause_changed";
   static sdk: BaseSDK = null;
   private static adPauseCount: number = 0;
   private static pauseBeforeAd: boolean = false;
@@ -206,7 +207,9 @@ export class SdkUtils {
     if (SdkUtils.adPauseCount === 0) {
       SdkUtils.pauseBeforeAd = PlayData.Instance.ispause;
       PlayData.Instance.ispause = true;
+      director.emit(SdkUtils.EVENT_AD_PAUSE_CHANGED, true);
       AudioManager.pauseBgmForVideo();
+      AudioManager.pauseLoopEffect();
     }
 
     SdkUtils.adPauseCount++;
@@ -220,6 +223,8 @@ export class SdkUtils {
     }
 
     PlayData.Instance.ispause = SdkUtils.pauseBeforeAd;
+    director.emit(SdkUtils.EVENT_AD_PAUSE_CHANGED, false);
     AudioManager.resumeBgmAfterVideo();
+    AudioManager.resumeLoopEffect();
   }
 }
