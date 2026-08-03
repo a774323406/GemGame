@@ -3,6 +3,7 @@
 ## 推荐用法
 
 - `acquisition-feed-cover-final.png`：获客流，突出“一步完成”的即时爽点。
+- `acquisition-corgi-cartoon-final.png`：柯基主题获客流，用卡通角色和“最后一颗”动作提高点击欲望。
 - `revisit-random-daily-cover-final.png`：复访流，以中心问号盘面表达随机每日挑战，不对应某一个固定关卡。
 - `*-art.png`：无字底图，方便后台规格或文案变化时重新排版。
 - `*-layout.svg`：可直接编辑的排版参考。

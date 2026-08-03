@@ -3,7 +3,6 @@ import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import gameStorage from "../framework/gameStorage";
 import PlayData, { EventName } from "../data/PlayData";
 import AudioManager from "../framework/AudioManager";
-import { soundName } from "../gamePrefabMgr";
 const { ccclass, property } = _decorator;
 
 @ccclass("settingPanel")
@@ -136,12 +135,8 @@ export class settingPanel extends UIBase {
     }
   }
   private playBgmByEnterType() {
-    if (this.enterType === 1) {
-      // AudioManager.playMusic(soundName.levelBgm);
-      return;
-    }
-
-    AudioManager.playMusic(soundName.bgm);
+    // 当前主界面和游戏界面共用默认 BGM；关闭音乐会清空 clip，重新开启时必须主动加载播放。
+    AudioManager.playDefaultBgm();
   }
   update(deltaTime: number) {}
 }

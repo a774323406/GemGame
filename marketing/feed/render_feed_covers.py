@@ -161,6 +161,21 @@ def main() -> None:
         subtitle_size=42,
         cartoon_text=True,
     )
+    render(
+        source_name="acquisition-corgi-cartoon-art.png",
+        output_name="acquisition-corgi-cartoon-final.png",
+        logo_width=320,
+        logo_top=14,
+        panel_box=(55, 1190, 1025, 1380),
+        headline="帮柯基补上最后一颗！",
+        headline_top=1198,
+        headline_size=65,
+        headline_stroke="#8d39d6",
+        subtitle="点一下，马上开玩",
+        subtitle_top=1292,
+        subtitle_size=44,
+        cartoon_text=True,
+    )
 
 
 if __name__ == "__main__":

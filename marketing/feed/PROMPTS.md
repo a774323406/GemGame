@@ -35,3 +35,20 @@ Color palette: cyan blue, lavender, candy pink, sunny yellow, lime green, clean 
 Constraints: evergreen image must remain truthful for any randomly chosen level; do not show a level number, date, exact countdown, fixed board promise, reward quantity, coins, or fake UI; no text, no letters, no logo, no watermark.
 Avoid: generic playing cards, photorealism, dark mood, treasure-chest gambling cues, slot machine cues, match-3 grid, giant jewels, clutter.
 ```
+
+## 柯基主题获客流底图
+
+```text
+Use case: ads-marketing
+Asset type: vertical Douyin mini-game acquisition feed cover, portrait 3:4
+Primary request: Create a new highly clickable acquisition cover centered on the same cute corgi character seen on the left card of Image 1 and in the bead artwork of Image 2. Make the corgi the unmistakable hero. Show a joyful, big-eyed orange-and-white corgi mosaic with upright ears, tiny paws, rosy cheeks and tongue out, built from the game's small glossy faceted square gems. A pair of bright pink cartoon tweezers is holding the final orange gem just above one obvious empty spot in the corgi's ear. The scene should trigger an irresistible “I need to place the last piece” feeling.
+Input images: Image 1 is the main corgi design and glossy key-art reference; Image 2 is an additional corgi color and cheerful background reference; Image 3 is the accurate small rounded faceted-gem language; Image 4 is only a brand color/style reference. Do not render the logo.
+Scene/backdrop: vibrant cyan-to-lavender toy tabletop, soft radial rays, celebratory stars and sparkles, a few tidy colored gem trays along the lower corners. Add two or three small floating heart/star shapes near the puppy, but keep the board readable.
+Subject: one large central corgi gem mosaic on a white pegboard with a thick candy-blue frame; cute exaggerated cartoon proportions and expressive face; only one empty hole; tweezers and final gem clearly separated from the hole.
+Style/medium: premium casual mobile game advertisement, extra-cute rounded cartoon 3D toy render, glossy candy materials, clean outlines, slightly exaggerated mascot expression, polished and high-energy.
+Composition/framing: portrait 3:4, close-up central board fills most of the frame; corgi face dominates the visual hierarchy; tweezers enter diagonally from upper right; reserve clear safe space at the top for the game logo and at the bottom for a headline/CTA overlay; no text or logo in the generated image.
+Lighting/mood: bright soft studio lighting with a warm glow on the corgi face, joyful, playful, instantly understandable, high contrast around the final move.
+Color palette: orange, cream white, candy pink, cyan blue, lavender, sunny yellow, lime green accents.
+Constraints: visually faithful to the referenced game and corgi; show one clear final placement action; no level number; no rewards or coins; no fake gameplay UI; no text, no letters, no logo, no watermark.
+Avoid: photorealistic dog fur, realistic human hands, extra limbs, generic match-3 grid, giant jewels, dark mood, messy clutter, multiple empty spots, aggressive dog expression.
+```

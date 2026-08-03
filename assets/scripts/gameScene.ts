@@ -348,6 +348,8 @@ export class gameScene extends Component {
   private tutorialStep: TutorialStep = "none";
   private tutorialPaused = false;
   private tutorialTransitioning = false;
+  /** 本关仍有尚未触发/完成的教学时，允许操作但不显示也不推进倒计时。 */
+  private tutorialTimerGateActive = false;
   private tutorialTargetProxy: Node | null = null;
   private tutorialFirstColor = 0;
   private tutorialSecondColor = 0;
@@ -855,6 +857,7 @@ export class gameScene extends Component {
 
     this.levelData = data;
     this.ensureUnlocksForCurrentLevel();
+    this.refreshTutorialTimerGate();
     const timing = calculateLevelTiming(
       this.levelIndex,
       data,
@@ -3315,6 +3318,33 @@ export class gameScene extends Component {
     this.refreshToolBadges();
   }
 
+  private hasPendingTutorialForCurrentLevel(): boolean {
+    if (this.feedRevisitChallenge) return false;
+    if (this.levelIndex === 1 && !TutorialProgress.isCoreGuideDone()) return true;
+    if (this.levelIndex === 2 && !TutorialProgress.isTrayExpandGuideDone()) return true;
+
+    const tools: ToolId[] = ["magic", "brush", "magnet"];
+    return tools.some(
+      (tool) =>
+        this.levelIndex >= TOOL_UNLOCK_LEVELS[tool] &&
+        ToolInventory.isUnlocked(tool) &&
+        !ToolInventory.isGuideDone(tool),
+    );
+  }
+
+  private refreshTutorialTimerGate() {
+    this.tutorialTimerGateActive = this.hasPendingTutorialForCurrentLevel();
+    this.setTimerPanelVisible(!this.tutorialTimerGateActive);
+    this.syncCountdownWarningState(false);
+  }
+
+  private setTimerPanelVisible(visible: boolean) {
+    const timerNode = this.timerLabel?.node;
+    if (!timerNode?.isValid) return;
+    const timerPanel = timerNode.parent?.name === "TimerPanel" ? timerNode.parent : timerNode;
+    if (timerPanel?.isValid) timerPanel.active = visible;
+  }
+
   private tryStartTutorialForCurrentLevel() {
     if (
       !this.node?.isValid ||
@@ -3428,6 +3458,7 @@ export class gameScene extends Component {
     console.warn(`[gameScene] 跳过第一关新手引导：${reason}`);
     TutorialProgress.completeCoreGuide();
     this.clearTutorialPresentation();
+    this.refreshTutorialTimerGate();
   }
 
   private setTutorialStep(step: TutorialStep) {
@@ -3741,6 +3772,7 @@ export class gameScene extends Component {
     this.refreshAddTrayButton();
     if (!this.addTrayBtn?.node?.isValid || !this.addTrayBtn.node.active) {
       TutorialProgress.completeTrayExpandGuide();
+      this.refreshTutorialTimerGate();
       return;
     }
 
@@ -4058,6 +4090,7 @@ export class gameScene extends Component {
 
   private finishTutorialStep() {
     this.clearTutorialPresentation();
+    this.refreshTutorialTimerGate();
     this.scheduleOnce(() => this.tryStartTutorialForCurrentLevel(), 0.25);
   }
 
@@ -4817,6 +4850,7 @@ export class gameScene extends Component {
       !this.adPaused &&
       this.timerRunning &&
       !this.inputLocked &&
+      !this.tutorialTimerGateActive &&
       !this.tutorialPaused &&
       this.tutorialStep === "none" &&
       !this.tutorialTransitioning &&
