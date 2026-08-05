@@ -1,7 +1,7 @@
 /*
  * @author: wch
  */
-import { director, Director } from "cc";
+import { director } from "cc";
 import { BaseSDK, GameShareOptions } from "./BaseSDK";
 import { ByteDanceSDK } from "./ByteDanceSDK";
 import { EnvTool } from "./EnvTool";
@@ -100,19 +100,18 @@ export class SdkUtils {
       callback && callback();
     };
 
-    // 先让遮罩完整渲染一帧，再拉起抖音原生广告。
-    director.once(Director.EVENT_END_FRAME, () => {
-      try {
-        SdkUtils.sdk.showADVideo(
-          () => finish(cb),
-          () => finish(failCB),
-          onAdShown,
-        );
-      } catch (err) {
-        console.warn("[SdkUtils] showADVideo failed", err);
-        finish(failCB);
-      }
-    });
+    // 必须在按钮的真实点击调用栈内开始请求。推荐流容器对用户手势更敏感，
+    // 延迟到下一帧可能失去手势上下文；广告异步 load 期间转圈遮罩仍会正常渲染。
+    try {
+      SdkUtils.sdk.showADVideo(
+        () => finish(cb),
+        () => finish(failCB),
+        onAdShown,
+      );
+    } catch (err) {
+      console.warn("[SdkUtils] showADVideo failed", err);
+      finish(failCB);
+    }
 
     return true;
   }

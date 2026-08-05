@@ -1,10 +1,13 @@
-import { _decorator, Button, Label, Node, tween, Tween, Vec3 } from "cc";
+import { _decorator, Button, director, Label, Node, tween, Tween, Vec3 } from "cc";
 import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import UIManager from "../framework/ui/UIManager";
 import { uiName } from "../gamePrefabMgr";
 import { ShareActionResult } from "../framework/Platform/ShareRewardService";
+import { adc } from "../framework/Platform/ADController";
+import { SdkUtils } from "../framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
+const FAIL_BANNER_OWNER = "ui.failPanel";
 
 export interface FailPanelData {
   level: number;
@@ -39,14 +42,20 @@ export class failPanel extends UIBase {
 
   private data: FailPanelData = null;
   private shareBusy = false;
+  private bannerContentBaseY: number | null = null;
 
   protected onLoad() {
+    const content = this.getContentNode();
+    if (content) this.bannerContentBaseY = content.position.y;
+    director.on(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
     this.reviveButton?.node.on(Button.EventType.CLICK, this.onRevive, this);
     this.homeButton?.node.on(Button.EventType.CLICK, this.onHome, this);
     this.shareButton?.node.on(Button.EventType.CLICK, this.onShareRevive, this);
   }
 
   protected onDestroy() {
+    director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
+    adc.setBannerRequested(FAIL_BANNER_OWNER, false);
     this.reviveButton?.node.off(Button.EventType.CLICK, this.onRevive, this);
     this.homeButton?.node.off(Button.EventType.CLICK, this.onHome, this);
     this.shareButton?.node.off(Button.EventType.CLICK, this.onShareRevive, this);
@@ -54,6 +63,8 @@ export class failPanel extends UIBase {
   }
 
   public onOpen(data?: FailPanelData) {
+    adc.setBannerRequested(FAIL_BANNER_OWNER, true);
+    this.applyBannerInset(SdkUtils.getBannerInsetRatio());
     this.data = data || null;
     this.shareBusy = false;
     if (this.reviveButton) this.reviveButton.interactable = true;
@@ -75,6 +86,30 @@ export class failPanel extends UIBase {
     if (this.bonusLabel) {
       this.bonusLabel.string = `额外获得 ${this.formatTime(bonusSeconds)}`;
     }
+  }
+
+  public onClose() {
+    if (!this.isOpen) {
+      adc.setBannerRequested(FAIL_BANNER_OWNER, false);
+    }
+    super.onClose();
+  }
+
+  private onBannerInsetChanged(ratio: number): void {
+    this.applyBannerInset(ratio);
+  }
+
+  private applyBannerInset(ratio: number): void {
+    const content = this.getContentNode();
+    if (!content) return;
+    if (this.bannerContentBaseY === null) this.bannerContentBaseY = content.position.y;
+
+    const inset = Math.max(0, Math.min(0.5, Number(ratio) || 0)) * 1334;
+    content.setPosition(
+      content.position.x,
+      this.bannerContentBaseY + inset * 0.5,
+      content.position.z,
+    );
   }
 
   private async onShareRevive() {

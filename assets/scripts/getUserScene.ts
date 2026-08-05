@@ -5,6 +5,8 @@ import {
   director,
   Director,
   EventTouch,
+  game,
+  Game,
   Node,
   tween,
   Tween,
@@ -46,19 +48,30 @@ export class getUserScene extends Component {
   private loadingNextScene = false;
   private feedVisualEnabled = true;
   private feedInteractionEnabled = true;
+  private feedAudioForeground = false;
+  private feedAudioGestureRecovered = false;
   private nextOpacity: UIOpacity | null = null;
 
   protected onLoad(): void {
+    adc.setBannerEnabled(false);
     this.node.on(Node.EventType.TOUCH_END, this.onScreenClicked, this);
     this.tipsBtn?.node?.on(Button.EventType.CLICK, this.onTipsClicked, this);
     this.nextBtn?.node?.on(Button.EventType.CLICK, this.onNextClicked, this);
+    game.on(Game.EVENT_SHOW, this.onGameShow, this);
+    game.on(Game.EVENT_HIDE, this.onGameHide, this);
   }
 
   protected start(): void {
     if (!SdkUtils.sdk) SdkUtils.requireSDK();
-    adc.setBannerEnabled(false);
     AudioManager.setSoundEvent();
-    AudioManager.playMusic(soundName.getUserBgm);
+    FeedAcquisitionService.init();
+    const isFeedDirectPlay = FeedAcquisitionService.isActive();
+
+    // 普通入口可立即播放；推荐流处于隐藏预启动时不能提前 play，
+    // 否则底层 onPlay 不回调会把后续音频操作队列卡住。
+    if (!isFeedDirectPlay) {
+      AudioManager.playMusic(soundName.getUserBgm);
+    }
 
     if (this.nextBtn?.node) {
       this.nextBtn.node.active = false;
@@ -72,8 +85,7 @@ export class getUserScene extends Component {
       this.hairNode.angle = this.normalizeAngle(this.hairNode.angle);
     }
 
-    FeedAcquisitionService.init();
-    if (FeedAcquisitionService.isActive()) {
+    if (isFeedDirectPlay) {
       FeedAcquisitionService.addListener(this.onFeedStateChanged);
       this.node.on(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
       director.once(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
@@ -130,12 +142,18 @@ export class getUserScene extends Component {
 
   private async onTipsClicked(): Promise<void> {
     this.activateFeedFromGesture();
+    const feedState = FeedAcquisitionService.getState();
+    this.feedInteractionEnabled =
+      !feedState.active || (feedState.entered && !feedState.exited);
     if (
       !this.feedInteractionEnabled ||
       this.completed ||
       this.adInFlight ||
       !this.tipsBtn?.interactable
     ) {
+      if (feedState.active && !this.feedInteractionEnabled) {
+        this.showToast("请先点击继续游戏，再使用提示");
+      }
       return;
     }
 
@@ -170,6 +188,7 @@ export class getUserScene extends Component {
       .call(() => {
         if (!this.hairNode?.isValid || this.completed) return;
         this.hairNode.angle = 0;
+        AudioManager.playEffect(soundName.hairSuccess);
         this.completeChallenge();
       })
       .start();
@@ -240,8 +259,19 @@ export class getUserScene extends Component {
   }
 
   private activateFeedFromGesture(): void {
+    this.unschedule(this.retryFeedPreviewAudio);
     if (FeedAcquisitionService.isActive()) {
       FeedAcquisitionService.activateFromFirstTouch();
+    }
+
+    const state = FeedAcquisitionService.getState();
+    if (!state.active || (state.entered && !state.exited)) {
+      if (state.active && !this.feedAudioGestureRecovered) {
+        this.feedAudioGestureRecovered = true;
+        AudioManager.restartMusic(soundName.getUserBgm);
+      } else {
+        AudioManager.playMusic(soundName.getUserBgm);
+      }
     }
   }
 
@@ -254,12 +284,56 @@ export class getUserScene extends Component {
     // 只有真正滑出推荐流后才暂停视觉动画；点击和广告仍由下面的交互状态控制。
     this.feedVisualEnabled = !state.active || !state.exited;
     this.feedInteractionEnabled = !state.active || (state.entered && !state.exited);
+    // entered=false/exited=false 是推荐流卡片预览态，此时也要播放音乐。
+    // 隐藏预启动阶段先不调用 play；收到前台 show、feedEnter 或真实触摸后再启动。
+    if (state.active && state.exited) {
+      this.feedAudioForeground = false;
+      this.feedAudioGestureRecovered = false;
+      AudioManager.pauseBgmForVideo();
+    } else if (!state.active) {
+      AudioManager.playMusic(soundName.getUserBgm);
+    } else if (state.entered && !this.feedAudioForeground) {
+      this.feedAudioForeground = true;
+      AudioManager.restartMusic(soundName.getUserBgm);
+    } else if (this.feedAudioForeground) {
+      AudioManager.playMusic(soundName.getUserBgm);
+    }
+  };
+
+  private onGameShow = (): void => {
+    this.unschedule(this.retryFeedPreviewAudio);
+    const state = FeedAcquisitionService.getState();
+    if (!state.active) {
+      AudioManager.playMusic(soundName.getUserBgm);
+      return;
+    }
+    if (state.exited) return;
+
+    // 推荐流卡片从后台预启动切到前台展示时，强制绕过可能卡住的旧播放器。
+    this.feedAudioForeground = true;
+    AudioManager.restartMusic(soundName.getUserBgm);
+  };
+
+  private onGameHide = (): void => {
+    if (!FeedAcquisitionService.isActive()) return;
+    this.feedAudioForeground = false;
+    AudioManager.pauseBgmForVideo();
   };
 
   private reportFeedSceneReady(): void {
     if (this.node?.isValid && FeedAcquisitionService.isActive()) {
       FeedAcquisitionService.reportSceneReady();
+      // 测试容器有时先展示卡片、后派发 show。场景上报后补一次干净播放器启动；
+      // 若此时仍在后台，后续 show/首次触摸还会再次重建，不会继续卡在旧队列。
+      this.unschedule(this.retryFeedPreviewAudio);
+      this.scheduleOnce(this.retryFeedPreviewAudio, 0.35);
     }
+  }
+
+  private retryFeedPreviewAudio(): void {
+    const state = FeedAcquisitionService.getState();
+    if (!this.node?.isValid || !state.active || state.exited) return;
+    AudioManager.restartMusic(soundName.getUserBgm);
   }
 
   private finishFeedExperience(): void {
@@ -269,7 +343,6 @@ export class getUserScene extends Component {
     }
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     FeedAcquisitionService.completeSession();
-    adc.setBannerEnabled(true);
   }
 
   private normalizeAngle(angle: number): number {
@@ -302,6 +375,9 @@ export class getUserScene extends Component {
 
   protected onDestroy(): void {
     this.unschedule(this.resumeAfterMiss);
+    this.unschedule(this.retryFeedPreviewAudio);
+    game.off(Game.EVENT_SHOW, this.onGameShow, this);
+    game.off(Game.EVENT_HIDE, this.onGameHide, this);
 
     // 编辑器切场景时子节点可能先于根组件销毁；只有节点仍有效时才解绑。
     if (this.tipsBtn?.isValid && this.tipsBtn.node?.isValid) {

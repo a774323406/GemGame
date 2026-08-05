@@ -14,6 +14,7 @@ export enum soundName {
   buttonClick = "buttonClick",
   getUserBgm = "getUserBgm",
   getUserClick = "getUserClick",
+  hairSuccess = "hairSuccess",
   countDown = "countDown",
   fail = "fail",
   up = "up",
@@ -27,6 +28,7 @@ const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
 };
 
 const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
+  [soundName.hairSuccess]: "59e2af11-9d82-4a3f-9d88-1a8b5e3c0b42",
   [soundName.countDown]: "bb6dc42a-4883-4049-a42f-dfedede2d19c",
 };
 

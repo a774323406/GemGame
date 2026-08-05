@@ -23,6 +23,8 @@ export default class AudioManager {
   private static hasSetSoundEvent: boolean = false;
   /** 当前正在播放的背景音乐名称，避免同一首 BGM 反复从头播放 */
   private static currentBgmName: soundName | null = null;
+  /** BGM 异步加载请求序号，切场景后阻止旧请求覆盖新音乐。 */
+  private static bgmRequestToken = 0;
   /** 音效兜底加载队列，避免同一个音效被重复加载 */
   private static effectClipLoadingMap = new Map<string, Promise<AudioClip | null>>();
   /** 当前循环音效；暂停时保留名称和播放进度，恢复后继续播放。 */
@@ -344,55 +346,87 @@ export default class AudioManager {
       return;
     }
 
+    this.currentBgmName = name;
+    const requestToken = ++this.bgmRequestToken;
     const clip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
 
     if (clip) {
-      /**
-       * 如果当前已经是同一个 clip，就不要重新播放。
-       * 避免切场景回 StartScene 时 BGM 从头开始。
-       */
-      if (this.bgmAudioSource.clip === clip) {
-        if (!(this.bgmAudioSource as any).playing) {
-          this.bgmAudioSource.play();
-        }
-        return;
-      }
-
-      this.bgmAudioSource.stop();
-      this.bgmAudioSource.clip = clip;
-      this.bgmAudioSource.loop = true;
-      this.bgmAudioSource.play();
+      this.playLoadedMusic(name, clip, requestToken);
       return;
     }
 
-    console.warn(`[AudioManager] 音频资源 ${name} 尚未加载，1秒后重试`);
+    // 推荐流会在后台预启动，可能在完整预加载缓存建立前就进入场景。
+    // 这里主动从 res bundle 加载，不能只依赖固定延时重试。
+    void this.loadEffectClipByName(name).then((loadedClip) => {
+      if (loadedClip) this.playLoadedMusic(name, loadedClip, requestToken);
+    });
+  }
 
-    setTimeout(() => {
-      if (!this.canPlayMusic()) {
-        this.stopMusic();
-        return;
+  /**
+   * 重新创建底层播放器并从头播放 BGM。
+   *
+   * 推荐流会先在隐藏状态预启动游戏。若此时第一次 play 没有收到原生 onPlay，
+   * Cocos 的音频操作队列会一直等待；仅再次调用 play 无法恢复。重新绑定 clip
+   * 会销毁旧的 InnerAudioContext，并在真正转到前台时创建一条干净的播放链路。
+   */
+  static restartMusic(name: soundName) {
+    this.initAudioSources();
+    if (!this.bgmAudioSource) return;
+
+    if (!this.canPlayMusic()) {
+      this.stopMusic();
+      return;
+    }
+
+    this.currentBgmName = name;
+    const requestToken = ++this.bgmRequestToken;
+    const clip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
+
+    if (clip) {
+      this.playLoadedMusic(name, clip, requestToken, true);
+      return;
+    }
+
+    void this.loadEffectClipByName(name).then((loadedClip) => {
+      if (loadedClip) this.playLoadedMusic(name, loadedClip, requestToken, true);
+    });
+  }
+
+  private static playLoadedMusic(
+    name: soundName,
+    clip: AudioClip,
+    requestToken: number,
+    forceRecreate = false,
+  ) {
+    if (
+      !this.bgmAudioSource ||
+      !this.canPlayMusic() ||
+      this.currentBgmName !== name ||
+      this.bgmRequestToken !== requestToken
+    ) {
+      return;
+    }
+
+    if (forceRecreate && this.bgmAudioSource.clip) {
+      // 直接清空 clip 会同步销毁卡住的原生播放器，不经过旧的异步操作队列。
+      this.bgmAudioSource.clip = null;
+    }
+
+    /**
+     * 如果当前已经是同一个 clip，就不要重新设置资源；
+     * 但推荐流首次真实进入时需要再次 play，以恢复被宿主拦截的自动播放。
+     */
+    if (this.bgmAudioSource.clip === clip) {
+      if (!(this.bgmAudioSource as any).playing) {
+        this.bgmAudioSource.play();
       }
+      return;
+    }
 
-      const retryClip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
-
-      if (!retryClip || !this.bgmAudioSource) {
-        return;
-      }
-
-      if (this.bgmAudioSource.clip === retryClip) {
-        if (!(this.bgmAudioSource as any).playing) {
-          this.bgmAudioSource.play();
-        }
-        return;
-      }
-
-      console.log(`[AudioManager] 重试播放背景音乐成功: ${name}`);
-
-      this.bgmAudioSource.stop();
-      this.bgmAudioSource.clip = retryClip;
-      this.bgmAudioSource.loop = true;
-      this.bgmAudioSource.play();
-    }, 1000);
+    this.bgmAudioSource.stop();
+    this.bgmAudioSource.clip = clip;
+    this.bgmAudioSource.loop = true;
+    this.bgmAudioSource.play();
   }
 
   /**
@@ -481,6 +515,8 @@ export default class AudioManager {
    * 停止当前背景音乐
    */
   static stopMusic() {
+    this.bgmRequestToken++;
+    this.currentBgmName = null;
     if (this.bgmAudioSource) {
       this.bgmAudioSource.stop();
       this.bgmAudioSource.clip = null;

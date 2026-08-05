@@ -29,6 +29,8 @@ export class ADController {
   private appHidden = false;
   private fullscreenAdActive = false;
 
+  private bannerSceneEnabled = false;
+  private bannerRequestOwners = new Set<string>();
   private bannerDesired = false;
   private bannerCreating = false;
   private bannerVisible = false;
@@ -52,10 +54,34 @@ export class ADController {
     director.on(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onFullscreenAdChanged, this);
   }
 
-  /** 进入主界面/普通关卡时开启，推荐流直玩时可关闭。 */
+  /** 设置当前场景的 Banner 基础策略。主界面开启，玩法场景关闭。 */
   public setBannerEnabled(enabled: boolean) {
     this.initialize();
-    this.bannerDesired = enabled && GameConfig.showAd;
+    this.bannerSceneEnabled = enabled;
+    this.refreshBannerDesired();
+  }
+
+  /**
+   * 弹窗临时申请 Banner。使用 owner 集合而不是直接覆盖场景策略，
+   * 可正确处理复用弹窗、嵌套弹窗以及关闭动画期间的异步场景切换。
+   */
+  public setBannerRequested(owner: string, requested: boolean) {
+    this.initialize();
+    const normalizedOwner = String(owner || "").trim();
+    if (!normalizedOwner) return;
+
+    if (requested) {
+      this.bannerRequestOwners.add(normalizedOwner);
+    } else {
+      this.bannerRequestOwners.delete(normalizedOwner);
+    }
+    this.refreshBannerDesired();
+  }
+
+  private refreshBannerDesired() {
+    this.bannerDesired =
+      GameConfig.showAd &&
+      (this.bannerSceneEnabled || this.bannerRequestOwners.size > 0);
 
     if (!this.bannerDesired) {
       this.destroyCurrentBanner();
