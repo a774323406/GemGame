@@ -12,6 +12,8 @@ export enum uiName {
 export enum soundName {
   bgm = "bgm",
   buttonClick = "buttonClick",
+  getUserBgm = "getUserBgm",
+  getUserClick = "getUserClick",
   countDown = "countDown",
   fail = "fail",
   up = "up",

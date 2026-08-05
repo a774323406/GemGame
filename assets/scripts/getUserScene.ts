@@ -11,6 +11,8 @@ import {
   UIOpacity,
 } from "cc";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
+import AudioManager from "./framework/AudioManager";
+import { soundName } from "./gamePrefabMgr";
 import {
   FeedAcquisitionService,
   FeedAcquisitionState,
@@ -42,6 +44,7 @@ export class getUserScene extends Component {
   private completed = false;
   private adInFlight = false;
   private loadingNextScene = false;
+  private feedVisualEnabled = true;
   private feedInteractionEnabled = true;
   private nextOpacity: UIOpacity | null = null;
 
@@ -54,6 +57,8 @@ export class getUserScene extends Component {
   protected start(): void {
     if (!SdkUtils.sdk) SdkUtils.requireSDK();
     adc.setBannerEnabled(false);
+    AudioManager.setSoundEvent();
+    AudioManager.playMusic(soundName.getUserBgm);
 
     if (this.nextBtn?.node) {
       this.nextBtn.node.active = false;
@@ -81,7 +86,7 @@ export class getUserScene extends Component {
       !this.rotating ||
       this.completed ||
       this.adInFlight ||
-      !this.feedInteractionEnabled
+      !this.feedVisualEnabled
     ) {
       return;
     }
@@ -111,6 +116,7 @@ export class getUserScene extends Component {
       return;
     }
 
+    AudioManager.playEffect(soundName.getUserClick);
     this.rotating = false;
     const angleError = Math.abs(this.normalizeAngle(this.hairNode.angle));
     if (angleError <= Math.max(0, this.successAngleTolerance)) {
@@ -221,6 +227,7 @@ export class getUserScene extends Component {
 
     Tween.stopAllByTarget(this.nextOpacity);
     this.finishFeedExperience();
+    AudioManager.playDefaultBgm();
     void GameSceneBundle.loadScene(GameSceneName.Game).catch((err) => {
       console.error("[getUserScene] 下一关加载失败", err);
       this.loadingNextScene = false;
@@ -243,6 +250,9 @@ export class getUserScene extends Component {
   }
 
   private onFeedStateChanged = (state: FeedAcquisitionState): void => {
+    // 推荐流预览态 entered=false、exited=false，此时也要让画面持续转动。
+    // 只有真正滑出推荐流后才暂停视觉动画；点击和广告仍由下面的交互状态控制。
+    this.feedVisualEnabled = !state.active || !state.exited;
     this.feedInteractionEnabled = !state.active || (state.entered && !state.exited);
   };
 
