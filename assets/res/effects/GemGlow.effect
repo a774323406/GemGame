@@ -18,6 +18,7 @@ CCEffect %{
         alphaThreshold: { value: 0.5 }
         glowColor: { value: [1.0, 0.92, 0.25, 1.0], editor: { type: color } }
         glowParams: { value: [0.012, 0.95, 6.0, 0.72] }
+        glowUVScale: { value: [1.0, 1.0, 0.0, 0.0] }
 }%
 
 CCProgram sprite-vs %{
@@ -79,6 +80,7 @@ CCProgram sprite-fs %{
   uniform GemGlow {
     vec4 glowColor;
     vec4 glowParams;
+    vec4 glowUVScale;
   };
 
   vec4 frag () {
@@ -86,17 +88,17 @@ CCProgram sprite-fs %{
 
     #if USE_TEXTURE
       vec4 center = CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
-      float radius = glowParams.x;
+      vec2 radius = glowParams.x * max(glowUVScale.xy, vec2(0.000001));
 
       float edgeAlpha = center.a;
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2( radius, 0.0)).a);
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(-radius, 0.0)).a);
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(0.0,  radius)).a);
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(0.0, -radius)).a);
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2( radius,  radius)).a);
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(-radius,  radius)).a);
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2( radius, -radius)).a);
-      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(-radius, -radius)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2( radius.x, 0.0)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(-radius.x, 0.0)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(0.0,  radius.y)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(0.0, -radius.y)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2( radius.x,  radius.y)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(-radius.x,  radius.y)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2( radius.x, -radius.y)).a);
+      edgeAlpha = max(edgeAlpha, CCSampleWithAlphaSeparated(cc_spriteTexture, uv0 + vec2(-radius.x, -radius.y)).a);
 
       float innerMask = smoothstep(0.08, 0.9, center.a);
       float edgeMask = smoothstep(0.02, 0.45, edgeAlpha) * innerMask;

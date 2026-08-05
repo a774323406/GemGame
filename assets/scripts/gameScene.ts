@@ -21,7 +21,6 @@ import {
   SpriteFrame,
   sys,
   TextAsset,
-  instantiate,
   tween,
   Tween,
   UIOpacity,
@@ -90,7 +89,7 @@ interface TileState {
   row: number;
   col: number;
   color: number;
-  node: Node;
+  node: Node | null;
   block: BlockState | null;
 }
 
@@ -106,8 +105,7 @@ interface BlockState {
   row: number;
   col: number;
   node: Node;
-  normalSprite: Sprite;
-  collapsedSprite: Sprite;
+  sprite: Sprite;
   selectedFx: Sprite | null;
   collapsed: boolean;
   selected: boolean;
@@ -116,13 +114,7 @@ interface BlockState {
 }
 
 interface CachedGameAssets {
-  tilePrefab: Prefab | null;
-  blockPrefab: Prefab | null;
-  emptyBlockPrefab: Prefab | null;
-  traySlotPrefab: Prefab | null;
-  selectFrame: SpriteFrame | null;
   traySlotFrame: SpriteFrame | null;
-  boardBaseFrame: SpriteFrame | null;
   wandSelectionFrame: SpriteFrame | null;
   glowEffect: EffectAsset | null;
   sparkleFrame: SpriteFrame | null;
@@ -299,7 +291,6 @@ export class gameScene extends Component {
   private readonly boardMaxHeight = 620;
   private readonly boardCellGap = 0;
   private readonly boardTileOverlap = 2;
-  private readonly boardBasePadding = 7;
   private readonly boardBlockIconScale = 0.78;
   private readonly selectedBoardLift = 12;
   private readonly selectedBoardScale = 1.06;
@@ -376,14 +367,13 @@ export class gameScene extends Component {
   private tileFrames = new Map<number, SpriteFrame>();
   private blockFrames = new Map<number, SpriteFrame>();
   private collapsedFrames = new Map<number, SpriteFrame>();
-  private selectFrame: SpriteFrame = null;
   private traySlotFrame: SpriteFrame = null;
-  private boardBaseFrame: SpriteFrame = null;
   private wandSelectionFrame: SpriteFrame = null;
   private sparkleFrame: SpriteFrame = null;
   private lockFrame: SpriteFrame = null;
   private glowEffect: EffectAsset = null;
-  private glowMaterials = new Map<number, Material>();
+  private selectedGlowMaterial: Material | null = null;
+  private sortedGlowMaterial: Material | null = null;
   private glowFlashTokens = new Map<number, number>();
 
   protected onLoad() {
@@ -493,6 +483,8 @@ export class gameScene extends Component {
      * 避免设置按钮、底部道具按钮等 UI 也触发棋盘逻辑。
      */
     this.mapControl.node.on(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
+    this.trayRoot?.off(Node.EventType.TOUCH_END, this.onTrayTouchEnd, this);
+    this.trayRoot?.on(Node.EventType.TOUCH_END, this.onTrayTouchEnd, this);
 
     if (this.magicBtn || this.clearBtn || this.magnetBtn) {
       this.bindToolButtons();
@@ -667,14 +659,7 @@ export class gameScene extends Component {
     }
 
     const assets = await gameScene.assetsLoadPromise;
-    if (!this.tilePrefab && assets.tilePrefab) this.tilePrefab = assets.tilePrefab;
-    if (!this.blockPrefab && assets.blockPrefab) this.blockPrefab = assets.blockPrefab;
-    if (!this.emptyBlockPrefab && assets.emptyBlockPrefab) this.emptyBlockPrefab = assets.emptyBlockPrefab;
-    if (!this.traySlotPrefab && assets.traySlotPrefab) this.traySlotPrefab = assets.traySlotPrefab;
-
-    this.selectFrame = assets.selectFrame;
     this.traySlotFrame = assets.traySlotFrame;
-    this.boardBaseFrame = assets.boardBaseFrame;
     this.wandSelectionFrame = assets.wandSelectionFrame;
     this.sparkleFrame = assets.sparkleFrame;
     this.lockFrame = assets.lockFrame;
@@ -748,26 +733,14 @@ export class gameScene extends Component {
     await ResourceManager.ins.loadBundle("res");
 
     const [
-      tilePrefab,
-      blockPrefab,
-      traySlotPrefab,
-      emptyBlockPrefab,
-      selectFrame,
       traySlotFrame,
-      boardBaseFrame,
       wandSelectionFrame,
       glowEffect,
       sparkleFrame,
       lockFrame,
       colorAssets,
     ] = await Promise.all([
-      this.tryLoadPrefab("prefab/Blocks/Tile"),
-      this.tryLoadPrefab("prefab/Blocks/Block"),
-      this.tryLoadPrefab("prefab/Blocks/TraySlot"),
-      this.tryLoadPrefab("prefab/Blocks/EmptyBlock"),
-      this.tryLoadSprite("texture/Tiles/Tiles/gem_select_fx"),
       this.tryLoadSprite("texture/Trays/game_tray_slot_v2"),
-      this.tryLoadSprite("texture/Trays/TraySlot"),
       this.tryLoadSprite("Images/WandSelectionFrame"),
       this.tryLoadEffect("effects/GemGlow"),
       this.tryLoadSprite("texture/UIs/sparkle3"),
@@ -797,13 +770,7 @@ export class gameScene extends Component {
     }
 
     return {
-      tilePrefab,
-      blockPrefab,
-      emptyBlockPrefab,
-      traySlotPrefab,
-      selectFrame,
       traySlotFrame,
-      boardBaseFrame,
       wandSelectionFrame,
       glowEffect,
       sparkleFrame,
@@ -812,14 +779,6 @@ export class gameScene extends Component {
       blockFrames,
       collapsedFrames,
     };
-  }
-
-  private async tryLoadPrefab(path: string): Promise<Prefab | null> {
-    try {
-      return await ResourceManager.ins.loadBundleAsset("res", path, Prefab);
-    } catch {
-      return null;
-    }
   }
 
   private async tryLoadSprite(path: string): Promise<SpriteFrame | null> {
@@ -1047,18 +1006,13 @@ export class gameScene extends Component {
       for (let c = 0; c < cols; c++) {
         const color = this.levelData.complete[r][c];
         const pos = this.getTilePosition(r, c);
-        const tileNode = color > 0 ? this.createTileNode(color, r, c) : this.createEmptyBlockNode(r, c);
-        tileNode.setPosition(pos);
-        if (color > 0) {
-          const baseNode = this.createBoardBaseNode(r, c);
-          baseNode.setPosition(pos);
-        }
+        // 0 表示棋盘外的空白区域。旧版本仍会为它实例化透明 Prefab，
+        // 稀疏大关卡会白白增加数百个节点和 UITransform。
+        const tileNode = color > 0 ? this.createTileNode(color, r, c) : null;
+        tileNode?.setPosition(pos);
 
         const tile: TileState = { row: r, col: c, color, node: tileNode, block: null };
         this.tiles[r][c] = tile;
-        if (color > 0) {
-          tileNode.on(Node.EventType.TOUCH_END, () => this.onTileClicked(tile), this);
-        }
 
         const blockColor = this.levelData.shuffle[r][c];
         if (color > 0 && blockColor > 0) {
@@ -1083,9 +1037,6 @@ export class gameScene extends Component {
 
       const slot: TraySlotState = { index: i, node, block: null };
       this.traySlots.push(slot);
-
-      node.off(Node.EventType.TOUCH_END);
-      node.on(Node.EventType.TOUCH_END, () => this.onTraySlotClicked(slot), this);
     }
 
     this.refreshTrayLayout();
@@ -1186,45 +1137,26 @@ export class gameScene extends Component {
   }
 
   private createBlock(color: number, row: number, col: number, pos: Vec3): BlockState {
-    const node = this.createPrefabOrNode(
-      this.blockPrefab,
+    /**
+     * Block.prefab 原先每颗宝石会实例化 Root / Selection / Normal /
+     * Collapsed / Effect 等多个子节点，但实际显示始终只有一张宝石图。
+     * 大关卡里这里是节点数的大头，改为单节点 + 单 SpriteFrame 切换。
+     */
+    const node = this.createNode(
       `Block_${this.blockIdSeed}`,
       this.blockRoot,
-      this.cellSize,
-      this.cellSize,
+      this.getBoardBlockIconSize(),
+      this.getBoardBlockIconSize(),
     );
     node.setPosition(pos);
-
-    const visualRoot = this.ensureChildNode(node, "Root");
-
-    const selectedNode = this.ensureSpriteChild(
-      visualRoot,
-      "SelectedFx",
-      this.selectFrame,
-      this.cellSize,
-      this.cellSize,
-      ["Selection"],
-    );
-    selectedNode.active = false;
-
-    const normal = this.ensureSpriteChild(
-      visualRoot,
-      "Normal",
+    this.applySprite(
+      node,
       this.blockFrames.get(color),
       this.getBoardBlockIconSize(),
       this.getBoardBlockIconSize(),
-      ["IconView"],
-    ).getComponent(Sprite);
-
-    const collapsed = this.ensureSpriteChild(
-      visualRoot,
-      "Collapsed",
-      this.collapsedFrames.get(color) || this.blockFrames.get(color),
-      this.getBoardBlockIconSize(),
-      this.getBoardBlockIconSize(),
-      ["IconCollapsed"],
-    ).getComponent(Sprite);
-    collapsed.node.active = false;
+      new Color(255, 255, 255, 60),
+    );
+    const sprite = node.getComponent(Sprite);
 
     const block: BlockState = {
       id: this.blockIdSeed++,
@@ -1232,9 +1164,8 @@ export class gameScene extends Component {
       row,
       col,
       node,
-      normalSprite: normal,
-      collapsedSprite: collapsed,
-      selectedFx: selectedNode.getComponent(Sprite),
+      sprite,
+      selectedFx: null,
       collapsed: false,
       selected: false,
       location: "board",
@@ -1242,7 +1173,6 @@ export class gameScene extends Component {
     };
 
     this.blocks.push(block);
-    node.on(Node.EventType.TOUCH_END, () => this.onBlockClicked(block), this);
     return block;
   }
 
@@ -1311,18 +1241,40 @@ export class gameScene extends Component {
     this.moveBoardBlocksToTray(boardBlocks, slot.index, () => this.onTutorialTrayMoveCompleted());
   }
 
+  private onTrayTouchEnd(event: EventTouch) {
+    if (this.inputLocked || event.propagationStopped) return;
+
+    const block = this.findTrayBlockAtTouch(event);
+    if (block) {
+      this.onBlockClicked(block);
+      return;
+    }
+
+    const slot = this.findTraySlotAtTouch(event);
+    if (slot) {
+      this.onTraySlotClicked(slot);
+    }
+  }
+
   private onSceneTouchEnd(event: EventTouch) {
-    if (this.inputLocked) return;
-    if (this.selectedBlocks.length === 0) return;
+    // mapControl 在缩放/拖动结束时会停止事件传播，不能把手势误判成点击。
+    if (this.inputLocked || event.propagationStopped) return;
 
     const tile = this.findTileAtTouch(event);
-    if (tile) {
+    if (!tile) return;
+
+    if (tile.block?.location === "board") {
+      this.onBlockClicked(tile.block);
+      return;
+    }
+
+    if (this.selectedBlocks.length > 0) {
       this.onTileClicked(tile);
     }
   }
 
   private onTileClicked(tile: TileState) {
-    if (this.inputLocked || !tile || !tile.node.active) return;
+    if (this.inputLocked || !tile?.node?.active) return;
     if (!this.isTutorialTileAllowed(tile)) return;
     if (tile.color <= 0) return;
     if (this.magicSelecting) {
@@ -1744,8 +1696,9 @@ export class gameScene extends Component {
   private updateCollapse(block: BlockState, animate: boolean) {
     const tile = block.location === "board" ? this.tiles[block.row]?.[block.col] : null;
     block.collapsed = !!tile && tile.color === block.color;
-    block.normalSprite.node.active = !block.collapsed;
-    block.collapsedSprite.node.active = block.collapsed;
+    block.sprite.spriteFrame = block.collapsed
+      ? this.collapsedFrames.get(block.color) || this.blockFrames.get(block.color)
+      : this.blockFrames.get(block.color);
     block.node.setScale(block.location === "tray" ? this.getTrayBlockScale(false) : Vec3.ONE);
 
     if (block.collapsed && animate) {
@@ -1851,29 +1804,26 @@ export class gameScene extends Component {
   }
 
   private setBlockGlow(block: BlockState, active: boolean, strength = this.selectedGlowStrength) {
-    const sprites = this.getBlockSprites(block);
+    const sprite = block.sprite;
 
     if (!active) {
       this.glowFlashTokens.set(block.id, (this.glowFlashTokens.get(block.id) || 0) + 1);
-      for (const sprite of sprites) {
-        sprite.customMaterial = null;
-        (sprite as any).updateMaterial?.();
-      }
+      sprite.customMaterial = null;
+      (sprite as any).updateMaterial?.();
       return;
     }
 
-    const material = this.getBlockGlowMaterial(block);
+    const material = this.getBlockGlowMaterial(strength === this.sortedGlowStrength);
     if (!material) {
       return;
     }
 
     material.setProperty("glowColor", new Vec4(1, 0.92, 0.25, 1));
     material.setProperty("glowParams", new Vec4(this.glowRadius, strength, this.glowPulseSpeed, 0.72));
+    material.setProperty("glowUVScale", this.getSpriteFrameUVScale(sprite.spriteFrame));
 
-    for (const sprite of sprites) {
-      sprite.customMaterial = material;
-      (sprite as any).updateMaterial?.();
-    }
+    sprite.customMaterial = material;
+    (sprite as any).updateMaterial?.();
   }
 
   private flashBlockGlow(block: BlockState, strength: number, duration = 0.55) {
@@ -1894,12 +1844,12 @@ export class gameScene extends Component {
     }, duration);
   }
 
-  private getBlockGlowMaterial(block: BlockState): Material | null {
+  private getBlockGlowMaterial(sorted: boolean): Material | null {
     if (!this.glowEffect) {
       return null;
     }
 
-    let material = this.glowMaterials.get(block.id);
+    let material = sorted ? this.sortedGlowMaterial : this.selectedGlowMaterial;
     if (!material) {
       material = new Material();
       material.initialize({
@@ -1908,17 +1858,27 @@ export class gameScene extends Component {
           USE_TEXTURE: true,
         },
       });
-      this.glowMaterials.set(block.id, material);
+      if (sorted) {
+        this.sortedGlowMaterial = material;
+      } else {
+        this.selectedGlowMaterial = material;
+      }
     }
 
     return material;
   }
 
-  private getBlockSprites(block: BlockState): Sprite[] {
-    const sprites: Sprite[] = [];
-    if (block.normalSprite) sprites.push(block.normalSprite);
-    if (block.collapsedSprite) sprites.push(block.collapsedSprite);
-    return sprites;
+  /**
+   * glowRadius 原本以单张图片 UV 为单位。进入静态图集后 UV 范围变小，
+   * 需要乘以 SpriteFrame 在图集中的占比，保持发光粗细不随图集尺寸变化。
+   */
+  private getSpriteFrameUVScale(frame: SpriteFrame | null): Vec4 {
+    const texture = frame?.texture;
+    const textureWidth = Math.max(1, Number(texture?.width) || 1);
+    const textureHeight = Math.max(1, Number(texture?.height) || 1);
+    const frameWidth = Math.max(1, Number(frame?.rect?.width) || textureWidth);
+    const frameHeight = Math.max(1, Number(frame?.rect?.height) || textureHeight);
+    return new Vec4(frameWidth / textureWidth, frameHeight / textureHeight, 0, 0);
   }
 
   private onMagicClicked() {
@@ -4742,6 +4702,11 @@ export class gameScene extends Component {
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     this.unbindFeedFallbackTouch();
     this.mapControl?.node?.off(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
+    this.trayRoot?.off(Node.EventType.TOUCH_END, this.onTrayTouchEnd, this);
+    this.selectedGlowMaterial?.destroy();
+    this.sortedGlowMaterial?.destroy();
+    this.selectedGlowMaterial = null;
+    this.sortedGlowMaterial = null;
     if (this.feedMode) {
       FeedAcquisitionService.completeSession();
     }
@@ -4800,6 +4765,13 @@ export class gameScene extends Component {
     if (!this.tileRoot) return null;
     const location = event.getUILocation();
     return this.tileRoot.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
+  }
+
+  private getTouchPositionInTrayRoot(event: EventTouch): Vec3 | null {
+    const transform = this.trayRoot?.getComponent(UITransform);
+    if (!transform) return null;
+    const location = event.getUILocation();
+    return transform.convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
   }
 
   private getMagicAreaParent(): Node {
@@ -4879,18 +4851,46 @@ export class gameScene extends Component {
 
     const local = this.getTouchPositionInTileRoot(event);
     if (!local) return null;
-    const half = this.cellSize * 0.5;
 
-    for (const row of this.tiles) {
-      for (const tile of row) {
-        if (!tile || tile.color <= 0) continue;
-        const pos = tile.node.position;
-        if (Math.abs(local.x - pos.x) <= half && Math.abs(local.y - pos.y) <= half) {
-          return tile;
-        }
+    // 棋盘是规则矩阵，直接由坐标换算行列，避免每次点击遍历最多 1600 格。
+    const col = Math.round((local.x - this.boardOrigin.x) / this.cellStep);
+    const row = Math.round((this.boardOrigin.y - local.y) / this.cellStep);
+    const tile = this.tiles[row]?.[col];
+    if (!tile?.node || tile.color <= 0) return null;
+
+    const pos = tile.node.position;
+    const half = this.cellSize * 0.5;
+    return Math.abs(local.x - pos.x) <= half && Math.abs(local.y - pos.y) <= half ? tile : null;
+  }
+
+  private findTrayBlockAtTouch(event: EventTouch): BlockState | null {
+    const local = this.getTouchPositionInTrayRoot(event);
+    if (!local) return null;
+
+    const half = this.traySlotSize * 0.5;
+    for (const slot of this.traySlots) {
+      const block = slot.block;
+      if (!this.isTraySlotActive(slot) || !block?.node?.active || block.location !== "tray") continue;
+      const pos = block.node.position;
+      if (Math.abs(local.x - pos.x) <= half && Math.abs(local.y - pos.y) <= half) {
+        return block;
       }
     }
+    return null;
+  }
 
+  private findTraySlotAtTouch(event: EventTouch): TraySlotState | null {
+    const local = this.getTouchPositionInTrayRoot(event);
+    if (!local) return null;
+
+    const half = this.traySlotSize * 0.5;
+    for (const slot of this.traySlots) {
+      if (!this.isTraySlotActive(slot) || !slot.node.active) continue;
+      const pos = slot.node.position;
+      if (Math.abs(local.x - pos.x) <= half && Math.abs(local.y - pos.y) <= half) {
+        return slot;
+      }
+    }
     return null;
   }
 
@@ -5049,10 +5049,6 @@ export class gameScene extends Component {
     this.traySlots = [];
     this.selectedBlocks = [];
     this.blockIdSeed = 0;
-    for (const material of this.glowMaterials.values()) {
-      material.destroy();
-    }
-    this.glowMaterials.clear();
     this.glowFlashTokens.clear();
   }
 
@@ -5097,36 +5093,15 @@ export class gameScene extends Component {
 
   private createTileNode(color: number, row: number, col: number): Node {
     const size = this.getBoardTileSize();
-    const node = this.createPrefabOrNode(this.tilePrefab, `Tile_${row}_${col}`, this.tileRoot, size, size);
-    const view = this.findDeepChild(node, "View") || node;
-    this.applySprite(view, this.tileFrames.get(color), size, size, new Color(255, 255, 255, 60));
-    return node;
-  }
-
-  private createEmptyBlockNode(row: number, col: number): Node {
-    const size = this.getBoardTileSize();
-    return this.createPrefabOrNode(this.emptyBlockPrefab, `EmptyBlock_${row}_${col}`, this.tileRoot, size, size);
-  }
-
-  private createBoardBaseNode(row: number, col: number): Node {
-    const size = this.getBoardBaseSize();
-    const node = this.createPrefabOrNode(
-      this.traySlotPrefab,
-      `BoardBase_${row}_${col}`,
-      this.boardBaseRoot,
-      size,
-      size,
-    );
-    const view = this.findDeepChild(node, "View") || node;
-    this.applySprite(view, this.boardBaseFrame, size, size, new Color(255, 255, 255, 95));
+    const node = this.createNode(`Tile_${row}_${col}`, this.tileRoot, size, size);
+    this.applySprite(node, this.tileFrames.get(color), size, size, new Color(255, 255, 255, 60));
     return node;
   }
 
   private createTraySlotNode(index: number): Node {
     const size = this.traySlotSize;
-    const node = this.createPrefabOrNode(this.traySlotPrefab, `TraySlot_${index}`, this.trayRoot, size, size);
-    const view = this.findDeepChild(node, "View") || node;
-    this.applySprite(view, this.traySlotFrame, size, size, new Color(255, 255, 255, 95));
+    const node = this.createNode(`TraySlot_${index}`, this.trayRoot, size, size);
+    this.applySprite(node, this.traySlotFrame, size, size, new Color(255, 255, 255, 95));
     return node;
   }
 
@@ -5159,64 +5134,22 @@ export class gameScene extends Component {
     return this.cellSize + this.boardTileOverlap;
   }
 
-  private getBoardBaseSize(): number {
-    return this.cellStep + this.boardBasePadding;
-  }
-
   private getBoardBlockIconSize(): number {
     return this.cellSize * this.boardBlockIconScale;
-  }
-
-  private createPrefabOrNode(prefab: Prefab | null, name: string, parent: Node, width: number, height: number): Node {
-    const node = prefab ? instantiate(prefab) : new Node(name);
-    node.name = name;
-    parent.addChild(node);
-    node.setScale(Vec3.ONE);
-    let transform = node.getComponent(UITransform);
-    if (!transform) transform = node.addComponent(UITransform);
-    transform.setContentSize(width, height);
-    return node;
-  }
-
-  private ensureSpriteChild(
-    parent: Node,
-    name: string,
-    frame: SpriteFrame | null,
-    width: number,
-    height: number,
-    aliases: string[] = [],
-  ): Node {
-    let node = parent.getChildByName(name);
-    if (!node) {
-      for (const alias of aliases) {
-        node = this.findDeepChild(parent, alias);
-        if (node) break;
-      }
-    }
-    if (!node) {
-      node = this.createNode(name, parent, width, height);
-    }
-    this.applySprite(node, frame, width, height, new Color(255, 255, 255, 60));
-    return node;
-  }
-
-  private ensureChildNode(parent: Node, name: string): Node {
-    let node = parent.getChildByName(name);
-    if (!node) {
-      node = this.createNode(name, parent, this.cellSize, this.cellSize);
-    }
-    return node;
   }
 
   private applySprite(node: Node, frame: SpriteFrame | null, width: number, height: number, fallbackColor: Color) {
     let transform = node.getComponent(UITransform);
     if (!transform) transform = node.addComponent(UITransform);
-    transform.setContentSize(width, height);
 
     let sprite = node.getComponent(Sprite);
     if (!sprite) sprite = node.addComponent(Sprite);
-    sprite.spriteFrame = frame;
+    // 新增的 Sprite 默认可能处于 RAW/TRIMMED 尺寸模式。必须先切到 CUSTOM，
+    // 再赋 SpriteFrame，并在最后重设 UITransform；否则图集/原图尺寸会把
+    // 关卡计算出的格子尺寸覆盖成 148/176 像素，造成整块棋盘互相重叠。
     sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    sprite.spriteFrame = frame;
+    transform.setContentSize(width, height);
     sprite.color = frame ? Color.WHITE : fallbackColor;
   }
 
