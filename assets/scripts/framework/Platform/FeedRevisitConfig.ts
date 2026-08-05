@@ -9,13 +9,15 @@ export const FEED_REVISIT_CONTENT_ID = "CONTENT14256097026";
 /** 抖音固定场景：3 = 重要事件掉落。 */
 export const FEED_REVISIT_SCENE = 3;
 
-/** 每日挑战仅从当前初始时间为 2～3 分钟的正式关卡中抽取。 */
+/** 新版复访统一进入头发校准小游戏，不再携带随机关卡。 */
+export const FEED_REVISIT_EVENT = "hair_alignment_challenge";
+
+/** 以下随机关卡配置仅用于兼容改版前已经投放的复访 extra。 */
 export const FEED_REVISIT_CHALLENGE_MIN_SECONDS = 120;
 export const FEED_REVISIT_CHALLENGE_MAX_SECONDS = 180;
 
 /**
- * 按当前 LevelDifficulty 公式和 Level1～Level222 数据生成。
- * 调整关卡计时后，应同步更新该候选池，避免每日挑战落到时间范围之外。
+ * 旧版按 LevelDifficulty 公式和 Level1～Level222 数据生成；新版不再抽取。
  */
 export const FEED_REVISIT_CHALLENGE_LEVELS = [
   7, 8, 10, 11, 13, 15, 17, 19, 20, 25, 26, 27, 31, 33, 34, 36, 40, 42, 45, 46, 47, 51, 52,
@@ -44,7 +46,7 @@ export function pickFeedRevisitChallengeLevel(randomValue = Math.random()): numb
   return FEED_REVISIT_CHALLENGE_LEVELS[index];
 }
 
-/** 启动 extra 无效或来自旧排期时，也回退到当前 2～3 分钟候选池。 */
+/** 仅供旧版 GameScene 入口兼容；新的推荐流入口不会调用。 */
 export function resolveFeedRevisitChallengeLevel(extra: string): number {
   try {
     const level = Number(JSON.parse(extra || "{}")?.level);
@@ -55,17 +57,10 @@ export function resolveFeedRevisitChallengeLevel(extra: string): number {
   return pickFeedRevisitChallengeLevel();
 }
 
-/** extra 必须少于 100 字符；readyAt 也用作同一期挑战的唯一领奖标识。 */
-export function createFeedRevisitExtra(
-  readyAt: number,
-  challengeLevel = pickFeedRevisitChallengeLevel(),
-): string {
-  const level = isFeedRevisitChallengeLevel(challengeLevel)
-    ? challengeLevel
-    : pickFeedRevisitChallengeLevel();
+/** extra 必须少于 100 字符；新版挑战不再写入随机关卡编号。 */
+export function createFeedRevisitExtra(readyAt: number): string {
   return JSON.stringify({
-    event: "daily_gem_challenge",
-    level,
+    event: FEED_REVISIT_EVENT,
     readyAt,
   });
 }

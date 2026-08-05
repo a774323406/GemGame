@@ -18,10 +18,7 @@ import UIManager from "./framework/ui/UIManager";
 import { uiName } from "./gamePrefabMgr";
 import { SidebarRewardService, SidebarRewardState } from "./framework/Platform/SidebarRewardService";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
-import {
-  FeedRevisitService,
-  FeedSubscribeResult,
-} from "./framework/Platform/FeedRevisitService";
+import { FeedRevisitService, FeedSubscribeResult } from "./framework/Platform/FeedRevisitService";
 import { adc } from "./framework/Platform/ADController";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { ToolInventory } from "./ToolInventory";
@@ -33,7 +30,8 @@ const { ccclass, property } = _decorator;
 export class mainScene extends Component {
   @property(Button)
   startBtn: Button = null;
-
+  @property(Button)
+  gotoGetUserSceneBtn: Button = null;
   @property(Button)
   settingBtn: Button = null;
 
@@ -58,6 +56,7 @@ export class mainScene extends Component {
 
   protected onLoad(): void {
     this.startBtn?.node?.on("click", this.startGame, this);
+    this.gotoGetUserSceneBtn?.node?.on(Button.EventType.CLICK, this.gotoGetUserScene, this);
     this.clearBtn?.node?.on(Node.EventType.TOUCH_END, this.clearData, this);
     this.settingBtn?.node?.on(Node.EventType.TOUCH_END, this.showSettingPanel, this);
     this.sidebarBtn?.node?.on(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
@@ -86,6 +85,11 @@ export class mainScene extends Component {
 
   protected onDestroy(): void {
     director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
+    this.gotoGetUserSceneBtn?.node?.off(
+      Button.EventType.CLICK,
+      this.gotoGetUserScene,
+      this,
+    );
     this.sidebarBtn?.node?.off(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
     this.shareBtn?.node?.off(Button.EventType.CLICK, this.onShareClicked, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
@@ -106,6 +110,21 @@ export class mainScene extends Component {
       }
     }
   }
+
+  private async gotoGetUserScene(): Promise<void> {
+    if (!this.gotoGetUserSceneBtn?.interactable) return;
+    this.gotoGetUserSceneBtn.interactable = false;
+
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.GetUser);
+    } catch (err) {
+      console.error("[mainScene] GetUserScene 加载失败", err);
+      if (this.gotoGetUserSceneBtn?.node?.isValid) {
+        this.gotoGetUserSceneBtn.interactable = true;
+      }
+    }
+  }
+
   clearData() {
     sys.localStorage.clear();
     this.refreshShareEntry();
@@ -217,8 +236,7 @@ export class mainScene extends Component {
   private refreshShareEntry() {
     if (!this.shareRedDot?.isValid) return;
     this.shareRedDot.active =
-      ShareRewardService.isHomeRewardAvailable() &&
-      ToolInventory.getCount("magic") < ToolInventory.MAX_COUNT;
+      ShareRewardService.isHomeRewardAvailable() && ToolInventory.getCount("magic") < ToolInventory.MAX_COUNT;
   }
 
   private async onShareClicked() {

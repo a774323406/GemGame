@@ -3,12 +3,12 @@ import { EnvTool } from "./sdk/EnvTool";
 import {
   createFeedRevisitExtra,
   FEED_REVISIT_CONTENT_ID,
+  FEED_REVISIT_EVENT,
   FEED_REVISIT_LEGACY_CHALLENGE_LEVELS,
   FEED_REVISIT_PRODUCTION_DELAY_MS,
   FEED_REVISIT_SCENE,
   FEED_REVISIT_TEST_DELAY_MS,
   isFeedRevisitChallengeLevel,
-  pickFeedRevisitChallengeLevel,
 } from "./FeedRevisitConfig";
 
 const STORAGE_READY_AT_KEY = "gem_sort_feed_revisit_ready_at_v1";
@@ -276,8 +276,7 @@ export class FeedRevisitService {
     }
 
     const readyAt = Date.now() + this.getReadyDelayMs(api);
-    const challengeLevel = pickFeedRevisitChallengeLevel();
-    const challengeExtra = createFeedRevisitExtra(readyAt, challengeLevel);
+    const challengeExtra = createFeedRevisitExtra(readyAt);
     return new Promise<boolean>((resolve) => {
       try {
         api.storeFeedData({
@@ -292,7 +291,7 @@ export class FeedRevisitService {
             sys.localStorage.setItem(STORAGE_CONTENT_ID_KEY, contentId);
             sys.localStorage.setItem(STORAGE_READY_AT_KEY, String(readyAt));
             console.log(
-              `[FeedRevisit] 每日挑战第 ${challengeLevel} 关已排期: ${new Date(readyAt).toISOString()}`,
+              `[FeedRevisit] 头发校准挑战已排期: ${new Date(readyAt).toISOString()}`,
             );
             resolve(true);
           },
@@ -369,6 +368,14 @@ export class FeedRevisitService {
     if (!extra) return 0;
     try {
       const data = JSON.parse(extra);
+      if (
+        data?.event === FEED_REVISIT_EVENT &&
+        Number.isFinite(Number(data?.readyAt))
+      ) {
+        return Math.max(0, Number(data.readyAt));
+      }
+
+      // 兼容改版前已投放、extra 中仍带随机关卡编号的每日挑战。
       const challengeLevel = Number(data?.level);
       const isLegacyChallenge = (
         FEED_REVISIT_LEGACY_CHALLENGE_LEVELS as readonly number[]

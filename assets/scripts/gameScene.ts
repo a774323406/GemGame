@@ -341,8 +341,6 @@ export class gameScene extends Component {
   private inputLockedBeforeFeedPause = false;
   private timerRunningBeforeFeedPause = false;
   private levelCompletionHandled = false;
-  private feedChallengeRewardGranted = false;
-  private feedChallengeRewardTool: ToolId | null = null;
   private shareReviveUsedThisRun = false;
 
   private tutorialStep: TutorialStep = "none";
@@ -808,8 +806,6 @@ export class gameScene extends Component {
     this.resetCountdownWarning();
     this.levelCompletionHandled = false;
     this.shareReviveUsedThisRun = false;
-    this.feedChallengeRewardGranted = false;
-    this.feedChallengeRewardTool = null;
     this.levelData = null;
     this.clearBoard();
 
@@ -3175,19 +3171,7 @@ export class gameScene extends Component {
     if (this.messageLabel) this.messageLabel.node.active = false;
 
     if (this.feedRevisitChallenge) {
-      // 每次真实挑战只发一次奖励；随后把下一次事件排到未来，避免重复出卡。
-      const canClaimReward = FeedRevisitService.claimChallengeReward(
-        FeedAcquisitionService.getContentId(),
-        FeedAcquisitionService.getExtra(),
-      );
-      this.feedChallengeRewardGranted = canClaimReward;
-      if (canClaimReward) {
-        const rewardTools: ToolId[] = ["magic", "brush", "magnet"];
-        const rewardTool = rewardTools[Math.floor(Math.random() * rewardTools.length)];
-        this.feedChallengeRewardTool = rewardTool;
-        ToolInventory.add(rewardTool, 1);
-        this.refreshToolBadges();
-      }
+      // 兼容旧入口：只更新下一次复访时间，不再领取或发放挑战奖励。
       FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
     } else if (!this.feedMode && this.levelIndex >= LAST_STANDARD_LEVEL) {
       // 正式关卡全部完成后进入重玩循环；立即保存，点击主页或直接退出也不会重复第 222 关。
@@ -3260,11 +3244,7 @@ export class gameScene extends Component {
     const data = {
       level: this.levelIndex,
       title: isRevisitChallenge ? "挑战完成" : undefined,
-      levelText: isRevisitChallenge
-        ? this.feedChallengeRewardGranted && this.feedChallengeRewardTool
-          ? `奖励：${TOOL_DISPLAY_NAMES[this.feedChallengeRewardTool]} ×1`
-          : "本期挑战已完成"
-        : undefined,
+      levelText: isRevisitChallenge ? "本期挑战已完成" : undefined,
       nextText: isRevisitChallenge ? "继续闯关" : isReplayEntry ? "重玩" : undefined,
       shareRewardAvailable: !this.feedMode && ShareRewardService.isPassRewardAvailable(),
       onShare: this.feedMode

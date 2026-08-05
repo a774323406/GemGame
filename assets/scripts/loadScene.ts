@@ -111,9 +111,13 @@ export class loadScene extends Component {
           // 旧版本玩家已有关卡进度，迁移为“已完成首次入口”。
           sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
         }
-        const nextScene = isFeedDirectPlay || isFirstLaunch ? GameSceneName.Game : GameSceneName.Main;
+        const nextScene = isFeedDirectPlay
+          ? GameSceneName.GetUser
+          : isFirstLaunch
+            ? GameSceneName.Game
+            : GameSceneName.Main;
         const entryReason = isFeedDirectPlay
-          ? "推荐流直玩"
+          ? "推荐流头发校准挑战"
           : isFirstLaunch
             ? "首次启动直接进入关卡"
             : "正常进入主界面";
