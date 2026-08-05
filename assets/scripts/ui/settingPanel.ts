@@ -3,6 +3,7 @@ import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import gameStorage from "../framework/gameStorage";
 import PlayData, { EventName } from "../data/PlayData";
 import AudioManager from "../framework/AudioManager";
+import { SdkUtils } from "../framework/Platform/sdk/SdkUtils";
 const { ccclass, property } = _decorator;
 
 @ccclass("settingPanel")

@@ -51,7 +51,14 @@ import {
 } from "./framework/Platform/FeedAcquisitionService";
 import { resolveFeedRevisitChallengeLevel } from "./framework/Platform/FeedRevisitConfig";
 import { FeedRevisitService } from "./framework/Platform/FeedRevisitService";
+import { adc } from "./framework/Platform/ADController";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
+import { GameConfig } from "./GameConfig";
+import {
+  SHARE_FAIL_REVIVE_SECONDS,
+  ShareActionResult,
+  ShareRewardService,
+} from "./framework/Platform/ShareRewardService";
 
 const { ccclass, property } = _decorator;
 
@@ -329,6 +336,7 @@ export class gameScene extends Component {
   private countdownWarningState: CountdownWarningState = "stopped";
   private timerLabelBaseScale = Vec3.ONE.clone();
   private appHidden = false;
+  private destroying = false;
   private adPaused = false;
   private blockIdSeed = 0;
   private feedMode = false;
@@ -344,6 +352,7 @@ export class gameScene extends Component {
   private levelCompletionHandled = false;
   private feedChallengeRewardGranted = false;
   private feedChallengeRewardTool: ToolId | null = null;
+  private shareReviveUsedThisRun = false;
 
   private tutorialStep: TutorialStep = "none";
   private tutorialPaused = false;
@@ -388,6 +397,7 @@ export class gameScene extends Component {
     this.feedMode = FeedAcquisitionService.isActive();
     this.feedAcquisition = FeedAcquisitionService.isAcquisition();
     this.feedRevisitChallenge = FeedAcquisitionService.isRevisit();
+    adc.setBannerEnabled(!this.feedMode);
     if (this.feedMode) {
       FeedAcquisitionService.addListener(this.onFeedStateChanged);
     }
@@ -838,6 +848,7 @@ export class gameScene extends Component {
     this.timerRunning = false;
     this.resetCountdownWarning();
     this.levelCompletionHandled = false;
+    this.shareReviveUsedThisRun = false;
     this.feedChallengeRewardGranted = false;
     this.feedChallengeRewardTool = null;
     this.levelData = null;
@@ -889,7 +900,8 @@ export class gameScene extends Component {
       return false;
     }
 
-    this.remainingTime = Math.max(1, this.currentLevelTimeSeconds);
+    const shareBonusSeconds = this.feedMode ? 0 : ShareRewardService.consumeNextLevelBonus();
+    this.remainingTime = Math.max(1, this.currentLevelTimeSeconds + shareBonusSeconds);
     this.lastDisplayedSecond = -1;
     this.refreshTimerLabel();
     const waitingForFeedEnter = this.feedMode && !FeedAcquisitionService.getState().entered;
@@ -3232,6 +3244,29 @@ export class gameScene extends Component {
     const data = {
       level: this.levelIndex,
       bonusSeconds: this.currentReviveBonusSeconds,
+      shareRewardAvailable:
+        !this.feedMode &&
+        !this.shareReviveUsedThisRun &&
+        ShareRewardService.isFailRewardAvailable(),
+      onShareRevive: this.feedMode
+        ? undefined
+        : async (): Promise<ShareActionResult> => {
+            const success = await this.shareLevelResult("fail");
+            if (!success) return { success: false, rewarded: false };
+
+            const rewarded =
+              !this.shareReviveUsedThisRun && ShareRewardService.claimFailRevive();
+            if (!rewarded) return { success: true, rewarded: false };
+
+            this.shareReviveUsedThisRun = true;
+            this.remainingTime = SHARE_FAIL_REVIVE_SECONDS;
+            this.lastDisplayedSecond = -1;
+            this.refreshTimerLabel();
+            this.inputLocked = false;
+            this.timerRunning = true;
+            this.syncCountdownWarningState();
+            return { success: true, rewarded: true };
+          },
       onRevive: () =>
         this.showRewardAdThenRun(() => {
           this.remainingTime += Math.max(1, this.currentReviveBonusSeconds);
@@ -3247,7 +3282,13 @@ export class gameScene extends Component {
       },
     };
 
-    manager.open(uiName.failPanel, data, UILayer.Popup);
+    const panel = manager.open(uiName.failPanel, data, UILayer.Popup);
+    if (panel) {
+      adc.onLevelResult(this.levelIndex, "fail", {
+        eligible: !this.feedMode,
+        isStillValid: () => !!panel.isValid && panel.activeInHierarchy,
+      });
+    }
   }
 
   private openPassPanel() {
@@ -3265,6 +3306,17 @@ export class gameScene extends Component {
           : "本期挑战已完成"
         : undefined,
       nextText: isRevisitChallenge ? "继续闯关" : isReplayEntry ? "重玩" : undefined,
+      shareRewardAvailable: !this.feedMode && ShareRewardService.isPassRewardAvailable(),
+      onShare: this.feedMode
+        ? undefined
+        : async (): Promise<ShareActionResult> => {
+            const success = await this.shareLevelResult("pass");
+            if (!success) return { success: false, rewarded: false };
+            return {
+              success: true,
+              rewarded: ShareRewardService.claimPassBonus(),
+            };
+          },
       onNext: () => {
         this.finishFeedExperience();
         this.feedRevisitChallenge = false;
@@ -3281,7 +3333,23 @@ export class gameScene extends Component {
       },
     };
 
-    manager.open(uiName.passPanel, data, UILayer.Popup);
+    const panel = manager.open(uiName.passPanel, data, UILayer.Popup);
+    if (panel) {
+      adc.onLevelResult(this.levelIndex, "pass", {
+        eligible: !this.feedMode,
+        isStillValid: () => !!panel.isValid && panel.activeInHierarchy,
+      });
+    }
+  }
+
+  private shareLevelResult(kind: "pass" | "fail"): Promise<boolean> {
+    return SdkUtils.share({
+      channel: "invite",
+      templateId: GameConfig.shareTemplateId,
+      title: GameConfig.shareTitle,
+      desc: GameConfig.shareDescription,
+      query: `share_scene=${kind}&level=${this.levelIndex}`,
+    });
   }
 
   // =========================================================
@@ -3933,9 +4001,16 @@ export class gameScene extends Component {
     );
   }
 
-  /** 每日复访挑战绕过正式进度锁，但不把临时权限写入 ToolInventory。 */
+  /**
+   * 正式关卡同时校验关卡门槛和持久化解锁标记。这样即使玩家提前通过
+   * 分享或活动拿到库存，或旧存档中的标记不一致，道具也不会提前开放。
+   * 每日复访挑战只临时绕过此限制，不把权限写入 ToolInventory。
+   */
   private isToolUnlocked(tool: ToolId): boolean {
-    return this.feedRevisitChallenge || ToolInventory.isUnlocked(tool);
+    return (
+      this.feedRevisitChallenge ||
+      (this.levelIndex >= TOOL_UNLOCK_LEVELS[tool] && ToolInventory.isUnlocked(tool))
+    );
   }
 
   private isActiveToolTutorial(tool: ToolId): boolean {
@@ -4385,10 +4460,16 @@ export class gameScene extends Component {
      * gameScene 本身挂在场景 Canvas 上，因此优先直接使用当前节点。只有当前
      * 场景节点不可用时，才退回全局 Guide 层。
      */
+    if (this.destroying) return null;
+
     const guideRoot = this.node?.isValid
       ? this.node
       : UIManager.instance?.getLayerNode(UILayer.Guide) || null;
     if (!guideRoot?.isValid) return null;
+
+    // 只查找现有子节点时不读取 UITransform 尺寸。场景预销毁阶段
+    // UITransform 组件还可能是 isValid，但内部 contentSize 已被释放。
+    if (!updateLayout) return guideRoot;
 
     const guideWidget = guideRoot.getComponent(Widget);
     if (
@@ -4494,7 +4575,7 @@ export class gameScene extends Component {
     this.tutorialMapInputState = null;
   }
 
-  private clearTutorialPresentation(resetStep = true) {
+  private clearTutorialPresentation(resetStep = true, syncCountdown = true) {
     this.tutorialVisualToken++;
     GuideOverlay.hide(undefined, GUIDE_ROOT_NAME);
     this.destroyTutorialTargetProxy();
@@ -4510,8 +4591,10 @@ export class gameScene extends Component {
       this.tutorialFirstBlockIds.clear();
       this.tutorialSecondBlockIds.clear();
     }
-    // 下一帧由倒计时主循环根据设置、广告和前后台状态决定是否恢复。
-    this.syncCountdownWarningState(false);
+    if (syncCountdown) {
+      // 下一帧由倒计时主循环根据设置、广告和前后台状态决定是否恢复。
+      this.syncCountdownWarningState(false);
+    }
   }
 
   private onFeedStateChanged = (state: FeedAcquisitionState) => {
@@ -4615,6 +4698,7 @@ export class gameScene extends Component {
     this.feedGuideShown = false;
     this.feedEnteredAtMs = 0;
     this.feedPauseApplied = false;
+    adc.setBannerEnabled(true);
     PlayData.Instance.ispause = false;
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     FeedAcquisitionService.completeSession();
@@ -4638,6 +4722,7 @@ export class gameScene extends Component {
 
   private onGameShow() {
     this.appHidden = false;
+    ShareRewardService.refreshDailyState();
     this.syncCountdownWarningState();
   }
 
@@ -4647,11 +4732,12 @@ export class gameScene extends Component {
   }
 
   protected onDestroy() {
+    this.destroying = true;
     game.off(Game.EVENT_HIDE, this.onGameHide, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     director.off(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onAdPauseChanged, this);
     this.resetCountdownWarning();
-    this.clearTutorialPresentation();
+    this.clearTutorialPresentation(true, false);
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     this.unbindFeedFallbackTouch();
@@ -4919,6 +5005,7 @@ export class gameScene extends Component {
   }
 
   private stopTimerBreathing() {
+    if (this.destroying) return;
     const timerNode = this.timerLabel?.node;
     if (!timerNode?.isValid) return;
     Tween.stopAllByTarget(timerNode);

@@ -37,6 +37,8 @@ const DEFAULT_FLAGS: ToolFlagSnapshot = {
 
 @ccclass("ToolInventory")
 export class ToolInventory extends Component {
+  public static readonly MAX_COUNT = 3;
+
   public static getAll(): ToolInventorySnapshot {
     const data = ToolInventory.load();
     return {
@@ -54,9 +56,15 @@ export class ToolInventory extends Component {
     return ToolInventory.getCount(tool) >= ToolInventory.normalizeAmount(amount);
   }
 
+  /**
+   * 只增加库存，不改变 unlocked/guideDone 等进度标记。
+   * 分享、活动等提前发放的道具会先存入背包，仍需到正式解锁关卡后才能使用。
+   */
   public static add(tool: ToolId, amount = 1): number {
     const inventory = ToolInventory.load();
-    inventory[tool] += ToolInventory.normalizeAmount(amount);
+    inventory[tool] = ToolInventory.clampStoredCount(
+      inventory[tool] + ToolInventory.normalizeAmount(amount),
+    );
     ToolInventory.save(inventory);
     return inventory[tool];
   }
@@ -64,7 +72,9 @@ export class ToolInventory extends Component {
   public static addMany(reward: Partial<ToolInventorySnapshot>): ToolInventorySnapshot {
     const inventory = ToolInventory.load();
     for (const tool of ToolInventory.tools()) {
-      inventory[tool] += ToolInventory.normalizeAmount(reward[tool] || 0);
+      inventory[tool] = ToolInventory.clampStoredCount(
+        inventory[tool] + ToolInventory.normalizeAmount(reward[tool] || 0),
+      );
     }
     ToolInventory.save(inventory);
     return {
@@ -86,7 +96,7 @@ export class ToolInventory extends Component {
 
   public static setCount(tool: ToolId, amount: number): number {
     const inventory = ToolInventory.load();
-    inventory[tool] = ToolInventory.normalizeAmount(amount);
+    inventory[tool] = ToolInventory.clampStoredCount(amount);
     ToolInventory.save(inventory);
     return inventory[tool];
   }
@@ -136,7 +146,9 @@ export class ToolInventory extends Component {
 
     inventory.unlocked[tool] = true;
     inventory.rewardGranted[tool] = true;
-    inventory[tool] += ToolInventory.normalizeAmount(amount);
+    inventory[tool] = ToolInventory.clampStoredCount(
+      inventory[tool] + ToolInventory.normalizeAmount(amount),
+    );
     ToolInventory.save(inventory);
     return true;
   }
@@ -166,7 +178,7 @@ export class ToolInventory extends Component {
     try {
       const saved = JSON.parse(raw) as Partial<ToolInventoryData>;
       for (const tool of ToolInventory.tools()) {
-        inventory[tool] = ToolInventory.normalizeAmount(saved[tool] || 0);
+        inventory[tool] = ToolInventory.clampStoredCount(saved[tool] || 0);
         inventory.unlocked[tool] = saved.unlocked?.[tool] === true;
         inventory.rewardGranted[tool] = saved.rewardGranted?.[tool] === true;
         inventory.rewardPresented[tool] = saved.rewardPresented?.[tool] === true;
@@ -199,5 +211,9 @@ export class ToolInventory extends Component {
 
   private static normalizeAmount(amount: number): number {
     return Math.max(0, Math.floor(Number(amount) || 0));
+  }
+
+  private static clampStoredCount(amount: number): number {
+    return Math.min(ToolInventory.MAX_COUNT, ToolInventory.normalizeAmount(amount));
   }
 }

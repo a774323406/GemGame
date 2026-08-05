@@ -1,5 +1,5 @@
 import { http } from "./HttpRequest";
-import { BaseSDK } from "./BaseSDK";
+import { BaseSDK, GameShareOptions } from "./BaseSDK";
 import { GlobalTool } from "./GlobalTool";
 import { View } from "cc";
 
@@ -8,7 +8,9 @@ export class ByteDanceSDK extends BaseSDK {
   TAG = `ByteDanceSDK`;
   public isInited = false;
   isLogined = false;
-  adUnitId = "uents1cnry199hsspu"; //激励广告id
+  adUnitId = "uents1cnry199hsspu"; // 激励广告 ID
+  bannerAdUnitId = "ic1ocn3r1ke4ll0hcf";
+  interstitialAdUnitId = "7b1ol0m16t715dq06m";
 
   ver = "1.0.0";
 
@@ -211,34 +213,219 @@ export class ByteDanceSDK extends BaseSDK {
         });*/
   }
 
-  private curBannerId: any = null;
-  showADBanner(callback?: Function) {
-    // if (this.curBannerId) {
-    //     this.destroyADBanner();
-    // }
-    this.sdk?.showAdvert({
-      type: 3,
-      config: {
-        top: 0,
-        left: 0,
-        width: 300,
-        heigth: 100,
+  private bannerAd: any = null;
+
+  showADBanner(callback?: Function, failCB?: Function, closeCB?: Function, resizeCB?: Function) {
+    if (typeof tt === "undefined" || typeof tt.createBannerAd !== "function") {
+      this.warn("tt.createBannerAd unavailable");
+      failCB && failCB(new Error("tt.createBannerAd unavailable"));
+      return;
+    }
+
+    this.destroyADBanner();
+
+    const systemInfo = tt.getSystemInfoSync?.() || {};
+    const windowWidth = Math.max(1, Number(systemInfo.windowWidth) || 375);
+    const windowHeight = Math.max(1, Number(systemInfo.windowHeight) || 667);
+    const safeArea = systemInfo.safeArea || {};
+    const safeLeft = Math.max(0, Number(safeArea.left) || 0);
+    const safeRight = Math.min(windowWidth, Number(safeArea.right) || windowWidth);
+    const safeTop = Math.max(0, Number(safeArea.top) || 0);
+    const safeBottom = Math.min(windowHeight, Number(safeArea.bottom) || windowHeight);
+    const safeWidth = Math.max(1, safeRight - safeLeft);
+    const bannerWidth = Math.min(320, safeWidth);
+
+    const banner = tt.createBannerAd({
+      adUnitId: this.bannerAdUnitId,
+      style: {
+        left: safeLeft + (safeWidth - bannerWidth) * 0.5,
+        top: Math.max(safeTop, safeBottom - 100),
+        width: bannerWidth,
       },
-      success: (res) => {
-        this.log("bannerId", res.bannerId);
-        this.curBannerId = res.bannerId;
-        callback && callback();
-      },
-      fail: (err) => {},
     });
+    this.bannerAd = banner;
+
+    let finished = false;
+    let shown = false;
+    let loadTimeout: ReturnType<typeof setTimeout> | null = null;
+    const clearLoadTimeout = () => {
+      if (!loadTimeout) return;
+      clearTimeout(loadTimeout);
+      loadTimeout = null;
+    };
+    const updateLayout = (size?: any) => {
+      if (finished || this.bannerAd !== banner) return;
+      const realWidth = Math.max(1, Number(size?.width) || Number(banner.style?.realWidth) || bannerWidth);
+      const realHeight = Math.max(1, Number(size?.height) || Number(banner.style?.realHeight) || 100);
+      const nextLeft = safeLeft + (safeWidth - realWidth) * 0.5;
+      const nextTop = Math.max(safeTop, safeBottom - realHeight);
+      if (banner.style) {
+        banner.style.left = nextLeft;
+        banner.style.top = nextTop;
+      }
+      resizeCB && resizeCB(realHeight, windowHeight);
+    };
+    const fail = (err?: unknown) => {
+      if (finished) return;
+      finished = true;
+      clearLoadTimeout();
+      this.warn("banner load/show failed", err);
+      if (this.bannerAd === banner) this.bannerAd = null;
+      try {
+        banner.destroy?.();
+      } catch {
+        // 原生广告已回收时忽略重复销毁错误。
+      }
+      failCB && failCB(err);
+    };
+
+    banner.onResize?.((size: any) => {
+      updateLayout(size);
+    });
+
+    banner.onError?.((err: unknown) => fail(err));
+    banner.onClose?.(() => {
+      if (finished) return;
+      finished = true;
+      clearLoadTimeout();
+      if (this.bannerAd === banner) this.bannerAd = null;
+      try {
+        banner.destroy?.();
+      } catch {
+        // 广告已由平台关闭时忽略回收错误。
+      }
+      closeCB && closeCB();
+    });
+    banner.onLoad?.(() => {
+      if (finished || shown || this.bannerAd !== banner) return;
+      shown = true;
+      try {
+        const showResult = banner.show?.();
+        if (showResult?.then) {
+          showResult
+            .then(() => {
+              if (finished || this.bannerAd !== banner) return;
+              clearLoadTimeout();
+              updateLayout();
+              callback && callback();
+            })
+            .catch((err: unknown) => fail(err));
+        } else {
+          if (finished || this.bannerAd !== banner) return;
+          clearLoadTimeout();
+          updateLayout();
+          callback && callback();
+        }
+      } catch (err) {
+        fail(err);
+      }
+    });
+    loadTimeout = setTimeout(() => fail(new Error("banner load timeout")), 12_000);
   }
 
   destroyADBanner() {
-    this.sdk?.destroyAdvert({
-      type: 3,
-      bannerId: this.curBannerId,
+    const banner = this.bannerAd;
+    this.bannerAd = null;
+    if (!banner) return;
+    try {
+      banner.hide?.();
+      banner.destroy?.();
+    } catch (err) {
+      this.warn("destroy banner failed", err);
+    }
+  }
+
+  private interstitialAd: any = null;
+
+  showInterstitialAd(closeCB?: Function, failCB?: Function, shownCB?: Function) {
+    if (typeof tt === "undefined" || typeof tt.createInterstitialAd !== "function") {
+      this.warn("tt.createInterstitialAd unavailable");
+      failCB && failCB(new Error("tt.createInterstitialAd unavailable"));
+      return;
+    }
+
+    if (this.interstitialAd) {
+      this.warn("interstitial ad is already loading or showing");
+      failCB && failCB(new Error("interstitial ad is busy"));
+      return;
+    }
+
+    const ad = tt.createInterstitialAd({
+      adUnitId: this.interstitialAdUnitId,
     });
-    this.curBannerId = null;
+    this.interstitialAd = ad;
+
+    let finished = false;
+    let shown = false;
+    let loadTimeout: ReturnType<typeof setTimeout> | null = null;
+    const cleanup = () => {
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+        loadTimeout = null;
+      }
+      if (this.interstitialAd === ad) this.interstitialAd = null;
+      try {
+        ad.destroy?.();
+      } catch {
+        // 原生广告已自动回收时无需再处理。
+      }
+    };
+    const fail = (err?: unknown) => {
+      if (finished) return;
+      finished = true;
+      this.warn("interstitial load/show failed", err);
+      cleanup();
+      failCB && failCB(err);
+    };
+    const show = () => {
+      if (finished || shown || this.interstitialAd !== ad) return;
+      shown = true;
+      try {
+        const showResult = ad.show?.();
+        if (showResult?.then) {
+          showResult
+            .then(() => {
+              if (loadTimeout) {
+                clearTimeout(loadTimeout);
+                loadTimeout = null;
+              }
+              shownCB && shownCB();
+            })
+            .catch((err: unknown) => fail(err));
+        } else {
+          if (loadTimeout) {
+            clearTimeout(loadTimeout);
+            loadTimeout = null;
+          }
+          shownCB && shownCB();
+        }
+      } catch (err) {
+        fail(err);
+      }
+    };
+
+    ad.onError?.((err: unknown) => fail(err));
+    ad.onLoad?.(show);
+    ad.onClose?.(() => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      closeCB && closeCB();
+    });
+    loadTimeout = setTimeout(() => fail(new Error("interstitial load timeout")), 15_000);
+
+    try {
+      if (typeof ad.load === "function") {
+        const loadResult = ad.load();
+        if (loadResult?.then) {
+          loadResult.then(show).catch((err: unknown) => fail(err));
+        }
+      } else {
+        show();
+      }
+    } catch (err) {
+      fail(err);
+    }
   }
 
   private curCustomId: any = null;
@@ -282,6 +469,45 @@ export class ByteDanceSDK extends BaseSDK {
     this.log("report", tag, params);
     let args = { tag: tag, param: params };
     this.sdk?.onCltLog(args); //上报
+  }
+
+  share(options: GameShareOptions = {}, successCB?: Function, failCB?: Function) {
+    const api = typeof tt !== "undefined" ? tt : null;
+    if (typeof api?.shareAppMessage !== "function") {
+      const err = new Error("tt.shareAppMessage unavailable");
+      this.warn(err.message);
+      failCB && failCB(err);
+      return;
+    }
+
+    let finished = false;
+    const finish = (success: boolean, payload?: unknown) => {
+      if (finished) return;
+      finished = true;
+      if (success) {
+        this.log("share success", payload);
+        successCB && successCB(payload);
+      } else {
+        this.warn("share failed", payload);
+        failCB && failCB(payload);
+      }
+    };
+
+    const payload: Record<string, any> = {
+      channel: options.channel ?? "invite",
+      success: (res: unknown) => finish(true, res),
+      fail: (err: unknown) => finish(false, err),
+    };
+    if (options.templateId) payload.templateId = options.templateId;
+    if (options.query) payload.query = options.query;
+    if (options.title) payload.title = options.title;
+    if (options.desc) payload.desc = options.desc;
+
+    try {
+      api.shareAppMessage(payload);
+    } catch (err) {
+      finish(false, err);
+    }
   }
 
   checkShortcut() {

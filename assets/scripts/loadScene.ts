@@ -6,6 +6,7 @@ import {
   Label,
   Node,
   ProgressBar,
+  sys,
   UITransform,
 } from "cc";
 import AudioManager from "./framework/AudioManager";
@@ -15,6 +16,8 @@ import { FeedAcquisitionService } from "./framework/Platform/FeedAcquisitionServ
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
+const FIRST_DIRECT_GAME_ENTRY_KEY = "gem_first_direct_game_entry_v1";
+const EXISTING_LEVEL_PROGRESS_KEY = "gem_sort_level";
 
 @ccclass("loadScene")
 export class loadScene extends Component {
@@ -101,15 +104,28 @@ export class loadScene extends Component {
         await gamePrefabMgr.Instance.loadDefaultAssets();
 
         const isFeedDirectPlay = FeedAcquisitionService.isActive();
+        const hasFirstEntryMarker = !!sys.localStorage.getItem(FIRST_DIRECT_GAME_ENTRY_KEY);
+        const hasExistingProgress = sys.localStorage.getItem(EXISTING_LEVEL_PROGRESS_KEY) !== null;
+        const isFirstLaunch = !hasFirstEntryMarker && !hasExistingProgress;
+        if (!hasFirstEntryMarker && hasExistingProgress) {
+          // 旧版本玩家已有关卡进度，迁移为“已完成首次入口”。
+          sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
+        }
+        const nextScene = isFeedDirectPlay || isFirstLaunch ? GameSceneName.Game : GameSceneName.Main;
+        const entryReason = isFeedDirectPlay
+          ? "推荐流直玩"
+          : isFirstLaunch
+            ? "首次启动直接进入关卡"
+            : "正常进入主界面";
         console.log(
-          `[loadScene] 所有资源加载完成，准备进入 ${isFeedDirectPlay ? "GameScene（推荐流直玩）" : "MainScene"}`,
+          `[loadScene] 所有资源加载完成，准备进入 ${nextScene}（${entryReason}）`,
         );
 
         if (!isFeedDirectPlay) {
           AudioManager.playDefaultBgm();
         }
 
-        await this.enterNextScene();
+        await this.enterNextScene(nextScene, isFirstLaunch);
         this.isLoading = false;
         return;
       } catch (err) {
@@ -129,9 +145,10 @@ export class loadScene extends Component {
   }
 
   /**
-   * 进入主场景
+   * 进入下一个场景。
+   * 首次标记在切场景前写入；如果切场景失败则回滚，保证重试时仍能直接进关卡。
    */
-  private async enterNextScene() {
+  private async enterNextScene(sceneName: GameSceneName, markFirstLaunch: boolean) {
     if (this.hasEnteredNextScene) {
       return;
     }
@@ -147,11 +164,16 @@ export class loadScene extends Component {
 
     this.clearProgressTimer();
 
+    if (markFirstLaunch) {
+      sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
+    }
+
     try {
-      await GameSceneBundle.loadScene(
-        FeedAcquisitionService.isActive() ? GameSceneName.Game : GameSceneName.Main,
-      );
+      await GameSceneBundle.loadScene(sceneName);
     } catch (err) {
+      if (markFirstLaunch) {
+        sys.localStorage.removeItem(FIRST_DIRECT_GAME_ENTRY_KEY);
+      }
       this.hasEnteredNextScene = false;
       throw err;
     }

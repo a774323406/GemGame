@@ -1,5 +1,13 @@
 import { adc } from "../ADController";
 
+export interface GameShareOptions {
+  channel?: "invite" | "video" | "article" | "token" | "";
+  templateId?: string;
+  query?: string;
+  title?: string;
+  desc?: string;
+}
+
 export class BaseSDK {
   public isInited = false;
   isLogined = false;
@@ -24,8 +32,9 @@ export class BaseSDK {
     cb && cb();
   }
 
-  showADBanner(callback?: Function) {
+  showADBanner(callback?: Function, failCB?: Function, closeCB?: Function, resizeCB?: Function) {
     console.log("[BaseSDK] mock banner show success");
+    resizeCB && resizeCB(0, 1);
     callback && callback();
   }
 
@@ -35,8 +44,9 @@ export class BaseSDK {
   showADTemplate() {
     console.log("[BaseSDK] mock template ad show");
   }
-  showInterstitialAd(cb?: Function) {
+  showInterstitialAd(cb?: Function, failCB?: Function, shownCB?: Function) {
     console.log("[BaseSDK] mock interstitial ad show success");
+    shownCB && shownCB();
     cb && cb();
   }
   destroyADTemplate() {}
@@ -58,8 +68,9 @@ export class BaseSDK {
   checkShortcut() {}
 
   addShortcut() {}
-  share() {
-    console.log("share");
+  share(options?: GameShareOptions, successCB?: Function, failCB?: Function) {
+    console.log("[BaseSDK] mock share success", options);
+    successCB && successCB();
   }
   vibrateShort() {
     console.log("vibrateShort");

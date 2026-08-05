@@ -1,8 +1,9 @@
-import { _decorator, Button, Label, Size, Sprite, SpriteFrame, tween, UITransform, Vec3 } from "cc";
+import { _decorator, Button, Label, Node, Size, Sprite, SpriteFrame, tween, Tween, UITransform, Vec3 } from "cc";
 import { ResourceManager } from "../framework/ResourceManager";
 import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import UIManager from "../framework/ui/UIManager";
 import { uiName } from "../gamePrefabMgr";
+import { ShareActionResult } from "../framework/Platform/ShareRewardService";
 
 const { ccclass, property } = _decorator;
 
@@ -13,6 +14,8 @@ export interface PassPanelData {
   title?: string;
   levelText?: string;
   nextText?: string;
+  shareRewardAvailable?: boolean;
+  onShare?: () => Promise<ShareActionResult>;
 }
 
 @ccclass("passPanel")
@@ -34,14 +37,22 @@ export class passPanel extends UIBase {
   @property(Button)
   public homeButton: Button = null;
 
+  @property(Button)
+  public shareButton: Button = null;
+
+  @property(Node)
+  public shareRewardBadge: Node = null;
+
   private requestToken = 0;
   private data: PassPanelData = null;
   private previewBounds = new Size();
   private actionHandled = false;
+  private shareBusy = false;
 
   protected onLoad() {
     this.nextButton?.node.on(Button.EventType.CLICK, this.onNext, this);
     this.homeButton?.node.on(Button.EventType.CLICK, this.onHome, this);
+    this.shareButton?.node.on(Button.EventType.CLICK, this.onShare, this);
 
     const previewTransform = this.previewSprite?.node.getComponent(UITransform);
     if (previewTransform) {
@@ -52,13 +63,26 @@ export class passPanel extends UIBase {
   protected onDestroy() {
     this.nextButton?.node.off(Button.EventType.CLICK, this.onNext, this);
     this.homeButton?.node.off(Button.EventType.CLICK, this.onHome, this);
+    this.shareButton?.node.off(Button.EventType.CLICK, this.onShare, this);
+    this.stopShareBadgeAnimation();
   }
 
   public onOpen(data?: PassPanelData) {
     this.data = data || null;
     this.actionHandled = false;
+    this.shareBusy = false;
     if (this.nextButton) this.nextButton.interactable = true;
     if (this.homeButton) this.homeButton.interactable = true;
+    const hasShareEntry = typeof data?.onShare === "function";
+    const shareRewardAvailable = hasShareEntry && data?.shareRewardAvailable === true;
+    if (this.shareButton?.node) {
+      this.shareButton.node.active = hasShareEntry;
+      this.shareButton.interactable = hasShareEntry;
+    }
+    if (this.titleLabel?.node) {
+      this.titleLabel.node.active = true;
+    }
+    this.setShareBadgeVisible(shareRewardAvailable);
     const level = Math.max(1, Number(data?.level) || 1);
 
     // 复用面板时先清掉上一关图片，避免缺图关卡显示旧预览。
@@ -79,6 +103,36 @@ export class passPanel extends UIBase {
     }
     this.loadPreview(level);
     this.playCelebration();
+  }
+
+  private async onShare() {
+    if (this.shareBusy || !this.shareButton?.interactable || !this.data?.onShare) return;
+
+    this.shareBusy = true;
+    this.shareButton.interactable = false;
+    try {
+      const result = await this.data.onShare();
+      if (!this.node?.isValid) return;
+      if (!result.success) {
+        this.showToast("分享未完成");
+        return;
+      }
+      if (!result.rewarded) {
+        this.setShareBadgeVisible(false);
+        this.showToast("分享成功，今日通关加时已领取");
+        return;
+      }
+
+      this.setShareBadgeVisible(false);
+      this.showToast("下一关额外增加10秒");
+    } catch (err) {
+      console.warn("[passPanel] 分享失败", err);
+    } finally {
+      this.shareBusy = false;
+      if (this.shareButton?.node?.isValid && typeof this.data?.onShare === "function") {
+        this.shareButton.interactable = true;
+      }
+    }
   }
 
   private async loadPreview(level: number) {
@@ -151,5 +205,54 @@ export class passPanel extends UIBase {
     if (this.nextButton) this.nextButton.interactable = false;
     if (this.homeButton) this.homeButton.interactable = false;
     return true;
+  }
+
+  private setShareBadgeVisible(visible: boolean) {
+    if (!this.shareRewardBadge?.isValid) return;
+    this.shareRewardBadge.active = visible;
+    if (visible) {
+      this.playShareBadgeAnimation();
+    } else {
+      this.stopShareBadgeAnimation();
+    }
+  }
+
+  private playShareBadgeAnimation() {
+    const node = this.shareRewardBadge;
+    if (!node?.isValid) return;
+    Tween.stopAllByTarget(node);
+    node.angle = 0;
+    node.setScale(Vec3.ONE);
+    tween(node)
+      .repeatForever(
+        tween(node)
+          .to(0.1, { angle: -6, scale: new Vec3(1.04, 1.04, 1) })
+          .to(0.1, { angle: 6, scale: new Vec3(1.08, 1.08, 1) })
+          .to(0.1, { angle: -3, scale: new Vec3(1.04, 1.04, 1) })
+          .to(0.12, { angle: 0, scale: Vec3.ONE })
+          .delay(1.55),
+      )
+      .start();
+  }
+
+  private stopShareBadgeAnimation() {
+    const node = this.shareRewardBadge;
+    if (!node?.isValid) return;
+    Tween.stopAllByTarget(node);
+    node.angle = 0;
+    node.setScale(Vec3.ONE);
+  }
+
+  private showToast(title: string) {
+    try {
+      const api = typeof tt !== "undefined" ? tt : null;
+      if (typeof api?.showToast === "function") {
+        api.showToast({ title, icon: "none" });
+      } else {
+        console.log(`[passPanel] ${title}`);
+      }
+    } catch {
+      console.log(`[passPanel] ${title}`);
+    }
   }
 }

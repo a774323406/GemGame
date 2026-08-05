@@ -1,211 +1,224 @@
-import { GlobalTool } from "./sdk/GlobalTool";
-import { EnvTool } from "./sdk/EnvTool";
+import { director, game, Game } from "cc";
+import { GameConfig } from "../../GameConfig";
 import { SdkUtils } from "./sdk/SdkUtils";
-import { EventTag } from "./sdk/EventTag";
 
+export type LevelResultKind = "pass" | "fail";
+
+export interface LevelResultAdOptions {
+  /** 推荐流直玩等特殊流程可禁止本次插屏。 */
+  eligible?: boolean;
+  /** 延迟期间玩家可能已离开结果页，触发前再确认一次。 */
+  isStillValid?: () => boolean;
+}
+
+/**
+ * 全局广告节奏管理。
+ *
+ * - Banner 全局只保留一份，全屏广告/切后台时自动销毁并恢复。
+ * - 正常显示时 30 秒只做健康检查，不反复销毁刷新素材。
+ * - 插屏只在结果页触发：距上次全屏广告至少 60 秒后，通关或失败都可展示。
+ */
 export class ADController {
-  private isAutoAD = false;
-  private enterADCount = 0;
-  private bannerFD = null;
+  private static readonly BANNER_HEALTH_CHECK_MS = 30_000;
+  private static readonly BANNER_RETRY_MS = 30_000;
+  private static readonly BANNER_USER_CLOSE_COOLDOWN_MS = 60_000;
+  private static readonly INTERSTITIAL_RESULT_DELAY_MS = 650;
+  private static readonly INTERSTITIAL_MIN_INTERVAL_MS = 60_000;
 
-  private isBan() {
-    return !GlobalTool.isAdUser || !this.isAutoAD || EnvTool.isNative();
+  private initialized = false;
+  private appHidden = false;
+  private fullscreenAdActive = false;
+
+  private bannerDesired = false;
+  private bannerCreating = false;
+  private bannerVisible = false;
+  private bannerGeneration = 0;
+  private bannerRetryNotBefore = 0;
+  private bannerUserClosedUntil = 0;
+  private bannerTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private interstitialRequestPending = false;
+  private frequencyWindowStartedAt = 0;
+  private lastInterstitialShownAt = 0;
+  private lastFullscreenAdEndedAt = 0;
+
+  public initialize() {
+    if (this.initialized) return;
+    this.initialized = true;
+    this.frequencyWindowStartedAt = Date.now();
+
+    game.on(Game.EVENT_HIDE, this.onGameHide, this);
+    game.on(Game.EVENT_SHOW, this.onGameShow, this);
+    director.on(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onFullscreenAdChanged, this);
   }
 
-  // 游戏从点击进入开始后连续两次激励视频-被动（无任何点击行为），从时间节点计算，无秒数限制。
-  // 游戏从点击进入开始后连续两次激励视频-被动（无任何点击行为），从时间节点计算，无秒数限制。此处连弹2次激励视频改成1次
-  onEnterGame() {
-    console.log("onEnterGame", GlobalTool.isAdUser);
-    SdkUtils.report(EventTag.LOGIN_FINISH);
+  /** 进入主界面/普通关卡时开启，推荐流直玩时可关闭。 */
+  public setBannerEnabled(enabled: boolean) {
+    this.initialize();
+    this.bannerDesired = enabled && GameConfig.showAd;
 
-    if (this.isBan()) {
+    if (!this.bannerDesired) {
+      this.destroyCurrentBanner();
+      this.clearBannerTimer();
       return;
     }
 
-    if (this.enterADCount >= 1) {
-      GlobalTool.isEnterADFinished = true;
-      return;
-    }
+    this.ensureBanner();
+  }
+
+  /**
+   * 结果面板已显示后上报。策略失效或广告加载失败时不会阻塞关卡流程。
+   */
+  public onLevelResult(level: number, kind: LevelResultKind, options: LevelResultAdOptions = {}) {
+    this.initialize();
+
+    const normalizedLevel = Math.max(1, Math.floor(Number(level) || 1));
+    if (!GameConfig.showAd || options.eligible === false) return;
+    if (this.interstitialRequestPending) return;
+
+    if (SdkUtils.isFullscreenAdBusy()) return;
+    const lastFullscreenAt = Math.max(
+      this.frequencyWindowStartedAt,
+      this.lastInterstitialShownAt,
+      this.lastFullscreenAdEndedAt,
+    );
+    if (Date.now() - lastFullscreenAt < ADController.INTERSTITIAL_MIN_INTERVAL_MS) return;
+
+    this.interstitialRequestPending = true;
     setTimeout(() => {
-      console.log("onEnterGame trigger", this.enterADCount);
-      SdkUtils.showADVideo(
+      if (!this.interstitialRequestPending) return;
+      if (options.isStillValid && !options.isStillValid()) {
+        this.interstitialRequestPending = false;
+        return;
+      }
+      if (this.appHidden || SdkUtils.isFullscreenAdBusy()) {
+        this.interstitialRequestPending = false;
+        return;
+      }
+      const lastFullscreenAt = Math.max(
+        this.frequencyWindowStartedAt,
+        this.lastInterstitialShownAt,
+        this.lastFullscreenAdEndedAt,
+      );
+      if (Date.now() - lastFullscreenAt < ADController.INTERSTITIAL_MIN_INTERVAL_MS) {
+        this.interstitialRequestPending = false;
+        return;
+      }
+
+      console.log(`[ADController] 尝试显示插屏: level=${normalizedLevel}, result=${kind}`);
+      const started = SdkUtils.showInterstitialAd(
         () => {
-          this.enterADCount++;
-          this.onEnterGame();
+          this.interstitialRequestPending = false;
         },
         () => {
-          this.enterADCount++;
-          this.onEnterGame();
-        }
+          this.interstitialRequestPending = false;
+        },
+        () => {
+          this.lastInterstitialShownAt = Date.now();
+        },
       );
-    }, 500);
 
-    // setTimeout(() => {
-    //     CarColorsGlobalInstance.instance.uiSysterm.showUI(UINames.VirtualBannerPage);
-    // }, 4000);
-
-    // banner
-    // if (this.bannerFD) {
-    //     clearTimeout(this.bannerFD);
-    // }
-    // this.bannerFD = setTimeout(() => {
-    //     SdkUtils.showADBanner();
-    // }, 15000);
-    // SdkUtils.showADBanner();
-  }
-
-  // 游戏关卡开始时 ，每12秒被动弹出激励视频同时调用OPPO屏幕调起最暗的亮度无法调整。
-  // 游戏开始时9秒后弹出激励视频广告位，后续逻辑为每11秒一个激励视频；
-  private levelStartHandle = null;
-  private levelStartTemplateHandle = null;
-  onLevelStart() {
-    console.log("onLevelStart", GlobalTool.isAdUser);
-    if (this.isBan()) {
-      return;
-    }
-
-    this.showDelayVideoAD(9000);
-    this.showDelayTemplateAD(6000);
-
-    // setTimeout(() => {
-    //     SdkUtils.showADTemplate();
-    // }, 7000);
-    // SdkUtils.showADBanner();
-  }
-
-  private showDelayVideoAD(delay: number) {
-    if (this.levelStartHandle) {
-      clearTimeout(this.levelStartHandle);
-      this.levelStartHandle = null;
-    }
-
-    this.levelStartHandle = setTimeout(() => {
-      this.levelStartHandle = null;
-      console.log("onLevelStart tigger");
-      let nextDelay = 11000;
-      // if (CarColorsGlobalInstance.instance.uiSysterm.isShowing(UINames.RefreshPage)) {
-      //   console.log("isShowing 1");
-      //   this.showDelayVideoAD(nextDelay);
-      //   return;
-      // }
-
-      // if (CarColorsGlobalInstance.instance.uiSysterm.isShowing(UINames.SortPage)) {
-      //   console.log("isShowing 2");
-      //   this.showDelayVideoAD(nextDelay);
-      //   return;
-      // }
-
-      // if (CarColorsGlobalInstance.instance.uiSysterm.isShowing(UINames.VipPage)) {
-      //   console.log("isShowing 3");
-      //   this.showDelayVideoAD(nextDelay);
-      //   return;
-      // }
-      console.log("onLevelStart tigger start showDelayVideoAD");
-      if (EnvTool.isOppoMiniGame()) {
-        SdkUtils.setBrightness(0);
+      if (!started) {
+        this.interstitialRequestPending = false;
       }
-      setTimeout(() => {
-        SdkUtils.showADVideo(
-          () => {
-            this.showDelayVideoAD(nextDelay);
-          },
-          () => {
-            this.showDelayVideoAD(nextDelay);
-          }
-        );
-      }, 100);
-    }, delay);
+    }, ADController.INTERSTITIAL_RESULT_DELAY_MS);
   }
 
-  private showDelayTemplateAD(delay: number) {
-    if (this.levelStartTemplateHandle) {
-      clearTimeout(this.levelStartTemplateHandle);
-      this.levelStartTemplateHandle = null;
-    }
-    this.levelStartTemplateHandle = setTimeout(() => {
-      this.levelStartTemplateHandle = null;
-      let nextDelay = 8000;
-      console.log("onLevelStart tigger start showDelayTemplateAD");
-      SdkUtils.showADTemplate();
-      this.showDelayTemplateAD(nextDelay);
-    }, delay);
+  /** 保留旧 SDK 登录回调入口，仅负责初始化监听。 */
+  public onEnterGame() {
+    this.initialize();
   }
 
-  // 游戏关卡开始时 ，每30秒被动模板广告并且变暗
-  onLevelTime30Sec() {
-    console.log("onLevelTime30Sec", GlobalTool.isAdUser);
-    if (this.isBan()) {
+  private ensureBanner() {
+    if (!this.bannerDesired || this.appHidden || this.fullscreenAdActive) return;
+    if (this.bannerCreating || this.bannerVisible) {
+      this.scheduleBannerCheck(ADController.BANNER_HEALTH_CHECK_MS);
       return;
     }
 
-    console.log("onLevelTime30Sec tigger");
-    SdkUtils.setBrightness(0);
-    SdkUtils.showADTemplate();
+    const now = Date.now();
+    const nextAllowedAt = Math.max(this.bannerRetryNotBefore, this.bannerUserClosedUntil);
+    if (now < nextAllowedAt) {
+      this.scheduleBannerCheck(nextAllowedAt - now);
+      return;
+    }
+
+    this.clearBannerTimer();
+    this.bannerCreating = true;
+    const generation = ++this.bannerGeneration;
+    const started = SdkUtils.showADBanner(
+      () => {
+        if (generation !== this.bannerGeneration) return;
+        this.bannerCreating = false;
+        this.bannerVisible = true;
+        this.bannerRetryNotBefore = 0;
+        this.scheduleBannerCheck(ADController.BANNER_HEALTH_CHECK_MS);
+      },
+      () => {
+        if (generation !== this.bannerGeneration) return;
+        this.bannerCreating = false;
+        this.bannerVisible = false;
+        this.bannerRetryNotBefore = Date.now() + ADController.BANNER_RETRY_MS;
+        SdkUtils.destroyADBanner();
+        this.scheduleBannerCheck(ADController.BANNER_RETRY_MS);
+      },
+      () => {
+        if (generation !== this.bannerGeneration) return;
+        this.bannerCreating = false;
+        this.bannerVisible = false;
+        this.bannerUserClosedUntil = Date.now() + ADController.BANNER_USER_CLOSE_COOLDOWN_MS;
+        SdkUtils.clearBannerInset();
+        this.scheduleBannerCheck(ADController.BANNER_USER_CLOSE_COOLDOWN_MS);
+      },
+    );
+
+    if (!started && generation === this.bannerGeneration) {
+      this.bannerCreating = false;
+    }
   }
 
-  onLevelEnd() {
-    console.log("onLevelTime30Sec", GlobalTool.isAdUser);
-    if (this.isBan()) {
-      return;
-    }
-
-    console.log("onLevelEnd tigger");
-    if (this.levelStartHandle) {
-      clearTimeout(this.levelStartHandle);
-    }
-    this.levelStartHandle = null;
-
-    if (this.levelStartTemplateHandle) {
-      clearTimeout(this.levelStartTemplateHandle);
-    }
-    this.levelStartTemplateHandle = null;
-
-    SdkUtils.showADVideo();
+  private destroyCurrentBanner() {
+    ++this.bannerGeneration;
+    this.bannerCreating = false;
+    this.bannerVisible = false;
+    SdkUtils.destroyADBanner();
   }
 
-  onBeforeLevelStart(cb?: Function) {
-    console.log("onBeforeLevelStart", GlobalTool.isAdUser);
-    if (!GlobalTool.isAdUser) {
-      cb && cb();
-      return;
-    }
-
-    console.log("onBeforeLevelStart tigger");
-    // CarColorsGlobalInstance.instance.uiSysterm.showUI(UINames.BoxPage, cb);
+  private scheduleBannerCheck(delayMs: number) {
+    if (!this.bannerDesired) return;
+    this.clearBannerTimer();
+    this.bannerTimer = setTimeout(() => {
+      this.bannerTimer = null;
+      this.ensureBanner();
+    }, Math.max(250, delayMs));
   }
 
-  // 每重新进入游戏一次（不杀端的情况下），每次调起游戏后都需要播放一次激励视频-被动。
-  onGameResume() {
-    console.log("onGameResume", GlobalTool.isAdUser);
-    if (this.isBan()) {
-      return;
-    }
-
-    if (!GlobalTool.isEnterADFinished) {
-      return;
-    }
-    if (!GlobalTool.isCanWatchFromResume()) {
-      return;
-    }
-    console.log("onGameResume tigger");
-    SdkUtils.showADVideo();
+  private clearBannerTimer() {
+    if (!this.bannerTimer) return;
+    clearTimeout(this.bannerTimer);
+    this.bannerTimer = null;
   }
 
-  onGameHide() {
-    console.log("onGameHide", GlobalTool.isAdUser);
-    if (this.isBan()) {
+  private onFullscreenAdChanged(active: boolean) {
+    this.fullscreenAdActive = active;
+    if (active) {
+      this.destroyCurrentBanner();
+      this.clearBannerTimer();
       return;
     }
+    this.lastFullscreenAdEndedAt = Date.now();
+    this.ensureBanner();
+  }
 
-    if (GlobalTool.isPlayingAD) {
-      return;
-    }
+  private onGameHide() {
+    this.appHidden = true;
+    this.destroyCurrentBanner();
+    this.clearBannerTimer();
+  }
 
-    if (!GlobalTool.isCanWatchFromResume()) {
-      return;
-    }
-    console.log("onGameHide tigger");
-    SdkUtils.showADVideo();
+  private onGameShow() {
+    this.appHidden = false;
+    this.ensureBanner();
   }
 }
 

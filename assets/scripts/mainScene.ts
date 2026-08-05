@@ -3,6 +3,9 @@ import {
   Button,
   Color,
   Component,
+  director,
+  game,
+  Game,
   Graphics,
   HorizontalTextAlignment,
   Label,
@@ -19,6 +22,11 @@ import {
   FeedRevisitService,
   FeedSubscribeResult,
 } from "./framework/Platform/FeedRevisitService";
+import { adc } from "./framework/Platform/ADController";
+import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
+import { ToolInventory } from "./ToolInventory";
+import { ShareRewardService } from "./framework/Platform/ShareRewardService";
+import { GameConfig } from "./GameConfig";
 const { ccclass, property } = _decorator;
 
 @ccclass("mainScene")
@@ -38,13 +46,30 @@ export class mainScene extends Component {
   @property(Button)
   sidebarBtn: Button = null;
 
+  @property(Button)
+  shareBtn: Button = null;
+
+  @property(Node)
+  shareRedDot: Node = null;
+
   private feedSubscribeBtn: Button | null = null;
+  private startButtonBaseY: number | null = null;
+  private shareInFlight = false;
 
   protected onLoad(): void {
     this.startBtn?.node?.on("click", this.startGame, this);
     this.clearBtn?.node?.on(Node.EventType.TOUCH_END, this.clearData, this);
     this.settingBtn?.node?.on(Node.EventType.TOUCH_END, this.showSettingPanel, this);
     this.sidebarBtn?.node?.on(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
+    this.shareBtn?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
+    game.on(Game.EVENT_SHOW, this.onGameShow, this);
+
+    if (this.startBtn?.node) {
+      this.startButtonBaseY = this.startBtn.node.position.y;
+    }
+    director.on(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
+    adc.setBannerEnabled(true);
+    this.applyBannerInset(SdkUtils.getBannerInsetRatio());
 
     if (this.sidebarBtn?.node) {
       this.sidebarBtn.node.active = false;
@@ -55,10 +80,15 @@ export class mainScene extends Component {
 
     this.feedSubscribeBtn = this.createFeedSubscribeButton();
     void this.refreshFeedSubscribeEntry();
+    ShareRewardService.refreshDailyState();
+    this.refreshShareEntry();
   }
 
   protected onDestroy(): void {
+    director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
     this.sidebarBtn?.node?.off(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
+    this.shareBtn?.node?.off(Button.EventType.CLICK, this.onShareClicked, this);
+    game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
     this.feedSubscribeBtn?.node?.off(Button.EventType.CLICK, this.onFeedSubscribeClicked, this);
   }
@@ -78,6 +108,7 @@ export class mainScene extends Component {
   }
   clearData() {
     sys.localStorage.clear();
+    this.refreshShareEntry();
   }
   start() {}
   showSettingPanel() {
@@ -176,6 +207,70 @@ export class mainScene extends Component {
     } catch {
       console.log(`[mainScene] ${title}`);
     }
+  }
+
+  private onGameShow() {
+    ShareRewardService.refreshDailyState();
+    this.refreshShareEntry();
+  }
+
+  private refreshShareEntry() {
+    if (!this.shareRedDot?.isValid) return;
+    this.shareRedDot.active =
+      ShareRewardService.isHomeRewardAvailable() &&
+      ToolInventory.getCount("magic") < ToolInventory.MAX_COUNT;
+  }
+
+  private async onShareClicked() {
+    if (this.shareInFlight || !this.shareBtn?.interactable) return;
+
+    this.shareInFlight = true;
+    this.shareBtn.interactable = false;
+    try {
+      const success = await SdkUtils.share({
+        channel: "invite",
+        templateId: GameConfig.shareTemplateId,
+        title: GameConfig.shareTitle,
+        desc: GameConfig.shareDescription,
+        query: "share_scene=home",
+      });
+      if (!success) {
+        this.showDouyinToast("分享未完成");
+        return;
+      }
+
+      if (ShareRewardService.claimHomeMagicReward()) {
+        this.showDouyinToast("获得魔法棒 ×1");
+      } else if (
+        ShareRewardService.isHomeRewardAvailable() &&
+        ToolInventory.getCount("magic") >= ToolInventory.MAX_COUNT
+      ) {
+        this.showDouyinToast("分享成功，魔法棒已达上限");
+      } else {
+        this.showDouyinToast("分享成功，今日奖励已领取");
+      }
+    } catch (err) {
+      console.warn("[mainScene] 分享失败", err);
+      this.showDouyinToast("分享失败，请稍后重试");
+    } finally {
+      this.shareInFlight = false;
+      if (this.shareBtn?.node?.isValid) this.shareBtn.interactable = true;
+      this.refreshShareEntry();
+    }
+  }
+
+  private onBannerInsetChanged(ratio: number) {
+    this.applyBannerInset(ratio);
+  }
+
+  private applyBannerInset(ratio: number) {
+    const node = this.startBtn?.node;
+    if (!node || this.startButtonBaseY === null) return;
+
+    // 场景设计高度是 1334，底部原本已留有约 72 设计像素空白。
+    const inset = Math.max(0, Math.min(0.5, Number(ratio) || 0)) * 1334;
+    const offset = Math.max(0, inset - 72);
+    node.setPosition(node.position.x, this.startButtonBaseY + offset, node.position.z);
   }
 
   update(deltaTime: number) {}

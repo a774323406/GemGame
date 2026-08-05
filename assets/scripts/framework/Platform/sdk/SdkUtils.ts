@@ -2,7 +2,7 @@
  * @author: wch
  */
 import { director, Director } from "cc";
-import { BaseSDK } from "./BaseSDK";
+import { BaseSDK, GameShareOptions } from "./BaseSDK";
 import { ByteDanceSDK } from "./ByteDanceSDK";
 import { EnvTool } from "./EnvTool";
 import { SDKNotify } from "./SdkNotify";
@@ -13,13 +13,18 @@ import PlayData from "../../../data/PlayData";
 import gameStorage from "../../gameStorage";
 import { GameConfig } from "../../../GameConfig";
 import { adLoadPanel } from "../../../ui/adLoadPanel";
+import { GlobalTool } from "./GlobalTool";
 
 export class SdkUtils {
   static readonly EVENT_AD_PAUSE_CHANGED = "sdk_rewarded_video_pause_changed";
+  static readonly EVENT_BANNER_INSET_CHANGED = "sdk_banner_inset_changed";
   static sdk: BaseSDK = null;
   private static adPauseCount: number = 0;
   private static pauseBeforeAd: boolean = false;
   private static rewardedVideoBusy: boolean = false;
+  private static interstitialBusy: boolean = false;
+  private static shareBusy: boolean = false;
+  private static bannerInsetRatio: number = 0;
   static isSDKEnvironment(): boolean {
     return !!this.sdk && this.sdk.constructor !== BaseSDK;
   }
@@ -66,8 +71,8 @@ export class SdkUtils {
       cb && cb();
       return true;
     }
-    if (SdkUtils.rewardedVideoBusy) {
-      console.warn("[SdkUtils] 激励视频正在加载或播放，本次重复请求已忽略");
+    if (SdkUtils.isFullscreenAdBusy()) {
+      console.warn("[SdkUtils] 全屏广告正在加载或播放，本次激励视频请求已忽略");
       failCB && failCB();
       return false;
     }
@@ -127,20 +132,111 @@ export class SdkUtils {
     return SdkUtils.rewardedVideoBusy;
   }
 
-  static showADBanner(callback?: Function) {
-    SdkUtils.sdk.showADBanner(callback);
+  static isInterstitialBusy(): boolean {
+    return SdkUtils.interstitialBusy;
+  }
+
+  static isFullscreenAdBusy(): boolean {
+    return SdkUtils.rewardedVideoBusy || SdkUtils.interstitialBusy || SdkUtils.shareBusy;
+  }
+
+  /** Banner 在后台异步拉取，不显示加载遮罩，也不暂停游戏。 */
+  static showADBanner(callback?: Function, failCB?: Function, closeCB?: Function): boolean {
+    if (!SdkUtils.sdk) {
+      SdkUtils.requireSDK();
+    }
+    if (!GameConfig.showAd) {
+      return false;
+    }
+
+    try {
+      SdkUtils.sdk.showADBanner(
+        callback,
+        failCB,
+        closeCB,
+        (height: number, viewportHeight: number) => {
+          SdkUtils.updateBannerInset(height, viewportHeight);
+        },
+      );
+      return true;
+    } catch (err) {
+      console.warn("[SdkUtils] showADBanner failed", err);
+      SdkUtils.clearBannerInset();
+      failCB && failCB(err);
+      return false;
+    }
   }
 
   static destroyADBanner() {
-    SdkUtils.sdk.destroyADBanner();
+    try {
+      SdkUtils.sdk?.destroyADBanner();
+    } catch (err) {
+      console.warn("[SdkUtils] destroyADBanner failed", err);
+    }
+    SdkUtils.clearBannerInset();
+  }
+
+  static getBannerInsetRatio(): number {
+    return SdkUtils.bannerInsetRatio;
+  }
+
+  static clearBannerInset() {
+    SdkUtils.updateBannerInset(0, 1);
   }
 
   /** 原生模板 */
   static showADTemplate() {
     SdkUtils.sdk.showADTemplate();
   }
-  static showInterstitialAd(hideCb?: Function) {
-    SdkUtils.sdk.showInterstitialAd(hideCb);
+  /** 插屏拉取阶段不遮挡或暂停游戏；仅在原生广告真正显示后暂停。 */
+  static showInterstitialAd(closeCB?: Function, failCB?: Function, shownCB?: Function): boolean {
+    if (!SdkUtils.sdk) {
+      SdkUtils.requireSDK();
+    }
+    if (!GameConfig.showAd) {
+      return false;
+    }
+    if (SdkUtils.isFullscreenAdBusy()) {
+      console.warn("[SdkUtils] 全屏广告正在加载或播放，本次插屏请求已忽略");
+      failCB && failCB();
+      return false;
+    }
+
+    SdkUtils.interstitialBusy = true;
+
+    let finished = false;
+    let adShown = false;
+    let adPauseEntered = false;
+    const onAdShown = () => {
+      if (finished || adShown) return;
+      adShown = true;
+      adPauseEntered = true;
+      SdkUtils.enterAdPause();
+      shownCB && shownCB();
+    };
+    const finish = (success: boolean, callback?: Function) => {
+      if (finished) return;
+      finished = true;
+      SdkUtils.interstitialBusy = false;
+      if (adPauseEntered) {
+        adPauseEntered = false;
+        SdkUtils.leaveAdPause();
+      }
+      callback && callback(success);
+    };
+
+    try {
+      SdkUtils.sdk.showInterstitialAd(
+        () => finish(true, closeCB),
+        () => finish(false, failCB),
+        onAdShown,
+      );
+    } catch (err) {
+      console.warn("[SdkUtils] showInterstitialAd failed", err);
+      finish(false, failCB);
+    }
+
+    return true;
   }
   static destroyADTemplate() {
     SdkUtils.sdk.destroyADTemplate();
@@ -172,12 +268,36 @@ export class SdkUtils {
   static addShortcut() {
     SdkUtils.sdk.addShortcut();
   }
-  static share() {
+  static share(options: GameShareOptions = {}): Promise<boolean> {
     if (!SdkUtils.sdk) {
       SdkUtils.requireSDK();
     }
+    if (SdkUtils.isFullscreenAdBusy()) {
+      console.warn("[SdkUtils] 分享面板已经打开，本次请求已忽略");
+      return Promise.resolve(false);
+    }
 
-    SdkUtils.sdk.share();
+    SdkUtils.shareBusy = true;
+    return new Promise<boolean>((resolve) => {
+      let finished = false;
+      const finish = (success: boolean) => {
+        if (finished) return;
+        finished = true;
+        SdkUtils.shareBusy = false;
+        resolve(success);
+      };
+
+      try {
+        SdkUtils.sdk.share(
+          options,
+          () => finish(true),
+          () => finish(false),
+        );
+      } catch (err) {
+        console.warn("[SdkUtils] share failed", err);
+        finish(false);
+      }
+    });
   }
 
   static vibrateShort() {
@@ -207,6 +327,7 @@ export class SdkUtils {
     if (SdkUtils.adPauseCount === 0) {
       SdkUtils.pauseBeforeAd = PlayData.Instance.ispause;
       PlayData.Instance.ispause = true;
+      GlobalTool.isPlayingAD = true;
       director.emit(SdkUtils.EVENT_AD_PAUSE_CHANGED, true);
       AudioManager.pauseBgmForVideo();
       AudioManager.pauseLoopEffect();
@@ -223,8 +344,18 @@ export class SdkUtils {
     }
 
     PlayData.Instance.ispause = SdkUtils.pauseBeforeAd;
+    GlobalTool.isPlayingAD = false;
+    GlobalTool.setWatchADTime();
     director.emit(SdkUtils.EVENT_AD_PAUSE_CHANGED, false);
     AudioManager.resumeBgmAfterVideo();
     AudioManager.resumeLoopEffect();
+  }
+
+  private static updateBannerInset(height: number, viewportHeight: number) {
+    const safeViewportHeight = Math.max(1, Number(viewportHeight) || 1);
+    const nextRatio = Math.max(0, Math.min(0.5, (Number(height) || 0) / safeViewportHeight));
+    if (Math.abs(nextRatio - SdkUtils.bannerInsetRatio) < 0.0001) return;
+    SdkUtils.bannerInsetRatio = nextRatio;
+    director.emit(SdkUtils.EVENT_BANNER_INSET_CHANGED, nextRatio);
   }
 }

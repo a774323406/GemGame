@@ -3,6 +3,10 @@ import { EnvTool } from "./framework/Platform/sdk/EnvTool";
 export const GameConfig = {
   debugLogEnabled: EnvTool.isByteDanceMiniGame() ? false : true,
   showAd: EnvTool.isByteDanceMiniGame() ? true : false, // 是否显示广告
+  // 抖音开放平台「分享管理」中的素材 ID。当前素材审核通过后即可直接生效。
+  shareTemplateId: "82bm97b3hb7a7c1d7j",
+  shareTitle: "一起来拼豆吧",
+  shareDescription: "邀请好友一起挑战宝石分类",
 };
 
 /**
