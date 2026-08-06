@@ -1,24 +1,8 @@
-import {
-  _decorator,
-  Button,
-  Component,
-  director,
-  Director,
-  EventTouch,
-  game,
-  Game,
-  Node,
-  tween,
-  Tween,
-  UIOpacity,
-} from "cc";
+import { _decorator, Button, Component, director, Director, EventTouch, game, Game, Node, tween, Tween, UIOpacity } from "cc";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 import AudioManager from "./framework/AudioManager";
 import { soundName } from "./gamePrefabMgr";
-import {
-  FeedAcquisitionService,
-  FeedAcquisitionState,
-} from "./framework/Platform/FeedAcquisitionService";
+import { FeedAcquisitionService, FeedAcquisitionState } from "./framework/Platform/FeedAcquisitionService";
 import { FeedRevisitService } from "./framework/Platform/FeedRevisitService";
 import { adc } from "./framework/Platform/ADController";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -50,6 +34,7 @@ export class getUserScene extends Component {
   private feedInteractionEnabled = true;
   private feedAudioForeground = false;
   private feedAudioGestureRecovered = false;
+  private feedInterstitialScheduled = false;
   private nextOpacity: UIOpacity | null = null;
 
   protected onLoad(): void {
@@ -66,7 +51,6 @@ export class getUserScene extends Component {
     AudioManager.setSoundEvent();
     FeedAcquisitionService.init();
     const isFeedDirectPlay = FeedAcquisitionService.isActive();
-
     // 普通入口可立即播放；推荐流处于隐藏预启动时不能提前 play，
     // 否则底层 onPlay 不回调会把后续音频操作队列卡住。
     if (!isFeedDirectPlay) {
@@ -76,8 +60,7 @@ export class getUserScene extends Component {
     if (this.nextBtn?.node) {
       this.nextBtn.node.active = false;
       this.nextBtn.interactable = false;
-      this.nextOpacity = this.nextBtn.node.getComponent(UIOpacity) ??
-        this.nextBtn.node.addComponent(UIOpacity);
+      this.nextOpacity = this.nextBtn.node.getComponent(UIOpacity) ?? this.nextBtn.node.addComponent(UIOpacity);
       this.nextOpacity.opacity = 0;
     }
 
@@ -93,38 +76,21 @@ export class getUserScene extends Component {
   }
 
   protected update(deltaTime: number): void {
-    if (
-      !this.hairNode ||
-      !this.rotating ||
-      this.completed ||
-      this.adInFlight ||
-      !this.feedVisualEnabled
-    ) {
+    if (!this.hairNode || !this.rotating || this.completed || this.adInFlight || !this.feedVisualEnabled) {
       return;
     }
 
-    this.hairNode.angle = this.normalizeAngle(
-      this.hairNode.angle - Math.max(0, this.rotationSpeed) * deltaTime,
-    );
+    this.hairNode.angle = this.normalizeAngle(this.hairNode.angle - Math.max(0, this.rotationSpeed) * deltaTime);
   }
 
   private onScreenClicked(event: EventTouch): void {
     const target = event.target as Node | null;
-    if (
-      this.isNodeInside(target, this.tipsBtn?.node) ||
-      this.isNodeInside(target, this.nextBtn?.node)
-    ) {
+    if (this.isNodeInside(target, this.tipsBtn?.node) || this.isNodeInside(target, this.nextBtn?.node)) {
       return;
     }
 
     this.activateFeedFromGesture();
-    if (
-      !this.hairNode ||
-      !this.feedInteractionEnabled ||
-      !this.rotating ||
-      this.completed ||
-      this.adInFlight
-    ) {
+    if (!this.hairNode || !this.feedInteractionEnabled || !this.rotating || this.completed || this.adInFlight) {
       return;
     }
 
@@ -143,14 +109,8 @@ export class getUserScene extends Component {
   private async onTipsClicked(): Promise<void> {
     this.activateFeedFromGesture();
     const feedState = FeedAcquisitionService.getState();
-    this.feedInteractionEnabled =
-      !feedState.active || (feedState.entered && !feedState.exited);
-    if (
-      !this.feedInteractionEnabled ||
-      this.completed ||
-      this.adInFlight ||
-      !this.tipsBtn?.interactable
-    ) {
+    this.feedInteractionEnabled = !feedState.active || (feedState.entered && !feedState.exited);
+    if (!this.feedInteractionEnabled || this.completed || this.adInFlight || !this.tipsBtn?.interactable) {
       if (feedState.active && !this.feedInteractionEnabled) {
         this.showToast("请先点击继续游戏，再使用提示");
       }
@@ -229,11 +189,7 @@ export class getUserScene extends Component {
       .call(() => {
         if (!opacity.node?.isValid || this.loadingNextScene) return;
         tween(opacity)
-          .repeatForever(
-            tween(opacity)
-              .to(0.65, { opacity: 185 }, { easing: "sineInOut" })
-              .to(0.65, { opacity: 255 }, { easing: "sineInOut" }),
-          )
+          .repeatForever(tween(opacity).to(0.65, { opacity: 185 }, { easing: "sineInOut" }).to(0.65, { opacity: 255 }, { easing: "sineInOut" }))
           .start();
       })
       .start();
@@ -287,16 +243,28 @@ export class getUserScene extends Component {
     // entered=false/exited=false 是推荐流卡片预览态，此时也要播放音乐。
     // 隐藏预启动阶段先不调用 play；收到前台 show、feedEnter 或真实触摸后再启动。
     if (state.active && state.exited) {
+      adc.cancelFeedEntryInterstitial();
+      this.feedInterstitialScheduled = false;
       this.feedAudioForeground = false;
       this.feedAudioGestureRecovered = false;
       AudioManager.pauseBgmForVideo();
     } else if (!state.active) {
       AudioManager.playMusic(soundName.getUserBgm);
-    } else if (state.entered && !this.feedAudioForeground) {
-      this.feedAudioForeground = true;
-      AudioManager.restartMusic(soundName.getUserBgm);
-    } else if (this.feedAudioForeground) {
-      AudioManager.playMusic(soundName.getUserBgm);
+    } else if (state.entered) {
+      if (!this.feedInterstitialScheduled) {
+        this.feedInterstitialScheduled = true;
+        adc.scheduleFeedEntryInterstitial(() => {
+          const current = FeedAcquisitionService.getState();
+          return !!this.node?.isValid && current.active && current.entered && !current.exited;
+        });
+      }
+
+      if (!this.feedAudioForeground) {
+        this.feedAudioForeground = true;
+        AudioManager.restartMusic(soundName.getUserBgm);
+      } else {
+        AudioManager.playMusic(soundName.getUserBgm);
+      }
     }
   };
 
@@ -337,6 +305,7 @@ export class getUserScene extends Component {
   }
 
   private finishFeedExperience(): void {
+    adc.cancelFeedEntryInterstitial();
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     if (this.node?.isValid) {
       this.node.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
@@ -346,7 +315,7 @@ export class getUserScene extends Component {
   }
 
   private normalizeAngle(angle: number): number {
-    const normalized = ((angle + 180) % 360 + 360) % 360 - 180;
+    const normalized = ((((angle + 180) % 360) + 360) % 360) - 180;
     return normalized === -180 ? 180 : normalized;
   }
 
@@ -374,6 +343,7 @@ export class getUserScene extends Component {
   }
 
   protected onDestroy(): void {
+    adc.cancelFeedEntryInterstitial();
     this.unschedule(this.resumeAfterMiss);
     this.unschedule(this.retryFeedPreviewAudio);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
