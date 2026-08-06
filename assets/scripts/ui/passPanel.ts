@@ -70,9 +70,6 @@ export class passPanel extends UIBase {
   protected onDestroy() {
     director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
     adc.setBannerRequested(PASS_BANNER_OWNER, false);
-    this.nextButton?.node.off(Button.EventType.CLICK, this.onNext, this);
-    this.homeButton?.node.off(Button.EventType.CLICK, this.onHome, this);
-    this.shareButton?.node.off(Button.EventType.CLICK, this.onShare, this);
     this.stopShareBadgeAnimation();
   }
 

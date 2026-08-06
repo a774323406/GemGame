@@ -27,7 +27,9 @@ const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
   [uiName.rewardPanel]: "f3072c33-e0bf-4d2b-a3a3-d1405c37a1f1",
 };
 
-const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
+export const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
+  [soundName.getUserBgm]: "d6e118a1-2a61-4d90-90af-7637e691b99b",
+  [soundName.getUserClick]: "a3ae4a64-7a66-432a-b064-b6e5c94a4f1a",
   [soundName.hairSuccess]: "59e2af11-9d82-4a3f-9d88-1a8b5e3c0b42",
   [soundName.countDown]: "bb6dc42a-4883-4049-a42f-dfedede2d19c",
 };

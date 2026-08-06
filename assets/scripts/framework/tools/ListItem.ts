@@ -93,10 +93,6 @@ export default class ListItem extends Component {
         }
     }
 
-    onDestroy() {
-        this.node.off(Node.EventType.SIZE_CHANGED, this._onSizeChange, this);
-    }
-
     _registerEvent() {
         if (!this._eventReg) {
             if (this.btnCom && this.list.selectedMode > 0) {

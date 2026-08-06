@@ -8,7 +8,7 @@
 
 import { _decorator, director, AudioClip, AudioSource, Node } from "cc";
 import gameStorage from "./gameStorage";
-import gamePrefabMgr, { soundName } from "../gamePrefabMgr";
+import gamePrefabMgr, { SOUND_ASSET_UUIDS, soundName } from "../gamePrefabMgr";
 import { ResourceManager } from "./ResourceManager";
 
 export default class AudioManager {
@@ -301,7 +301,16 @@ export default class AudioManager {
     const task = (async () => {
       try {
         await ResourceManager.ins.loadBundle("res");
-        const clip = await ResourceManager.ins.loadBundleAsset<AudioClip>("res", `sound/${name}`, AudioClip);
+        let clip: AudioClip;
+        try {
+          clip = await ResourceManager.ins.loadBundleAsset<AudioClip>("res", `sound/${name}`, AudioClip);
+        } catch (pathError) {
+          // 编辑器可能保留新资源导入前的 Bundle 索引；这时文件
+          // 已导入 library，但按 sound/xxx 仍查不到。已知音频用 UUID 兜底。
+          const uuid = SOUND_ASSET_UUIDS[name as soundName];
+          if (!uuid) throw pathError;
+          clip = await ResourceManager.ins.loadAssetByUuid<AudioClip>(uuid);
+        }
 
         if (clip) {
           gamePrefabMgr.Instance.soundRes[name] = clip;

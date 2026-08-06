@@ -379,17 +379,9 @@ export class getUserScene extends Component {
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     game.off(Game.EVENT_HIDE, this.onGameHide, this);
 
-    // 编辑器切场景时子节点可能先于根组件销毁；只有节点仍有效时才解绑。
-    if (this.tipsBtn?.isValid && this.tipsBtn.node?.isValid) {
-      this.tipsBtn.node.off(Button.EventType.CLICK, this.onTipsClicked, this);
-    }
-    if (this.nextBtn?.isValid && this.nextBtn.node?.isValid) {
-      this.nextBtn.node.off(Button.EventType.CLICK, this.onNextClicked, this);
-    }
-    if (this.node?.isValid) {
-      this.node.off(Node.EventType.TOUCH_END, this.onScreenClicked, this);
-      this.node.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
-    }
+    // 不要在 onDestroy 中对场景节点调用 off。Cocos 销毁场景时可能已经
+    // 清空 Node 内部的 EventProcessor，此时即使 node.isValid 仍然为 true，
+    // Node.off 也会因内部对象为 null 而报错。节点销毁会自动清理这些监听。
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     if (this.hairNode?.isValid) Tween.stopAllByTarget(this.hairNode);

@@ -526,16 +526,4 @@ export class mapControl extends Component {
     return Math.max(min, Math.min(max, value));
   }
 
-  protected onDestroy() {
-    this.node.off(Node.EventType.TOUCH_START, this.onTouchStart, this);
-    this.node.off(Node.EventType.TOUCH_MOVE, this.onTouchMove, this);
-    this.node.off(Node.EventType.TOUCH_END, this.onTouchEnd, this);
-    this.node.off(Node.EventType.TOUCH_CANCEL, this.onTouchEnd, this);
-
-    this.node.off(Node.EventType.MOUSE_DOWN, this.onMouseDown, this);
-    this.node.off(Node.EventType.MOUSE_MOVE, this.onMouseMove, this);
-    this.node.off(Node.EventType.MOUSE_UP, this.onMouseUp, this);
-    this.node.off(Node.EventType.MOUSE_LEAVE, this.onMouseUp, this);
-    this.node.off(Node.EventType.MOUSE_WHEEL, this.onMouseWheel, this);
-  }
 }

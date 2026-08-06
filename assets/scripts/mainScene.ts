@@ -85,16 +85,8 @@ export class mainScene extends Component {
 
   protected onDestroy(): void {
     director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
-    this.gotoGetUserSceneBtn?.node?.off(
-      Button.EventType.CLICK,
-      this.gotoGetUserScene,
-      this,
-    );
-    this.sidebarBtn?.node?.off(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
-    this.shareBtn?.node?.off(Button.EventType.CLICK, this.onShareClicked, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
-    this.feedSubscribeBtn?.node?.off(Button.EventType.CLICK, this.onFeedSubscribeClicked, this);
   }
   async startGame() {
     if (this.startBtn) {

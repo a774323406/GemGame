@@ -25,8 +25,6 @@ export class rewardPanel extends UIBase {
   }
 
   protected onDestroy() {
-    this.closeBtn?.node?.off(Button.EventType.CLICK, this.onClose, this);
-    this.actionBtn?.node?.off(Button.EventType.CLICK, this.onActionClicked, this);
     SidebarRewardService.removeListener(this.onStateChanged);
   }
 

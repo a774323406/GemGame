@@ -4681,9 +4681,8 @@ export class gameScene extends Component {
     this.clearTutorialPresentation(true, false);
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
-    this.unbindFeedFallbackTouch();
-    this.mapControl?.node?.off(Node.EventType.TOUCH_END, this.onSceneTouchEnd, this);
-    this.trayRoot?.off(Node.EventType.TOUCH_END, this.onTrayTouchEnd, this);
+    // 场景销毁时 Node 会自动清理节点事件。此时再调用 off，
+    // 抖音小游戏中可能会访问已清空的 EventProcessor 并抛出 Error 5000。
     this.selectedGlowMaterial?.destroy();
     this.sortedGlowMaterial?.destroy();
     this.selectedGlowMaterial = null;

@@ -56,9 +56,6 @@ export class failPanel extends UIBase {
   protected onDestroy() {
     director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
     adc.setBannerRequested(FAIL_BANNER_OWNER, false);
-    this.reviveButton?.node.off(Button.EventType.CLICK, this.onRevive, this);
-    this.homeButton?.node.off(Button.EventType.CLICK, this.onHome, this);
-    this.shareButton?.node.off(Button.EventType.CLICK, this.onShareRevive, this);
     this.stopShareBadgeAnimation();
   }
 
