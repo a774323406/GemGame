@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Normalize generated HairGame production sheets into aligned runtime assets.
 
-The detachable hair is baked at the former 1.4 node scale.  Every output hair
-sprite therefore uses the same 728x594 canvas, a scale of 1 in Cocos, and a
-common pivot that lands on character pixel (375, 218) / scene position (0, 220).
+The detachable hair is baked at the former 1.4 node scale.  Every hair sprite
+therefore displays on the same 728x594 Cocos canvas at scale 1, with a common
+pivot that lands on character pixel (375, 218) / scene position (0, 220).
+Runtime textures may be stored at 80% resolution because both Sprites use
+CUSTOM size mode; this lowers package size without changing layout or pivot.
 """
 
 from __future__ import annotations
@@ -18,14 +20,43 @@ from PIL import Image, ImageOps
 
 
 CHARACTER_SIZE = (750, 1250)
+RUNTIME_CHARACTER_SIZE = (600, 1000)
 CHARACTER_TOP_PADDING = 20
 CHARACTER_BOTTOM_PADDING = 10
 LEGACY_HAIR_SIZE = (520, 424)
 HAIR_BAKED_SCALE = 1.4
 HAIR_SIZE = (728, 594)
+RUNTIME_HAIR_SIZE = (582, 475)
 HAIR_PADDING = 14
 HAIR_CENTER_ON_CHARACTER = (375, 218)
 BACKGROUND_SIZE = (750, 1624)
+
+# The generated sheets do not place every face on the same horizontal axis.
+# These display-space translations move the character artwork (not the Cocos
+# node) so every scalp/face center lands on the shared x=375 hair pivot.
+# Values are (x offset, y offset) on the 750x1250 display canvas.
+CHARACTER_ALIGNMENT: dict[int, tuple[int, int]] = {
+    1: (44, -4),
+    2: (43, -3),
+    3: (28, -2),
+    4: (12, 2),
+    5: (66, -11),
+    6: (5, 1),
+    7: (5, 0),
+    8: (4, 1),
+    9: (0, -10),
+    10: (12, 1),
+}
+
+# Per-level corrections are baked into the transparent bitmap.  The scene can
+# therefore swap every pair while keeping one node position, scale and pivot.
+# Values are (scale, x offset, y offset) in the 728x594 display coordinate space.
+HAIR_ALIGNMENT: dict[int, tuple[float, int, int]] = {
+    1: (0.75, 0, 0),
+    2: (0.80, -25, 0),
+    4: (0.78, 25, 0),
+    5: (0.78, 0, 0),
+}
 
 
 class DisjointSet:
@@ -165,6 +196,21 @@ def normalize_character(image: Image.Image) -> Image.Image:
     return canvas
 
 
+def align_character_for_level(level: int, image: Image.Image) -> Image.Image:
+    """Bake face/scalp centering into the shared character canvas."""
+
+    rgba = image.convert("RGBA")
+    if rgba.size != CHARACTER_SIZE:
+        rgba = rgba.resize(CHARACTER_SIZE, Image.Resampling.LANCZOS)
+    offset_x, offset_y = CHARACTER_ALIGNMENT.get(level, (0, 0))
+    if offset_x == 0 and offset_y == 0:
+        return rgba
+
+    canvas = Image.new("RGBA", CHARACTER_SIZE, (0, 0, 0, 0))
+    canvas.alpha_composite(rgba, (offset_x, offset_y))
+    return canvas
+
+
 def normalize_hair(image: Image.Image) -> Image.Image:
     bounds = image.getbbox()
     if bounds is None:
@@ -184,15 +230,58 @@ def normalize_hair(image: Image.Image) -> Image.Image:
     return canvas
 
 
+def align_hair_for_level(level: int, image: Image.Image) -> Image.Image:
+    """Bake a level's correction around the shared node pivot."""
+
+    rgba = image.convert("RGBA")
+    if rgba.size != HAIR_SIZE:
+        rgba = rgba.resize(HAIR_SIZE, Image.Resampling.LANCZOS)
+    scale, offset_x, offset_y = HAIR_ALIGNMENT.get(level, (1.0, 0, 0))
+    if scale == 1.0 and offset_x == 0 and offset_y == 0:
+        return rgba
+
+    layer = rgba.resize(
+        (max(1, round(HAIR_SIZE[0] * scale)), max(1, round(HAIR_SIZE[1] * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    canvas = Image.new("RGBA", HAIR_SIZE, (0, 0, 0, 0))
+    x = (HAIR_SIZE[0] - layer.width) // 2 + offset_x
+    y = (HAIR_SIZE[1] - layer.height) // 2 + offset_y
+    canvas.alpha_composite(layer, (x, y))
+    return canvas
+
+
 def bake_legacy_hair(image: Image.Image) -> Image.Image:
     """Bake the old node scale into the bitmap without changing its alignment."""
 
     rgba = image.convert("RGBA")
-    if rgba.size == HAIR_SIZE:
+    if rgba.size in (HAIR_SIZE, RUNTIME_HAIR_SIZE):
         return rgba
     if rgba.size != LEGACY_HAIR_SIZE:
         raise ValueError(f"Unexpected existing hair size: {rgba.size}")
     return rgba.resize(HAIR_SIZE, Image.Resampling.LANCZOS)
+
+
+def downsample_runtime_assets(output: Path) -> None:
+    """Store smaller textures while retaining the scene's custom display size."""
+
+    for path in sorted(output.glob("character-*.png")):
+        with Image.open(path) as source:
+            rgba = source.convert("RGBA")
+        if rgba.size == RUNTIME_CHARACTER_SIZE:
+            continue
+        if rgba.size != CHARACTER_SIZE:
+            raise ValueError(f"Unexpected character size for {path}: {rgba.size}")
+        rgba.resize(RUNTIME_CHARACTER_SIZE, Image.Resampling.LANCZOS).save(path, optimize=True)
+
+    for path in sorted(output.glob("hair-*.png")):
+        with Image.open(path) as source:
+            rgba = source.convert("RGBA")
+        if rgba.size == RUNTIME_HAIR_SIZE:
+            continue
+        if rgba.size != HAIR_SIZE:
+            raise ValueError(f"Unexpected hair size for {path}: {rgba.size}")
+        rgba.resize(RUNTIME_HAIR_SIZE, Image.Resampling.LANCZOS).save(path, optimize=True)
 
 
 def render_alignment_preview(output: Path, destination: Path) -> None:
@@ -206,9 +295,9 @@ def render_alignment_preview(output: Path, destination: Path) -> None:
 
     for index in range(1, 11):
         with Image.open(output / f"character-{index:02d}.png") as source_character:
-            character = source_character.convert("RGBA")
+            character = source_character.convert("RGBA").resize(CHARACTER_SIZE, Image.Resampling.LANCZOS)
         with Image.open(output / f"hair-{index:02d}.png") as source_hair:
-            hair = source_hair.convert("RGBA")
+            hair = source_hair.convert("RGBA").resize(HAIR_SIZE, Image.Resampling.LANCZOS)
 
         stage = Image.new(
             "RGBA",
@@ -245,12 +334,15 @@ def write_cocos_meta(asset_path: Path) -> None:
     has_alpha = suffix == ".png"
     with Image.open(asset_path) as image:
         raw_width, raw_height = image.size
-        alpha_bounds = image.convert("RGBA").getchannel("A").getbbox()
-    trim_x, trim_y, trim_right, trim_bottom = alpha_bounds or (0, 0, raw_width, raw_height)
-    width = trim_right - trim_x
-    height = trim_bottom - trim_y
-    offset_x = trim_x + width / 2 - raw_width / 2
-    offset_y = raw_height / 2 - trim_y - height / 2
+
+    # The transparent padding is intentional: every character and hair image
+    # shares this canvas, so the same nodes can be reused for all ten levels.
+    trim_x = 0
+    trim_y = 0
+    width = raw_width
+    height = raw_height
+    offset_x = 0
+    offset_y = 0
 
     left = -width / 2
     right = width / 2
@@ -296,7 +388,10 @@ def write_cocos_meta(asset_path: Path) -> None:
                 "id": "f9941",
                 "name": "spriteFrame",
                 "userData": {
-                    "trimType": "auto",
+                    # HairGame relies on a shared transparent canvas for alignment.
+                    # Auto trimming can leave stale rect/UV data after replacing the
+                    # source image in an open Creator session, so keep the full frame.
+                    "trimType": "none",
                     "trimThreshold": 1,
                     "rotated": False,
                     "offsetX": offset_x,
@@ -311,7 +406,7 @@ def write_cocos_meta(asset_path: Path) -> None:
                     "borderBottom": 0,
                     "borderLeft": 0,
                     "borderRight": 0,
-                    "packable": False,
+                    "packable": True,
                     "pixelsToUnit": 100,
                     "pivotX": 0.5,
                     "pivotY": 0.5,
@@ -377,6 +472,11 @@ def main() -> None:
         action="store_true",
         help="Resize untouched legacy 520x424 hair canvases to the baked 728x594 size",
     )
+    parser.add_argument(
+        "--downsample-runtime",
+        action="store_true",
+        help="Store characters at 600x1000 and hair at 582x475; Cocos display sizes stay unchanged",
+    )
     parser.add_argument("--preview", type=Path)
     args = parser.parse_args()
 
@@ -412,12 +512,18 @@ def main() -> None:
     for index, sheet_path in sorted(replacements.items()):
         with Image.open(sheet_path) as sheet:
             character, hair = split_sheet(sheet)
-            normalize_character(character).save(args.output / f"character-{index:02d}.png", optimize=True)
-            normalize_hair(hair).save(args.output / f"hair-{index:02d}.png", optimize=True)
+            align_character_for_level(index, normalize_character(character)).save(
+                args.output / f"character-{index:02d}.png",
+                optimize=True,
+            )
+            align_hair_for_level(index, normalize_hair(hair)).save(
+                args.output / f"hair-{index:02d}.png",
+                optimize=True,
+            )
 
     for index, hair_path in sorted(hair_replacements.items()):
         with Image.open(hair_path) as hair:
-            normalize_hair(remove_generated_green(hair)).save(
+            align_hair_for_level(index, normalize_hair(remove_generated_green(hair))).save(
                 args.output / f"hair-{index:02d}.png",
                 optimize=True,
             )
@@ -425,6 +531,8 @@ def main() -> None:
     if args.backgrounds:
         write_background(args.backgrounds[0], args.output / "background-blue.jpg")
         write_background(args.backgrounds[1], args.output / "background-pink.jpg")
+    if args.downsample_runtime:
+        downsample_runtime_assets(args.output)
     for asset_path in sorted(args.output.glob("character-*.png")):
         write_cocos_meta(asset_path)
     for asset_path in sorted(args.output.glob("hair-*.png")):

@@ -4,10 +4,14 @@
 
 - 运行时目录：`assets/res/texture/hairGame/`
 - 阵容：5 名成年男性、5 名成年女性；第 2、5 关为宽肩肌肉型男性，第 6、8 关为全包裹服装的成熟女性。
-- 人物层统一为 `750×1250` 透明 PNG；头发层统一为 `728×594` 透明 PNG。
-- 头发图片已烘焙原节点 `1.4` 倍缩放，场景中统一使用位置 `(0, 220)`、缩放 `(1, 1)`。
+- 人物节点显示尺寸统一为 `750×1250`，运行时纹理为 `600×1000`；头发节点显示尺寸统一为 `728×594`，运行时纹理为 `582×475`。
+- 头发显示尺寸已烘焙原节点 `1.4` 倍缩放，场景中统一使用位置 `(0, 220)`、缩放 `(1, 1)`。
 - 所有头发都以人物图坐标 `(375, 218)` 为共同旋转中心，并用 0° 合成预览校正后再切出。
-- 两张共享背景为 `750×1624` JPG；运行时图片合计保持在 2,000,000 字节以内。
+- 人物与头发 Sprite 均固定为 `CUSTOM` 尺寸模式，替换 SpriteFrame 不会被纹理原始尺寸重新改写节点大小。
+- 人物与头发 SpriteFrame 关闭自动裁切；透明画布是十关共用位置与旋转中心的一部分，不能在导入时删掉。
+- 不同发型需要的缩放与偏移记录在 `build_hair_game_assets.py` 的 `HAIR_ALIGNMENT`，并已烘焙进各自 PNG；运行时只替换人物和头发图片，不修改节点位置。
+- 各生成图的人脸中轴偏差记录在 `CHARACTER_ALIGNMENT`，同样已烘焙进人物 PNG；十关的脸、秃顶中心与头发旋转轴统一落在 `x=375`。
+- 两张共享背景为 `750×1624` JPG；运行时图片合计保持在 1,500,000 字节以内。
 - `production-sheets/` 是不进入游戏包的生成源图；`hair-game-10-level-preview.jpg` 是十关 0° 对位校样。
 
 局部重建示例：
@@ -24,6 +28,7 @@ python3 marketing/getuserscene/build_hair_game_assets.py \
   --replace 8=marketing/getuserscene/production-sheets/level-08.png \
   --replace-hair 6=marketing/getuserscene/production-sheets/level-06-hair.png \
   --replace-hair 8=marketing/getuserscene/production-sheets/level-08-hair.png \
+  --downsample-runtime \
   --preview marketing/getuserscene/hair-game-10-level-preview.jpg
 
 pngquant --quality 0-55 --speed 1 --colors 16 --force --ext .png \

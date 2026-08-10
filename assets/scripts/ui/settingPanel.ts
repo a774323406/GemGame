@@ -31,6 +31,7 @@ export class settingPanel extends UIBase {
   private closeCallback: (() => void) | null = null;
   private retryCallback: (() => void) | null = null;
   private backCallback: (() => void) | null = null;
+  private musicEnabledCallback: (() => void) | null = null;
   private actionHandled = false;
   private bannerContentBaseY: number | null = null;
 
@@ -41,13 +42,14 @@ export class settingPanel extends UIBase {
     this.closeCallback = typeof data?.onClose === "function" ? data.onClose : null;
     this.retryCallback = typeof data?.onRetry === "function" ? data.onRetry : null;
     this.backCallback = typeof data?.onBack === "function" ? data.onBack : null;
+    this.musicEnabledCallback = typeof data?.onMusicEnabled === "function" ? data.onMusicEnabled : null;
 
-    if (data) {
-      this.enterType = data.enterType;
-
-      this.retryBtn.node.active = this.enterType == 1;
-      this.backBtn.node.active = this.enterType == 1;
-    }
+    this.enterType = typeof data?.enterType === "number" ? data.enterType : 0;
+    const defaultGameControls = this.enterType === 1;
+    this.retryBtn.node.active =
+      typeof data?.showRetry === "boolean" ? data.showRetry : defaultGameControls;
+    this.backBtn.node.active =
+      typeof data?.showBack === "boolean" ? data.showBack : defaultGameControls;
 
     // 初始化开关状态显示
     if (this.shakeBtn) {
@@ -168,7 +170,12 @@ export class settingPanel extends UIBase {
     }
   }
   private playBgmByEnterType() {
-    // 当前主界面和游戏界面共用默认 BGM；关闭音乐会清空 clip，重新开启时必须主动加载播放。
+    if (this.musicEnabledCallback) {
+      this.musicEnabledCallback();
+      return;
+    }
+
+    // 默认场景共用默认 BGM；特殊玩法可通过 onMusicEnabled 恢复自己的音乐。
     AudioManager.playDefaultBgm();
   }
   update(deltaTime: number) {}

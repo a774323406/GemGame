@@ -1,22 +1,55 @@
-import { _decorator, Button, Component, director, Director, EventTouch, game, Game, Node, tween, Tween, UIOpacity } from "cc";
+import {
+  _decorator,
+  Button,
+  Color,
+  Component,
+  director,
+  Director,
+  EventTouch,
+  game,
+  Game,
+  Graphics,
+  HorizontalTextAlignment,
+  Node,
+  Sprite,
+  tween,
+  Tween,
+  UITransform,
+  UIOpacity,
+  Label,
+  Vec2,
+  VerticalTextAlignment,
+  Widget,
+} from "cc";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 import AudioManager from "./framework/AudioManager";
-import { soundName } from "./gamePrefabMgr";
+import { soundName, uiName } from "./gamePrefabMgr";
 import { FeedAcquisitionService, FeedAcquisitionState } from "./framework/Platform/FeedAcquisitionService";
 import { FeedRevisitService } from "./framework/Platform/FeedRevisitService";
 import { adc } from "./framework/Platform/ADController";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
+import FGUIController from "./framework/tools/FGUIController";
+import UIManager, { UILayer } from "./framework/ui/UIManager";
+import PlayData from "./data/PlayData";
 const { ccclass, property } = _decorator;
 
 @ccclass("HairGameScene")
 export class HairGameScene extends Component {
+  private static readonly TOTAL_LEVELS = 10;
+  private static readonly FIRST_FEMALE_LEVEL_INDEX = 5;
+  private static readonly MALE_BACKGROUND_INDEX = 0;
+  private static readonly FEMALE_BACKGROUND_INDEX = 2;
+
   @property(Button)
   tipsBtn: Button = null;
   @property(Button)
   nextBtn: Button = null;
   @property(Node)
   hairNode: Node = null;
-
+  @property(Label)
+  nextLabel: Label = null;
+  @property(Button)
+  settingBtn: Button = null;
   @property({ tooltip: "头发每秒旋转角度" })
   rotationSpeed = 252;
 
@@ -36,14 +69,50 @@ export class HairGameScene extends Component {
   private feedAudioGestureRecovered = false;
   private feedInterstitialScheduled = false;
   private nextOpacity: UIOpacity | null = null;
+  private hairController: FGUIController | null = null;
+  private characterController: FGUIController | null = null;
+  private backgroundController: FGUIController | null = null;
+  private titleLabel: Label | null = null;
+  private instructionLabel: Label | null = null;
+  private instructionGraphics: Graphics | null = null;
+  private remainingLevelIndexes: number[] = [];
+  private settingsOpen = false;
+  private resumeRotationAfterSettings = false;
 
   protected onLoad(): void {
+    this.enforceCharacterLayerLayout();
+    this.hairController = this.hairNode?.getComponent(FGUIController) ?? null;
+    this.characterController = this.node.getChildByName("characterNode")?.getComponent(FGUIController) ?? null;
+    this.backgroundController = this.node.getChildByName("bg")?.getComponent(FGUIController) ?? null;
+    this.createThemedCopy();
     adc.setBannerEnabled(false);
     this.node.on(Node.EventType.TOUCH_END, this.onScreenClicked, this);
     this.tipsBtn?.node?.on(Button.EventType.CLICK, this.onTipsClicked, this);
     this.nextBtn?.node?.on(Button.EventType.CLICK, this.onNextClicked, this);
+    this.settingBtn?.node?.on(Button.EventType.CLICK, this.onSettingClicked, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
+  }
+
+  /**
+   * 人物纹理为了控制包体使用了较低的实际像素尺寸，因此固定人物的显示尺寸。
+   * 头发的位置、缩放和 SpriteFrame 已交给 FGUIController 的各状态管理，
+   * 这里不能再重置 hairNode，否则会覆盖编辑器中逐关调好的状态。
+   */
+  private enforceCharacterLayerLayout(): void {
+    const character = this.node.getChildByName("characterNode");
+    if (!character?.isValid) return;
+    const characterSprite = character.getComponent(Sprite);
+    if (characterSprite) characterSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    character.getComponent(UITransform)?.setContentSize(750, 1250);
+    character.setPosition(0, -187, character.position.z);
+    character.setScale(1, 1, 1);
+
+    const background = this.node.getChildByName("bg");
+    const backgroundSprite = background?.getComponent(Sprite) ?? null;
+    if (backgroundSprite) {
+      backgroundSprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    }
   }
 
   protected start(): void {
@@ -68,6 +137,8 @@ export class HairGameScene extends Component {
       this.hairNode.angle = this.normalizeAngle(this.hairNode.angle);
     }
 
+    this.initializeLevelOrder();
+
     if (isFeedDirectPlay) {
       FeedAcquisitionService.addListener(this.onFeedStateChanged);
       this.node.on(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
@@ -76,7 +147,14 @@ export class HairGameScene extends Component {
   }
 
   protected update(deltaTime: number): void {
-    if (!this.hairNode || !this.rotating || this.completed || this.adInFlight || !this.feedVisualEnabled) {
+    if (
+      !this.hairNode ||
+      !this.rotating ||
+      this.completed ||
+      this.adInFlight ||
+      this.settingsOpen ||
+      !this.feedVisualEnabled
+    ) {
       return;
     }
 
@@ -85,12 +163,23 @@ export class HairGameScene extends Component {
 
   private onScreenClicked(event: EventTouch): void {
     const target = event.target as Node | null;
-    if (this.isNodeInside(target, this.tipsBtn?.node) || this.isNodeInside(target, this.nextBtn?.node)) {
+    if (
+      this.isNodeInside(target, this.tipsBtn?.node) ||
+      this.isNodeInside(target, this.nextBtn?.node) ||
+      this.isNodeInside(target, this.settingBtn?.node)
+    ) {
       return;
     }
 
     this.activateFeedFromGesture();
-    if (!this.hairNode || !this.feedInteractionEnabled || !this.rotating || this.completed || this.adInFlight) {
+    if (
+      !this.hairNode ||
+      !this.feedInteractionEnabled ||
+      !this.rotating ||
+      this.completed ||
+      this.adInFlight ||
+      this.settingsOpen
+    ) {
       return;
     }
 
@@ -110,7 +199,13 @@ export class HairGameScene extends Component {
     this.activateFeedFromGesture();
     const feedState = FeedAcquisitionService.getState();
     this.feedInteractionEnabled = !feedState.active || (feedState.entered && !feedState.exited);
-    if (!this.feedInteractionEnabled || this.completed || this.adInFlight || !this.tipsBtn?.interactable) {
+    if (
+      !this.feedInteractionEnabled ||
+      this.completed ||
+      this.adInFlight ||
+      this.settingsOpen ||
+      !this.tipsBtn?.interactable
+    ) {
       if (feedState.active && !this.feedInteractionEnabled) {
         this.showToast("请先点击继续游戏，再使用提示");
       }
@@ -165,8 +260,13 @@ export class HairGameScene extends Component {
       this.tipsBtn.interactable = true;
     }
 
-    // 复访挑战只更新下一次就绪时间，不再领取或发放任何道具奖励。
-    if (FeedAcquisitionService.isRevisit()) {
+    const allLevelsCompleted = this.remainingLevelIndexes.length === 0;
+    if (this.nextLabel?.node?.isValid) {
+      this.nextLabel.string = allLevelsCompleted ? "返回主页" : "下一关";
+    }
+
+    // 十关全部完成后，才更新复访挑战的下一次就绪时间。
+    if (allLevelsCompleted && FeedAcquisitionService.isRevisit()) {
       FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
     }
 
@@ -189,7 +289,11 @@ export class HairGameScene extends Component {
       .call(() => {
         if (!opacity.node?.isValid || this.loadingNextScene) return;
         tween(opacity)
-          .repeatForever(tween(opacity).to(0.65, { opacity: 185 }, { easing: "sineInOut" }).to(0.65, { opacity: 255 }, { easing: "sineInOut" }))
+          .repeatForever(
+            tween(opacity)
+              .to(0.65, { opacity: 185 }, { easing: "sineInOut" })
+              .to(0.65, { opacity: 255 }, { easing: "sineInOut" }),
+          )
           .start();
       })
       .start();
@@ -197,21 +301,253 @@ export class HairGameScene extends Component {
 
   private onNextClicked(): void {
     if (!this.completed || this.loadingNextScene) return;
+
+    if (this.remainingLevelIndexes.length > 0) {
+      this.startNextLevel();
+      return;
+    }
+
+    this.returnToMainScene();
+  }
+
+  private initializeLevelOrder(): void {
+    const controller = this.hairController;
+    if (!controller) {
+      console.error("[HairGameScene] hairNode 缺少 FGUIController，无法切换头发关卡");
+      this.remainingLevelIndexes = [];
+      return;
+    }
+
+    const levelCount = Math.min(HairGameScene.TOTAL_LEVELS, controller.pages.length);
+    this.remainingLevelIndexes = Array.from({ length: levelCount }, (_, index) => index);
+
+    // Fisher-Yates 洗牌，之后逐个弹出，保证十关随机且不重复。
+    for (let index = this.remainingLevelIndexes.length - 1; index > 0; index--) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [this.remainingLevelIndexes[index], this.remainingLevelIndexes[randomIndex]] = [
+        this.remainingLevelIndexes[randomIndex],
+        this.remainingLevelIndexes[index],
+      ];
+    }
+
+    this.startNextLevel();
+  }
+
+  private startNextLevel(): void {
+    const nextIndex = this.remainingLevelIndexes.pop();
+    if (nextIndex === undefined) return;
+
+    this.unschedule(this.resumeAfterMiss);
+    if (this.hairNode?.isValid) {
+      Tween.stopAllByTarget(this.hairNode);
+    }
+    if (this.nextOpacity?.isValid) {
+      Tween.stopAllByTarget(this.nextOpacity);
+      this.nextOpacity.opacity = 0;
+    }
+
+    if (this.nextBtn?.node?.isValid) {
+      this.nextBtn.node.active = false;
+      this.nextBtn.interactable = false;
+    }
+    if (this.tipsBtn?.node?.isValid) {
+      this.tipsBtn.node.active = true;
+      this.tipsBtn.interactable = true;
+    }
+    if (this.nextLabel?.node?.isValid) {
+      this.nextLabel.string = "下一关";
+    }
+
+    this.completed = false;
+    this.adInFlight = false;
+    this.applyLevelVisuals(nextIndex);
+    if (this.hairNode?.isValid) {
+      this.hairNode.angle = this.normalizeAngle(this.hairNode.angle);
+    }
+    this.rotating = true;
+  }
+
+  private applyLevelVisuals(levelIndex: number): void {
+    // hairNode 与 characterNode 共用同一个 selectedIndex。
+    this.hairController?.setSelectedIndex(levelIndex);
+    this.characterController?.setSelectedIndex(levelIndex);
+
+    // 男性 0～4 使用 bg 状态 0；女性 5～9 使用 bg 状态 2。
+    const backgroundIndex =
+      levelIndex < HairGameScene.FIRST_FEMALE_LEVEL_INDEX
+        ? HairGameScene.MALE_BACKGROUND_INDEX
+        : HairGameScene.FEMALE_BACKGROUND_INDEX;
+    this.backgroundController?.setSelectedIndex(backgroundIndex);
+    this.applyCopyTheme(levelIndex >= HairGameScene.FIRST_FEMALE_LEVEL_INDEX);
+  }
+
+  private createThemedCopy(): void {
+    const titleNode = new Node("HairGameTitle");
+    titleNode.layer = this.node.layer;
+    titleNode.parent = this.node;
+    titleNode.addComponent(UITransform).setContentSize(590, 82);
+
+    const titleLabel = titleNode.addComponent(Label);
+    titleLabel.string = "99%的人都对不准";
+    titleLabel.fontSize = 50;
+    titleLabel.lineHeight = 62;
+    titleLabel.horizontalAlign = HorizontalTextAlignment.CENTER;
+    titleLabel.verticalAlign = VerticalTextAlignment.CENTER;
+    titleLabel.overflow = Label.Overflow.SHRINK;
+    titleLabel.enableOutline = true;
+    titleLabel.outlineWidth = 5;
+    titleLabel.enableShadow = true;
+    titleLabel.shadowOffset = new Vec2(3, -5);
+    titleLabel.shadowBlur = 1;
+    this.titleLabel = titleLabel;
+
+    const titleWidget = titleNode.addComponent(Widget);
+    titleWidget.isAlignTop = true;
+    titleWidget.top = 88;
+    titleWidget.isAlignHorizontalCenter = true;
+    titleWidget.horizontalCenter = 0;
+    titleWidget.updateAlignment();
+
+    const instructionNode = new Node("HairGameInstruction");
+    instructionNode.layer = this.node.layer;
+    instructionNode.parent = this.node;
+    instructionNode.addComponent(UITransform).setContentSize(510, 116);
+    this.instructionGraphics = instructionNode.addComponent(Graphics);
+
+    const instructionLabelNode = new Node("Label");
+    instructionLabelNode.layer = this.node.layer;
+    instructionLabelNode.parent = instructionNode;
+    instructionLabelNode.addComponent(UITransform).setContentSize(460, 86);
+    const instructionLabel = instructionLabelNode.addComponent(Label);
+    instructionLabel.string = "点击发片，调整方向";
+    instructionLabel.fontSize = 35;
+    instructionLabel.lineHeight = 44;
+    instructionLabel.color = Color.WHITE;
+    instructionLabel.horizontalAlign = HorizontalTextAlignment.CENTER;
+    instructionLabel.verticalAlign = VerticalTextAlignment.CENTER;
+    instructionLabel.overflow = Label.Overflow.SHRINK;
+    instructionLabel.enableOutline = true;
+    instructionLabel.outlineWidth = 2;
+    instructionLabel.enableShadow = true;
+    instructionLabel.shadowOffset = new Vec2(2, -3);
+    instructionLabel.shadowBlur = 1;
+    this.instructionLabel = instructionLabel;
+
+    const instructionWidget = instructionNode.addComponent(Widget);
+    instructionWidget.isAlignBottom = true;
+    instructionWidget.bottom = 76;
+    instructionWidget.isAlignHorizontalCenter = true;
+    instructionWidget.horizontalCenter = 0;
+    instructionWidget.updateAlignment();
+
+    const initialIndex = this.characterController?.selectedIndex ?? 0;
+    this.applyCopyTheme(initialIndex >= HairGameScene.FIRST_FEMALE_LEVEL_INDEX);
+  }
+
+  private applyCopyTheme(isFemale: boolean): void {
+    const titleColor = isFemale ? new Color(255, 246, 251, 255) : new Color(240, 252, 255, 255);
+    const mainColor = isFemale ? new Color(239, 126, 178, 248) : new Color(49, 146, 204, 248);
+    const outlineColor = isFemale ? new Color(176, 62, 119, 255) : new Color(24, 103, 166, 255);
+    const lightBorder = isFemale ? new Color(255, 210, 231, 255) : new Color(164, 226, 247, 255);
+    const shadowColor = isFemale ? new Color(120, 40, 82, 210) : new Color(14, 63, 112, 210);
+
+    if (this.titleLabel?.node?.isValid) {
+      this.titleLabel.color = titleColor;
+      this.titleLabel.outlineColor = outlineColor;
+      this.titleLabel.shadowColor = shadowColor;
+    }
+    if (this.instructionLabel?.node?.isValid) {
+      this.instructionLabel.outlineColor = outlineColor;
+      this.instructionLabel.shadowColor = shadowColor;
+    }
+
+    const graphics = this.instructionGraphics;
+    if (!graphics?.node?.isValid) return;
+    graphics.clear();
+
+    graphics.fillColor = shadowColor;
+    graphics.roundRect(-245, -57, 490, 106, 38);
+    graphics.fill();
+
+    graphics.fillColor = mainColor;
+    graphics.strokeColor = lightBorder;
+    graphics.lineWidth = 3;
+    graphics.roundRect(-245, -51, 490, 106, 38);
+    graphics.fill();
+    graphics.stroke();
+  }
+
+  private onSettingClicked(): void {
+    if (this.settingsOpen || this.loadingNextScene || this.adInFlight) return;
+
+    this.activateFeedFromGesture();
+    const feedState = FeedAcquisitionService.getState();
+    this.feedInteractionEnabled = !feedState.active || (feedState.entered && !feedState.exited);
+    if (!this.feedInteractionEnabled) return;
+
+    const manager = UIManager.instance;
+    if (!manager) return;
+
+    this.settingsOpen = true;
+    this.resumeRotationAfterSettings = !this.completed;
+    this.rotating = false;
+    this.unschedule(this.resumeAfterMiss);
+
+    const panel = manager.open(
+      uiName.settingPanel,
+      {
+        enterType: 1,
+        showBack: true,
+        showRetry: false,
+        onClose: () => this.finishSettingsPause(),
+        onBack: () => {
+          this.finishSettingsPause(false);
+          this.returnToMainScene();
+        },
+        onMusicEnabled: () => AudioManager.playMusic(soundName.getUserBgm),
+      },
+      UILayer.Popup,
+    );
+
+    if (!panel) {
+      this.finishSettingsPause();
+    }
+  }
+
+  private finishSettingsPause(restoreGameState = true): void {
+    if (!this.settingsOpen) return;
+
+    this.settingsOpen = false;
+    const shouldResume =
+      restoreGameState &&
+      this.resumeRotationAfterSettings &&
+      !this.completed &&
+      !this.adInFlight;
+    this.rotating = shouldResume;
+    this.resumeRotationAfterSettings = false;
+    PlayData.Instance.ispause = false;
+  }
+
+  private returnToMainScene(): void {
+    if (this.loadingNextScene) return;
     this.loadingNextScene = true;
     if (this.nextBtn) this.nextBtn.interactable = false;
+    if (this.settingBtn) this.settingBtn.interactable = false;
 
-    Tween.stopAllByTarget(this.nextOpacity);
+    if (this.nextOpacity?.isValid) Tween.stopAllByTarget(this.nextOpacity);
     this.finishFeedExperience();
     AudioManager.playDefaultBgm();
-    void GameSceneBundle.loadScene(GameSceneName.Game).catch((err) => {
-      console.error("[HairGameScene] 下一关加载失败", err);
+    void GameSceneBundle.loadScene(GameSceneName.Main).catch((err) => {
+      console.error("[HairGameScene] 返回主页失败", err);
       this.loadingNextScene = false;
       if (this.nextBtn?.node?.isValid) this.nextBtn.interactable = true;
+      if (this.settingBtn?.node?.isValid) this.settingBtn.interactable = true;
+      if (!this.completed && this.feedVisualEnabled) this.rotating = true;
     });
   }
 
   private resumeAfterMiss(): void {
-    if (!this.completed && !this.adInFlight) this.rotating = true;
+    if (!this.completed && !this.adInFlight && !this.settingsOpen) this.rotating = true;
   }
 
   private activateFeedFromGesture(): void {
