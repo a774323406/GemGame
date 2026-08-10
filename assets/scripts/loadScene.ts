@@ -112,7 +112,7 @@ export class loadScene extends Component {
           sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
         }
         const nextScene = isFeedDirectPlay
-          ? GameSceneName.GetUser
+          ? GameSceneName.HairGame
           : isFirstLaunch
             ? GameSceneName.Game
             : GameSceneName.Main;

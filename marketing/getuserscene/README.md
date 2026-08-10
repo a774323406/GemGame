@@ -1,5 +1,35 @@
 # getuserscene 女性发型小游戏概念
 
+## HairGameScene 当前十关资源
+
+- 运行时目录：`assets/res/texture/hairGame/`
+- 阵容：5 名成年男性、5 名成年女性；第 2、5 关为宽肩肌肉型男性，第 6、8 关为全包裹服装的成熟女性。
+- 人物层统一为 `750×1250` 透明 PNG；头发层统一为 `728×594` 透明 PNG。
+- 头发图片已烘焙原节点 `1.4` 倍缩放，场景中统一使用位置 `(0, 220)`、缩放 `(1, 1)`。
+- 所有头发都以人物图坐标 `(375, 218)` 为共同旋转中心，并用 0° 合成预览校正后再切出。
+- 两张共享背景为 `750×1624` JPG；运行时图片合计保持在 2,000,000 字节以内。
+- `production-sheets/` 是不进入游戏包的生成源图；`hair-game-10-level-preview.jpg` 是十关 0° 对位校样。
+
+局部重建示例：
+
+```bash
+python3 marketing/getuserscene/build_hair_game_assets.py \
+  --output assets/res/texture/hairGame \
+  --bake-existing-hair \
+  --replace 1=marketing/getuserscene/production-sheets/level-01.png \
+  --replace 2=marketing/getuserscene/production-sheets/level-02.png \
+  --replace 5=marketing/getuserscene/production-sheets/level-05.png \
+  --replace 6=marketing/getuserscene/production-sheets/level-06.png \
+  --replace 7=marketing/getuserscene/production-sheets/level-07.png \
+  --replace 8=marketing/getuserscene/production-sheets/level-08.png \
+  --replace-hair 6=marketing/getuserscene/production-sheets/level-06-hair.png \
+  --replace-hair 8=marketing/getuserscene/production-sheets/level-08-hair.png \
+  --preview marketing/getuserscene/hair-game-10-level-preview.jpg
+
+pngquant --quality 0-55 --speed 1 --colors 16 --force --ext .png \
+  assets/res/texture/hairGame/*.png
+```
+
 ## 画面状态
 
 - `female-hair-puzzle-playing-final.png`：挑战进行中；发片错位，只显示操作提示。

@@ -8,8 +8,8 @@ import { adc } from "./framework/Platform/ADController";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 const { ccclass, property } = _decorator;
 
-@ccclass("getUserScene")
-export class getUserScene extends Component {
+@ccclass("HairGameScene")
+export class HairGameScene extends Component {
   @property(Button)
   tipsBtn: Button = null;
   @property(Button)
@@ -204,7 +204,7 @@ export class getUserScene extends Component {
     this.finishFeedExperience();
     AudioManager.playDefaultBgm();
     void GameSceneBundle.loadScene(GameSceneName.Game).catch((err) => {
-      console.error("[getUserScene] 下一关加载失败", err);
+      console.error("[HairGameScene] 下一关加载失败", err);
       this.loadingNextScene = false;
       if (this.nextBtn?.node?.isValid) this.nextBtn.interactable = true;
     });
@@ -335,10 +335,10 @@ export class getUserScene extends Component {
       if (typeof api?.showToast === "function") {
         api.showToast({ title, icon: "none" });
       } else {
-        console.log(`[getUserScene] ${title}`);
+        console.log(`[HairGameScene] ${title}`);
       }
     } catch {
-      console.log(`[getUserScene] ${title}`);
+      console.log(`[HairGameScene] ${title}`);
     }
   }
 

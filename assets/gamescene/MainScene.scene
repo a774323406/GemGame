@@ -1850,7 +1850,7 @@
   },
   {
     "__type__": "cc.Node",
-    "_name": "gotoGetSceneBtn",
+    "_name": "gotoHairGameSceneBtn",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": {
@@ -2241,7 +2241,7 @@
     "startBtn": {
       "__id__": 11
     },
-    "gotoGetUserSceneBtn": {
+    "gotoHairGameSceneBtn": {
       "__id__": 52
     },
     "settingBtn": {

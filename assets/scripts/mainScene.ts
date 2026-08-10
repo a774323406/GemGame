@@ -31,7 +31,7 @@ export class mainScene extends Component {
   @property(Button)
   startBtn: Button = null;
   @property(Button)
-  gotoGetUserSceneBtn: Button = null;
+  gotoHairGameSceneBtn: Button = null;
   @property(Button)
   settingBtn: Button = null;
 
@@ -56,7 +56,7 @@ export class mainScene extends Component {
 
   protected onLoad(): void {
     this.startBtn?.node?.on("click", this.startGame, this);
-    this.gotoGetUserSceneBtn?.node?.on(Button.EventType.CLICK, this.gotoGetUserScene, this);
+    this.gotoHairGameSceneBtn?.node?.on(Button.EventType.CLICK, this.gotoHairGameScene, this);
     this.clearBtn?.node?.on(Node.EventType.TOUCH_END, this.clearData, this);
     this.settingBtn?.node?.on(Node.EventType.TOUCH_END, this.showSettingPanel, this);
     this.sidebarBtn?.node?.on(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
@@ -103,16 +103,16 @@ export class mainScene extends Component {
     }
   }
 
-  private async gotoGetUserScene(): Promise<void> {
-    if (!this.gotoGetUserSceneBtn?.interactable) return;
-    this.gotoGetUserSceneBtn.interactable = false;
+  private async gotoHairGameScene(): Promise<void> {
+    if (!this.gotoHairGameSceneBtn?.interactable) return;
+    this.gotoHairGameSceneBtn.interactable = false;
 
     try {
-      await GameSceneBundle.loadScene(GameSceneName.GetUser);
+      await GameSceneBundle.loadScene(GameSceneName.HairGame);
     } catch (err) {
-      console.error("[mainScene] GetUserScene 加载失败", err);
-      if (this.gotoGetUserSceneBtn?.node?.isValid) {
-        this.gotoGetUserSceneBtn.interactable = true;
+      console.error("[mainScene] HairGameScene 加载失败", err);
+      if (this.gotoHairGameSceneBtn?.node?.isValid) {
+        this.gotoHairGameSceneBtn.interactable = true;
       }
     }
   }
