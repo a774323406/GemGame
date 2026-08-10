@@ -30,7 +30,7 @@ const PRESSURE_LEVEL_MAX_SECONDS = 300;
  * 为避免单关过长，压力关初始时间最多为 5 分钟。
  */
 const PRESSURE_LEVELS = new Set([
-  10, 21, 30, 37, 50, 67, 75, 91, 100, 119, 131, 147, 158, 169, 187, 202, 222,
+  10, 21, 30, 37, 50,
 ]);
 
 const CONNECTED_DIRECTIONS: ReadonlyArray<readonly [number, number]> = [

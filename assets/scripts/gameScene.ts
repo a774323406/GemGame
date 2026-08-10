@@ -158,7 +158,7 @@ const COUNTDOWN_BREATH_SCALE = 1.1;
 const COUNTDOWN_BREATH_HALF_CYCLE = 0.48;
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
-const LAST_STANDARD_LEVEL = 222;
+const LAST_STANDARD_LEVEL = 50;
 const REPLAY_START_LEVEL = 10;
 const FEED_ACQUISITION_LEVEL = 1;
 const FEED_ACQUISITION_SECONDS = 60;
@@ -909,7 +909,7 @@ export class gameScene extends Component {
     }
   }
 
-  /** 把旧版 1～225（缺 118/121/161）的存档映射到新版连续 1～222。 */
+  /** 把旧版存档映射到当前保留的 1～50 关。 */
   private getStoredLevelIndex(): number {
     const storedLevel = Math.max(
       1,
@@ -3176,7 +3176,7 @@ export class gameScene extends Component {
       // 兼容旧入口：只更新下一次复访时间，不再领取或发放挑战奖励。
       FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
     } else if (!this.feedMode && this.levelIndex >= LAST_STANDARD_LEVEL) {
-      // 正式关卡全部完成后进入重玩循环；立即保存，点击主页或直接退出也不会重复第 222 关。
+      // 正式关卡全部完成后进入重玩循环；立即保存，点击主页或直接退出也不会重复第 50 关。
       sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(REPLAY_START_LEVEL));
     }
     this.openPassPanel();
