@@ -271,6 +271,26 @@ export class HairGameScene extends Component {
     }
 
     this.showNextButton();
+    this.requestNormalEntryInterstitial();
+  }
+
+  /**
+   * 主页入口的 HairGame 在发型完成时尝试一次结果插屏。
+   * 具体是否满 60 秒仍由 ADController 统一判断；推荐流入口完全跳过，
+   * 延迟展示前也会再次校验，避免入口状态切换后误弹。
+   */
+  private requestNormalEntryInterstitial(): void {
+    if (FeedAcquisitionService.isActive()) return;
+
+    const completedLevel = HairGameScene.TOTAL_LEVELS - this.remainingLevelIndexes.length;
+    adc.onLevelResult(completedLevel, "pass", {
+      eligible: true,
+      isStillValid: () =>
+        !!this.node?.isValid &&
+        this.node.activeInHierarchy &&
+        !this.settingsOpen &&
+        !FeedAcquisitionService.isActive(),
+    });
   }
 
   private showNextButton(): void {
