@@ -35,7 +35,7 @@ const { ccclass, property } = _decorator;
 
 @ccclass("HairGameScene")
 export class HairGameScene extends Component {
-  private static readonly TOTAL_LEVELS = 10;
+  private static readonly TOTAL_LEVELS = 3;
   private static readonly FIRST_FEMALE_LEVEL_INDEX = 5;
   private static readonly MALE_BACKGROUND_INDEX = 0;
   private static readonly FEMALE_BACKGROUND_INDEX = 2;
@@ -279,7 +279,7 @@ export class HairGameScene extends Component {
       this.nextLabel.string = allLevelsCompleted ? "返回主页" : "下一关";
     }
 
-    // 十关全部完成后，才更新复访挑战的下一次就绪时间。
+    // 三关全部完成后，才更新复访挑战的下一次就绪时间。
     if (allLevelsCompleted && FeedAcquisitionService.isRevisit()) {
       FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
     }
@@ -349,11 +349,14 @@ export class HairGameScene extends Component {
       return;
     }
 
-    const levelCount = Math.min(HairGameScene.TOTAL_LEVELS, controller.pages.length);
-    // selectedIndex 0 已由 firstHair/firstCharacter 这组固定首关替代。
-    this.remainingLevelIndexes = Array.from({ length: Math.max(0, levelCount - 1) }, (_, index) => index + 1);
+    // selectedIndex 0 已由 firstHair/firstCharacter 这组固定首关替代；
+    // 普通关卡仍从全部 1～9 中抽取，而不是固定只玩 1、2。
+    this.remainingLevelIndexes = Array.from(
+      { length: Math.max(0, controller.pages.length - 1) },
+      (_, index) => index + 1,
+    );
 
-    // Fisher-Yates 洗牌，固定首关完成后再随机玩 1～9，且不重复。
+    // Fisher-Yates 洗牌，固定首关完成后随机抽取两关，且不重复。
     for (let index = this.remainingLevelIndexes.length - 1; index > 0; index--) {
       const randomIndex = Math.floor(Math.random() * (index + 1));
       [this.remainingLevelIndexes[index], this.remainingLevelIndexes[randomIndex]] = [
@@ -361,6 +364,10 @@ export class HairGameScene extends Component {
         this.remainingLevelIndexes[index],
       ];
     }
+    this.remainingLevelIndexes.length = Math.min(
+      Math.max(0, HairGameScene.TOTAL_LEVELS - 1),
+      this.remainingLevelIndexes.length,
+    );
 
     this.startFirstLevel();
   }
