@@ -50,6 +50,11 @@ export class HairGameScene extends Component {
   nextLabel: Label = null;
   @property(Button)
   settingBtn: Button = null;
+
+  @property(Node)
+  firstHairNode: Node = null;
+  @property(Node)
+  firstCharacterNode: Node = null;
   @property({ tooltip: "头发每秒旋转角度" })
   rotationSpeed = 252;
 
@@ -71,18 +76,28 @@ export class HairGameScene extends Component {
   private nextOpacity: UIOpacity | null = null;
   private hairController: FGUIController | null = null;
   private characterController: FGUIController | null = null;
+  private firstHairController: FGUIController | null = null;
+  private firstCharacterController: FGUIController | null = null;
   private backgroundController: FGUIController | null = null;
   private titleLabel: Label | null = null;
   private instructionLabel: Label | null = null;
   private instructionGraphics: Graphics | null = null;
   private remainingLevelIndexes: number[] = [];
+  private usingFirstLevel = true;
   private settingsOpen = false;
   private resumeRotationAfterSettings = false;
+
+  private get activeHairNode(): Node | null {
+    const hair = this.usingFirstLevel ? this.firstHairNode : this.hairNode;
+    return hair?.isValid ? hair : null;
+  }
 
   protected onLoad(): void {
     this.enforceCharacterLayerLayout();
     this.hairController = this.hairNode?.getComponent(FGUIController) ?? null;
     this.characterController = this.node.getChildByName("characterNode")?.getComponent(FGUIController) ?? null;
+    this.firstHairController = this.firstHairNode?.getComponent(FGUIController) ?? null;
+    this.firstCharacterController = this.firstCharacterNode?.getComponent(FGUIController) ?? null;
     this.backgroundController = this.node.getChildByName("bg")?.getComponent(FGUIController) ?? null;
     this.createThemedCopy();
     adc.setBannerEnabled(false);
@@ -133,10 +148,6 @@ export class HairGameScene extends Component {
       this.nextOpacity.opacity = 0;
     }
 
-    if (this.hairNode) {
-      this.hairNode.angle = this.normalizeAngle(this.hairNode.angle);
-    }
-
     this.initializeLevelOrder();
 
     if (isFeedDirectPlay) {
@@ -147,8 +158,9 @@ export class HairGameScene extends Component {
   }
 
   protected update(deltaTime: number): void {
+    const hair = this.activeHairNode;
     if (
-      !this.hairNode ||
+      !hair ||
       !this.rotating ||
       this.completed ||
       this.adInFlight ||
@@ -158,7 +170,7 @@ export class HairGameScene extends Component {
       return;
     }
 
-    this.hairNode.angle = this.normalizeAngle(this.hairNode.angle - Math.max(0, this.rotationSpeed) * deltaTime);
+    hair.angle = this.normalizeAngle(hair.angle - Math.max(0, this.rotationSpeed) * deltaTime);
   }
 
   private onScreenClicked(event: EventTouch): void {
@@ -172,8 +184,9 @@ export class HairGameScene extends Component {
     }
 
     this.activateFeedFromGesture();
+    const hair = this.activeHairNode;
     if (
-      !this.hairNode ||
+      !hair ||
       !this.feedInteractionEnabled ||
       !this.rotating ||
       this.completed ||
@@ -185,7 +198,7 @@ export class HairGameScene extends Component {
 
     AudioManager.playEffect(soundName.getUserClick);
     this.rotating = false;
-    const angleError = Math.abs(this.normalizeAngle(this.hairNode.angle));
+    const angleError = Math.abs(this.normalizeAngle(hair.angle));
     if (angleError <= Math.max(0, this.successAngleTolerance)) {
       this.alignHairAndComplete(0.18);
       return;
@@ -231,18 +244,19 @@ export class HairGameScene extends Component {
   }
 
   private alignHairAndComplete(duration: number): void {
-    if (!this.hairNode || this.completed) return;
+    const hair = this.activeHairNode;
+    if (!hair || this.completed) return;
 
     this.rotating = false;
     this.unschedule(this.resumeAfterMiss);
-    Tween.stopAllByTarget(this.hairNode);
-    this.hairNode.angle = this.normalizeAngle(this.hairNode.angle);
+    Tween.stopAllByTarget(hair);
+    hair.angle = this.normalizeAngle(hair.angle);
 
-    tween(this.hairNode)
+    tween(hair)
       .to(duration, { angle: 0 }, { easing: "quadOut" })
       .call(() => {
-        if (!this.hairNode?.isValid || this.completed) return;
-        this.hairNode.angle = 0;
+        if (!hair.isValid || this.completed) return;
+        hair.angle = 0;
         AudioManager.playEffect(soundName.hairSuccess);
         this.completeChallenge();
       })
@@ -286,10 +300,7 @@ export class HairGameScene extends Component {
     adc.onLevelResult(completedLevel, "pass", {
       eligible: true,
       isStillValid: () =>
-        !!this.node?.isValid &&
-        this.node.activeInHierarchy &&
-        !this.settingsOpen &&
-        !FeedAcquisitionService.isActive(),
+        !!this.node?.isValid && this.node.activeInHierarchy && !this.settingsOpen && !FeedAcquisitionService.isActive(),
     });
   }
 
@@ -339,9 +350,10 @@ export class HairGameScene extends Component {
     }
 
     const levelCount = Math.min(HairGameScene.TOTAL_LEVELS, controller.pages.length);
-    this.remainingLevelIndexes = Array.from({ length: levelCount }, (_, index) => index);
+    // selectedIndex 0 已由 firstHair/firstCharacter 这组固定首关替代。
+    this.remainingLevelIndexes = Array.from({ length: Math.max(0, levelCount - 1) }, (_, index) => index + 1);
 
-    // Fisher-Yates 洗牌，之后逐个弹出，保证十关随机且不重复。
+    // Fisher-Yates 洗牌，固定首关完成后再随机玩 1～9，且不重复。
     for (let index = this.remainingLevelIndexes.length - 1; index > 0; index--) {
       const randomIndex = Math.floor(Math.random() * (index + 1));
       [this.remainingLevelIndexes[index], this.remainingLevelIndexes[randomIndex]] = [
@@ -350,17 +362,59 @@ export class HairGameScene extends Component {
       ];
     }
 
-    this.startNextLevel();
+    this.startFirstLevel();
+  }
+
+  private startFirstLevel(): void {
+    this.resetLevelPresentation();
+    this.usingFirstLevel = true;
+
+    this.firstHairController?.setSelectedIndex(0);
+    this.firstCharacterController?.setSelectedIndex(0);
+    this.backgroundController?.setSelectedIndex(HairGameScene.MALE_BACKGROUND_INDEX);
+    this.applyCopyTheme(false);
+    this.setThemedCopyVisible(false);
+
+    if (this.hairNode?.isValid) this.hairNode.active = false;
+    if (this.characterController?.node?.isValid) this.characterController.node.active = false;
+    if (this.firstCharacterNode?.isValid) this.firstCharacterNode.active = true;
+    if (this.firstHairNode?.isValid) {
+      this.firstHairNode.active = true;
+      this.firstHairNode.angle = this.normalizeAngle(this.firstHairNode.angle);
+    }
+
+    if (!this.firstHairNode?.isValid || !this.firstCharacterNode?.isValid) {
+      console.error("[HairGameScene] 固定首关缺少 firstHairNode 或 firstCharacterNode 绑定");
+      this.rotating = false;
+      return;
+    }
+
+    this.rotating = true;
   }
 
   private startNextLevel(): void {
     const nextIndex = this.remainingLevelIndexes.pop();
     if (nextIndex === undefined) return;
 
-    this.unschedule(this.resumeAfterMiss);
+    this.resetLevelPresentation();
+    this.usingFirstLevel = false;
+    if (this.firstHairNode?.isValid) this.firstHairNode.active = false;
+    if (this.firstCharacterNode?.isValid) this.firstCharacterNode.active = false;
+
+    this.applyLevelVisuals(nextIndex);
+    this.setThemedCopyVisible(true);
+    if (this.characterController?.node?.isValid) this.characterController.node.active = true;
     if (this.hairNode?.isValid) {
-      Tween.stopAllByTarget(this.hairNode);
+      this.hairNode.active = true;
+      this.hairNode.angle = this.normalizeAngle(this.hairNode.angle);
     }
+    this.rotating = true;
+  }
+
+  private resetLevelPresentation(): void {
+    this.unschedule(this.resumeAfterMiss);
+    if (this.hairNode?.isValid) Tween.stopAllByTarget(this.hairNode);
+    if (this.firstHairNode?.isValid) Tween.stopAllByTarget(this.firstHairNode);
     if (this.nextOpacity?.isValid) {
       Tween.stopAllByTarget(this.nextOpacity);
       this.nextOpacity.opacity = 0;
@@ -380,11 +434,7 @@ export class HairGameScene extends Component {
 
     this.completed = false;
     this.adInFlight = false;
-    this.applyLevelVisuals(nextIndex);
-    if (this.hairNode?.isValid) {
-      this.hairNode.angle = this.normalizeAngle(this.hairNode.angle);
-    }
-    this.rotating = true;
+    this.rotating = false;
   }
 
   private applyLevelVisuals(levelIndex: number): void {
@@ -399,6 +449,11 @@ export class HairGameScene extends Component {
         : HairGameScene.FEMALE_BACKGROUND_INDEX;
     this.backgroundController?.setSelectedIndex(backgroundIndex);
     this.applyCopyTheme(levelIndex >= HairGameScene.FIRST_FEMALE_LEVEL_INDEX);
+  }
+
+  private setThemedCopyVisible(visible: boolean): void {
+    if (this.titleLabel?.node?.isValid) this.titleLabel.node.active = visible;
+    if (this.instructionGraphics?.node?.isValid) this.instructionGraphics.node.active = visible;
   }
 
   private createThemedCopy(): void {
@@ -538,11 +593,7 @@ export class HairGameScene extends Component {
     if (!this.settingsOpen) return;
 
     this.settingsOpen = false;
-    const shouldResume =
-      restoreGameState &&
-      this.resumeRotationAfterSettings &&
-      !this.completed &&
-      !this.adInFlight;
+    const shouldResume = restoreGameState && this.resumeRotationAfterSettings && !this.completed && !this.adInFlight;
     this.rotating = shouldResume;
     this.resumeRotationAfterSettings = false;
     PlayData.Instance.ispause = false;
@@ -711,6 +762,7 @@ export class HairGameScene extends Component {
     director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     if (this.hairNode?.isValid) Tween.stopAllByTarget(this.hairNode);
+    if (this.firstHairNode?.isValid) Tween.stopAllByTarget(this.firstHairNode);
     if (this.nextOpacity?.isValid) Tween.stopAllByTarget(this.nextOpacity);
   }
 }
