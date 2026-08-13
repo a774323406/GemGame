@@ -49,7 +49,10 @@ export class mainScene extends Component {
 
   @property(Node)
   shareRedDot: Node = null;
-
+  @property(Button)
+  shootingGameBtn: Button = null;
+  @property(Button)
+  testBtn: Button = null;
   private feedSubscribeBtn: Button | null = null;
   private startButtonBaseY: number | null = null;
   private shareInFlight = false;
@@ -61,6 +64,8 @@ export class mainScene extends Component {
     this.settingBtn?.node?.on(Node.EventType.TOUCH_END, this.showSettingPanel, this);
     this.sidebarBtn?.node?.on(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
     this.shareBtn?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
+    this.shootingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
+    this.testBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     if (this.startBtn?.node) {
@@ -113,6 +118,23 @@ export class mainScene extends Component {
       console.error("[mainScene] HairGameScene 加载失败", err);
       if (this.gotoHairGameSceneBtn?.node?.isValid) {
         this.gotoHairGameSceneBtn.interactable = true;
+      }
+    }
+  }
+
+  private async gotoShootingGlassBottles(): Promise<void> {
+    const entryButton = this.shootingGameBtn?.node?.activeInHierarchy
+      ? this.shootingGameBtn
+      : this.testBtn;
+    if (!entryButton?.interactable) return;
+    entryButton.interactable = false;
+
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.ShootingGlassBottles);
+    } catch (err) {
+      console.error("[mainScene] ShootingGlassBottlesGame 加载失败", err);
+      if (entryButton.node?.isValid) {
+        entryButton.interactable = true;
       }
     }
   }

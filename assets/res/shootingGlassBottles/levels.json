@@ -1,0 +1,37 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "bottleCount": 10,
+      "ammo": 13,
+      "timeSeconds": 48,
+      "minSwingDegrees": 32,
+      "maxSwingDegrees": 40,
+      "minSwingSpeed": 1.75,
+      "maxSwingSpeed": 2.15,
+      "hitRadius": 22
+    },
+    {
+      "level": 2,
+      "bottleCount": 10,
+      "ammo": 12,
+      "timeSeconds": 52,
+      "minSwingDegrees": 36,
+      "maxSwingDegrees": 46,
+      "minSwingSpeed": 1.95,
+      "maxSwingSpeed": 2.4,
+      "hitRadius": 18
+    },
+    {
+      "level": 3,
+      "bottleCount": 10,
+      "ammo": 11,
+      "timeSeconds": 56,
+      "minSwingDegrees": 40,
+      "maxSwingDegrees": 52,
+      "minSwingSpeed": 2.15,
+      "maxSwingSpeed": 2.65,
+      "hitRadius": 15
+    }
+  ]
+}

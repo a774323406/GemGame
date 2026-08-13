@@ -36,9 +36,9 @@ const { ccclass, property } = _decorator;
 @ccclass("HairGameScene")
 export class HairGameScene extends Component {
   private static readonly TOTAL_LEVELS = 3;
-  private static readonly FIRST_FEMALE_LEVEL_INDEX = 5;
-  private static readonly MALE_BACKGROUND_INDEX = 0;
-  private static readonly FEMALE_BACKGROUND_INDEX = 2;
+  private static readonly BLUE_BACKGROUND_INDEX = 0;
+  private static readonly CHARACTER_03_INDEX = 0;
+  private static readonly CHARACTER_04_INDEX = 1;
 
   @property(Button)
   tipsBtn: Button = null;
@@ -342,32 +342,15 @@ export class HairGameScene extends Component {
   }
 
   private initializeLevelOrder(): void {
-    const controller = this.hairController;
-    if (!controller) {
-      console.error("[HairGameScene] hairNode 缺少 FGUIController，无法切换头发关卡");
+    if (!this.hairController || !this.characterController) {
+      console.error("[HairGameScene] hairNode 或 characterNode 缺少 FGUIController，无法切换头发关卡");
       this.remainingLevelIndexes = [];
       return;
     }
 
-    // selectedIndex 0 已由 firstHair/firstCharacter 这组固定首关替代；
-    // 普通关卡仍从全部 1～9 中抽取，而不是固定只玩 1、2。
-    this.remainingLevelIndexes = Array.from(
-      { length: Math.max(0, controller.pages.length - 1) },
-      (_, index) => index + 1,
-    );
-
-    // Fisher-Yates 洗牌，固定首关完成后随机抽取两关，且不重复。
-    for (let index = this.remainingLevelIndexes.length - 1; index > 0; index--) {
-      const randomIndex = Math.floor(Math.random() * (index + 1));
-      [this.remainingLevelIndexes[index], this.remainingLevelIndexes[randomIndex]] = [
-        this.remainingLevelIndexes[randomIndex],
-        this.remainingLevelIndexes[index],
-      ];
-    }
-    this.remainingLevelIndexes.length = Math.min(
-      Math.max(0, HairGameScene.TOTAL_LEVELS - 1),
-      this.remainingLevelIndexes.length,
-    );
+    // 固定三关：首关使用 firstHair/firstCharacter，随后依次使用 character-03、character-04。
+    // FGUI 已精简为两个状态：index 0 对应 03，index 1 对应 04。
+    this.remainingLevelIndexes = [HairGameScene.CHARACTER_03_INDEX, HairGameScene.CHARACTER_04_INDEX];
 
     this.startFirstLevel();
   }
@@ -378,7 +361,7 @@ export class HairGameScene extends Component {
 
     this.firstHairController?.setSelectedIndex(0);
     this.firstCharacterController?.setSelectedIndex(0);
-    this.backgroundController?.setSelectedIndex(HairGameScene.MALE_BACKGROUND_INDEX);
+    this.backgroundController?.setSelectedIndex(HairGameScene.BLUE_BACKGROUND_INDEX);
     this.applyCopyTheme(false);
     this.setThemedCopyVisible(false);
 
@@ -400,7 +383,7 @@ export class HairGameScene extends Component {
   }
 
   private startNextLevel(): void {
-    const nextIndex = this.remainingLevelIndexes.pop();
+    const nextIndex = this.remainingLevelIndexes.shift();
     if (nextIndex === undefined) return;
 
     this.resetLevelPresentation();
@@ -449,13 +432,9 @@ export class HairGameScene extends Component {
     this.hairController?.setSelectedIndex(levelIndex);
     this.characterController?.setSelectedIndex(levelIndex);
 
-    // 男性 0～4 使用 bg 状态 0；女性 5～9 使用 bg 状态 2。
-    const backgroundIndex =
-      levelIndex < HairGameScene.FIRST_FEMALE_LEVEL_INDEX
-        ? HairGameScene.MALE_BACKGROUND_INDEX
-        : HairGameScene.FEMALE_BACKGROUND_INDEX;
-    this.backgroundController?.setSelectedIndex(backgroundIndex);
-    this.applyCopyTheme(levelIndex >= HairGameScene.FIRST_FEMALE_LEVEL_INDEX);
+    // 仅保留 character-03、04，二者都使用蓝色背景与蓝色文案主题。
+    this.backgroundController?.setSelectedIndex(HairGameScene.BLUE_BACKGROUND_INDEX);
+    this.applyCopyTheme(false);
   }
 
   private setThemedCopyVisible(visible: boolean): void {
@@ -522,8 +501,7 @@ export class HairGameScene extends Component {
     instructionWidget.horizontalCenter = 0;
     instructionWidget.updateAlignment();
 
-    const initialIndex = this.characterController?.selectedIndex ?? 0;
-    this.applyCopyTheme(initialIndex >= HairGameScene.FIRST_FEMALE_LEVEL_INDEX);
+    this.applyCopyTheme(false);
   }
 
   private applyCopyTheme(isFemale: boolean): void {

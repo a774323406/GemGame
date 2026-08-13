@@ -112,12 +112,12 @@ export class loadScene extends Component {
           sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
         }
         const nextScene = isFeedDirectPlay
-          ? GameSceneName.HairGame
+          ? GameSceneName.ShootingGlassBottles
           : isFirstLaunch
             ? GameSceneName.Game
             : GameSceneName.Main;
         const entryReason = isFeedDirectPlay
-          ? "推荐流头发校准挑战"
+          ? "推荐流打瓶子挑战"
           : isFirstLaunch
             ? "首次启动直接进入关卡"
             : "正常进入主界面";
