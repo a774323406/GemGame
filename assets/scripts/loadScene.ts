@@ -12,7 +12,14 @@ import {
 import AudioManager from "./framework/AudioManager";
 import gamePrefabMgr from "./gamePrefabMgr";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
-import { FeedAcquisitionService } from "./framework/Platform/FeedAcquisitionService";
+import {
+  FeedAcquisitionService,
+  FeedDirectPlayMode,
+} from "./framework/Platform/FeedAcquisitionService";
+import {
+  FEED_HAIR_CONTENT_ID,
+  FEED_SHOOTING_CONTENT_ID,
+} from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
@@ -111,13 +118,14 @@ export class loadScene extends Component {
           // 旧版本玩家已有关卡进度，迁移为“已完成首次入口”。
           sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
         }
-        const nextScene = isFeedDirectPlay
-          ? GameSceneName.ShootingGlassBottles
+        const feedEntry = isFeedDirectPlay ? this.resolveFeedEntry() : null;
+        const nextScene = feedEntry
+          ? feedEntry.sceneName
           : isFirstLaunch
             ? GameSceneName.Game
             : GameSceneName.Main;
-        const entryReason = isFeedDirectPlay
-          ? "推荐流打瓶子挑战"
+        const entryReason = feedEntry
+          ? feedEntry.reason
           : isFirstLaunch
             ? "首次启动直接进入关卡"
             : "正常进入主界面";
@@ -181,6 +189,48 @@ export class loadScene extends Component {
       this.hasEnteredNextScene = false;
       throw err;
     }
+  }
+
+  /**
+   * 获客按方案 Content_ID 分流；复访固定进入打瓶子玩法。
+   * 未知获客 ID 继续进入打瓶子，保证新建/测试方案不会卡在加载页。
+   */
+  private resolveFeedEntry(): { sceneName: GameSceneName; reason: string } {
+    const state = FeedAcquisitionService.getState();
+    const contentId = String(state.contentId || "").trim();
+
+    if (state.mode === "revisit") {
+      return {
+        sceneName: GameSceneName.ShootingGlassBottles,
+        reason: `推荐流复访打瓶子（${contentId || "无 Content_ID"}）`,
+      };
+    }
+
+    if (contentId === FEED_HAIR_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.HairGame,
+        reason: `推荐流头发校准方案（${contentId}）`,
+      };
+    }
+
+    if (contentId === FEED_SHOOTING_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.ShootingGlassBottles,
+        reason: `推荐流打瓶子方案（${contentId}）`,
+      };
+    }
+
+    this.warnUnknownFeedContentId(state.mode, contentId);
+    return {
+      sceneName: GameSceneName.ShootingGlassBottles,
+      reason: `推荐流未知方案兜底打瓶子（${contentId || "无 Content_ID"}）`,
+    };
+  }
+
+  private warnUnknownFeedContentId(mode: FeedDirectPlayMode, contentId: string): void {
+    console.warn(
+      `[loadScene] 未配置推荐流 Content_ID 映射，使用打瓶子兜底: mode=${mode}, contentId=${contentId || "empty"}`,
+    );
   }
 
   private showLoadError() {

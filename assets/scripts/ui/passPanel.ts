@@ -1,14 +1,11 @@
-import { _decorator, Button, director, Label, Node, Size, Sprite, SpriteFrame, tween, Tween, UITransform, Vec3 } from "cc";
+import { _decorator, Button, Label, Node, Size, Sprite, SpriteFrame, tween, Tween, UITransform, Vec3 } from "cc";
 import { ResourceManager } from "../framework/ResourceManager";
 import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import UIManager from "../framework/ui/UIManager";
 import { uiName } from "../gamePrefabMgr";
 import { ShareActionResult } from "../framework/Platform/ShareRewardService";
-import { adc } from "../framework/Platform/ADController";
-import { SdkUtils } from "../framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
-const PASS_BANNER_OWNER = "ui.passPanel";
 
 export interface PassPanelData {
   level: number;
@@ -51,12 +48,8 @@ export class passPanel extends UIBase {
   private previewBounds = new Size();
   private actionHandled = false;
   private shareBusy = false;
-  private bannerContentBaseY: number | null = null;
 
   protected onLoad() {
-    const content = this.getContentNode();
-    if (content) this.bannerContentBaseY = content.position.y;
-    director.on(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
     this.nextButton?.node.on(Button.EventType.CLICK, this.onNext, this);
     this.homeButton?.node.on(Button.EventType.CLICK, this.onHome, this);
     this.shareButton?.node.on(Button.EventType.CLICK, this.onShare, this);
@@ -68,14 +61,10 @@ export class passPanel extends UIBase {
   }
 
   protected onDestroy() {
-    director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
-    adc.setBannerRequested(PASS_BANNER_OWNER, false);
     this.stopShareBadgeAnimation();
   }
 
   public onOpen(data?: PassPanelData) {
-    adc.setBannerRequested(PASS_BANNER_OWNER, true);
-    this.applyBannerInset(SdkUtils.getBannerInsetRatio());
     this.data = data || null;
     this.actionHandled = false;
     this.shareBusy = false;
@@ -111,32 +100,6 @@ export class passPanel extends UIBase {
     }
     this.loadPreview(level);
     this.playCelebration();
-  }
-
-  public onClose() {
-    // hide() 开始时 isOpen 会先变为 false；在关闭动画真正完成后释放请求，
-    // 使 Banner 在弹窗仍可见期间保持显示。
-    if (!this.isOpen) {
-      adc.setBannerRequested(PASS_BANNER_OWNER, false);
-    }
-    super.onClose();
-  }
-
-  private onBannerInsetChanged(ratio: number): void {
-    this.applyBannerInset(ratio);
-  }
-
-  private applyBannerInset(ratio: number): void {
-    const content = this.getContentNode();
-    if (!content) return;
-    if (this.bannerContentBaseY === null) this.bannerContentBaseY = content.position.y;
-
-    const inset = Math.max(0, Math.min(0.5, Number(ratio) || 0)) * 1334;
-    content.setPosition(
-      content.position.x,
-      this.bannerContentBaseY + inset * 0.5,
-      content.position.z,
-    );
   }
 
   private async onShare() {

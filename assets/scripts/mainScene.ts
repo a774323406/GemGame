@@ -3,7 +3,6 @@ import {
   Button,
   Color,
   Component,
-  director,
   game,
   Game,
   Graphics,
@@ -19,7 +18,6 @@ import { uiName } from "./gamePrefabMgr";
 import { SidebarRewardService, SidebarRewardState } from "./framework/Platform/SidebarRewardService";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 import { FeedRevisitService, FeedSubscribeResult } from "./framework/Platform/FeedRevisitService";
-import { adc } from "./framework/Platform/ADController";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { ToolInventory } from "./ToolInventory";
 import { ShareRewardService } from "./framework/Platform/ShareRewardService";
@@ -54,7 +52,6 @@ export class mainScene extends Component {
   @property(Button)
   testBtn: Button = null;
   private feedSubscribeBtn: Button | null = null;
-  private startButtonBaseY: number | null = null;
   private shareInFlight = false;
 
   protected onLoad(): void {
@@ -67,13 +64,6 @@ export class mainScene extends Component {
     this.shootingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
     this.testBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
-
-    if (this.startBtn?.node) {
-      this.startButtonBaseY = this.startBtn.node.position.y;
-    }
-    director.on(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
-    adc.setBannerEnabled(true);
-    this.applyBannerInset(SdkUtils.getBannerInsetRatio());
 
     if (this.sidebarBtn?.node) {
       this.sidebarBtn.node.active = false;
@@ -89,7 +79,6 @@ export class mainScene extends Component {
   }
 
   protected onDestroy(): void {
-    director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
   }
@@ -289,20 +278,6 @@ export class mainScene extends Component {
       if (this.shareBtn?.node?.isValid) this.shareBtn.interactable = true;
       this.refreshShareEntry();
     }
-  }
-
-  private onBannerInsetChanged(ratio: number) {
-    this.applyBannerInset(ratio);
-  }
-
-  private applyBannerInset(ratio: number) {
-    const node = this.startBtn?.node;
-    if (!node || this.startButtonBaseY === null) return;
-
-    // 场景设计高度是 1334，底部原本已留有约 72 设计像素空白。
-    const inset = Math.max(0, Math.min(0.5, Number(ratio) || 0)) * 1334;
-    const offset = Math.max(0, inset - 72);
-    node.setPosition(node.position.x, this.startButtonBaseY + offset, node.position.z);
   }
 
   update(deltaTime: number) {}

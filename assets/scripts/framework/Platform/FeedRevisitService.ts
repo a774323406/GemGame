@@ -195,7 +195,13 @@ export class FeedRevisitService {
 
   /** 挑战完成后覆盖旧规则，测试版 60 秒、正式版 24 小时后再次就绪。 */
   public static scheduleNextImportantEvent(contentId = ""): void {
-    const resolvedContentId = this.isValidContentId(contentId) ? contentId : FEED_REVISIT_CONTENT_ID;
+    const requestedContentId = String(contentId || "").trim();
+    if (requestedContentId && requestedContentId !== FEED_REVISIT_CONTENT_ID) {
+      console.warn(
+        `[FeedRevisit] 忽略旧复访 Content_ID ${requestedContentId}，改用打瓶子方案 ${FEED_REVISIT_CONTENT_ID}`,
+      );
+    }
+    const resolvedContentId = FEED_REVISIT_CONTENT_ID;
     if (!this.isValidContentId(resolvedContentId)) {
       this.warnMissingContentId();
       return;
@@ -291,7 +297,7 @@ export class FeedRevisitService {
             sys.localStorage.setItem(STORAGE_CONTENT_ID_KEY, contentId);
             sys.localStorage.setItem(STORAGE_READY_AT_KEY, String(readyAt));
             console.log(
-              `[FeedRevisit] 头发校准挑战已排期: ${new Date(readyAt).toISOString()}`,
+              `[FeedRevisit] 打瓶子挑战已排期: ${new Date(readyAt).toISOString()}`,
             );
             resolve(true);
           },

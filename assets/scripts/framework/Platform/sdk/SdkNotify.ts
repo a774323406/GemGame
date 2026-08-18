@@ -12,9 +12,4 @@ export class SDKNotify {
     // CarColorsGlobalInstance.instance.uiSysterm.hideUI(UINames.YinSiZhengCePage)
     // CarColorsGlobalInstance.instance.uiSysterm.hideUI(UINames.ShiLingTiShiPage)
   }
-
-  /**
-   * 游戏开始时4秒后游戏被动弹出“虚拟banner广告位”，点击后触发激励视频；
-   */
-  public static showVirtualBanner() {}
 }

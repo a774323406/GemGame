@@ -100,7 +100,6 @@ export class HairGameScene extends Component {
     this.firstCharacterController = this.firstCharacterNode?.getComponent(FGUIController) ?? null;
     this.backgroundController = this.node.getChildByName("bg")?.getComponent(FGUIController) ?? null;
     this.createThemedCopy();
-    adc.setBannerEnabled(false);
     this.node.on(Node.EventType.TOUCH_END, this.onScreenClicked, this);
     this.tipsBtn?.node?.on(Button.EventType.CLICK, this.onTipsClicked, this);
     this.nextBtn?.node?.on(Button.EventType.CLICK, this.onNextClicked, this);

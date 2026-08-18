@@ -1,7 +1,6 @@
 import { http } from "./HttpRequest";
 import { BaseSDK } from "./BaseSDK";
 import { GlobalTool } from "./GlobalTool";
-import { View } from "cc";
 
 export class WeChatSDK extends BaseSDK {
   TAG = `WeChatSDK`;
@@ -10,7 +9,6 @@ export class WeChatSDK extends BaseSDK {
 
   ver = "1.0.0";
   videoAdUnitId = "adunit-58cb1165d95e45cc";
-  bannerAdUnitId = "";
   InterstitialAdUnitId = "adunit-94155ebc0d5844f0";
   customAdUnitId = "adunit-75d8ceca9c1cedd4";
   log(...args: any[]) {
@@ -114,37 +112,6 @@ export class WeChatSDK extends BaseSDK {
       this.onVideCanceled();
     }, 120);
   }
-  bannerAd: any = null;
-  showADBanner(callback?: Function) {
-    if (!this.bannerAd) {
-      this.bannerAd = wx.createBannerAd({
-        adUnitId: this.bannerAdUnitId,
-        style: {
-          left: 10,
-          top: 76,
-          width: 320,
-        },
-      });
-    }
-
-    this.bannerAd.onLoad(() => {
-      console.log("banner 广告加载成功");
-      this.bannerAd.show().then(() => console.log("banner 广告显示"));
-    });
-  }
-
-  destroyADBanner() {
-    this.bannerAd?.destroy();
-    this.bannerAd = wx.createBannerAd({
-      adUnitId: this.bannerAdUnitId,
-      style: {
-        left: 10,
-        top: 76,
-        width: 320,
-      },
-    });
-  }
-
   interstitialAd: any = null;
   showInterstitialAd(callback?: Function) {
     if (!this.interstitialAd) {

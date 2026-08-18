@@ -9,5 +9,4 @@ export enum EventTag {
     AD_REFERSH = "AD_REFERSH",
     AD_SORT = "AD_SORT",
     AD_VIP = "AD_VIP",
-    CLICK_VIRTUAL_BANNER = "CLICK_VIRTUAL_BANNER",
 }

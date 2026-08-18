@@ -1,16 +1,20 @@
+/** 推荐流方案管理中与实际玩法一一对应的 Content_ID。 */
+export const FEED_HAIR_CONTENT_ID = "CONTENT14298654722";
+export const FEED_SHOOTING_CONTENT_ID = "CONTENT14389313538";
+
 /**
  * 抖音推荐流直玩复访版配置。
  *
- * 后台路径：运营 -> 能力中心 -> 推荐流直玩游戏能力 -> 复访能力。
- * 选择「重要事件掉落」并完成方案提报后，把平台生成的 CONTENT... 填到这里。
+ * 复访固定使用打瓶子方案。后台路径：运营 -> 能力中心 ->
+ * 推荐流直玩游戏能力 -> 复访能力。该方案必须处于已上线状态才能承接正式流量。
  */
-export const FEED_REVISIT_CONTENT_ID = "CONTENT14256097026";
+export const FEED_REVISIT_CONTENT_ID = FEED_SHOOTING_CONTENT_ID;
 
 /** 抖音固定场景：3 = 重要事件掉落。 */
 export const FEED_REVISIT_SCENE = 3;
 
-/** 新版复访统一进入头发校准小游戏，不再携带随机关卡。 */
-export const FEED_REVISIT_EVENT = "hair_alignment_challenge";
+/** 新版复访统一进入打瓶子小游戏，不再携带随机关卡。 */
+export const FEED_REVISIT_EVENT = "shooting_bottle_challenge";
 
 /** 以下随机关卡配置仅用于兼容改版前已经投放的复访 extra。 */
 export const FEED_REVISIT_CHALLENGE_MIN_SECONDS = 120;

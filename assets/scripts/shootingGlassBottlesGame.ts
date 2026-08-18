@@ -31,6 +31,7 @@ import AudioManager from "./framework/AudioManager";
 import gamePrefabMgr, { soundName, uiName } from "./gamePrefabMgr";
 import PlayData from "./data/PlayData";
 import { FeedAcquisitionService, FeedAcquisitionState } from "./framework/Platform/FeedAcquisitionService";
+import { FeedRevisitService } from "./framework/Platform/FeedRevisitService";
 import { adc } from "./framework/Platform/ADController";
 
 const { ccclass, property } = _decorator;
@@ -250,6 +251,7 @@ export class shootingGlassBottlesGame extends Component {
   private feedAudioGestureRecovered = false;
   private feedInterstitialScheduled = false;
   private feedExperienceFinished = false;
+  private feedRevisitScheduled = false;
 
   private gameRoot: Node | null = null;
   private playfield: Node | null = null;
@@ -911,6 +913,14 @@ export class shootingGlassBottlesGame extends Component {
     this.failureReason = success ? null : this.resolveFailureReason();
     this.stopTimerBreathing();
     const accuracy = this.totalShots > 0 ? Math.round((this.hits / this.totalShots) * 100) : 0;
+    const revisitCompleted =
+      success &&
+      FeedAcquisitionService.isRevisit() &&
+      this.levelCursor >= this.levels.length - 1;
+    if (revisitCompleted && !this.feedRevisitScheduled) {
+      this.feedRevisitScheduled = true;
+      FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
+    }
     if (this.overlayTitle) {
       this.overlayTitle.string = success ? "挑战成功" : "挑战失败";
       this.overlayTitle.color = success
@@ -927,7 +937,9 @@ export class shootingGlassBottlesGame extends Component {
     }
     if (this.nextButtonLabel) {
       this.nextButtonLabel.string = success
-        ? this.levelCursor >= this.levels.length - 1
+        ? revisitCompleted
+          ? "返回主页"
+          : this.levelCursor >= this.levels.length - 1
           ? "重新开始"
           : "下一关"
         : this.failureReason === "ammo"
@@ -954,6 +966,13 @@ export class shootingGlassBottlesGame extends Component {
     if (this.state === "failed") {
       if (this.failureReason === "ammo") void this.watchAdForAmmo(true);
       else void this.watchAdForTime(true);
+      return;
+    }
+    if (
+      FeedAcquisitionService.isRevisit() &&
+      this.levelCursor >= this.levels.length - 1
+    ) {
+      this.returnToMainScene();
       return;
     }
     this.startLevel(this.levelCursor + 1);

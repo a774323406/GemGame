@@ -17,14 +17,12 @@ import { GlobalTool } from "./GlobalTool";
 
 export class SdkUtils {
   static readonly EVENT_AD_PAUSE_CHANGED = "sdk_rewarded_video_pause_changed";
-  static readonly EVENT_BANNER_INSET_CHANGED = "sdk_banner_inset_changed";
   static sdk: BaseSDK = null;
   private static adPauseCount: number = 0;
   private static pauseBeforeAd: boolean = false;
   private static rewardedVideoBusy: boolean = false;
   private static interstitialBusy: boolean = false;
   private static shareBusy: boolean = false;
-  private static bannerInsetRatio: number = 0;
   static isSDKEnvironment(): boolean {
     return !!this.sdk && this.sdk.constructor !== BaseSDK;
   }
@@ -137,50 +135,6 @@ export class SdkUtils {
 
   static isFullscreenAdBusy(): boolean {
     return SdkUtils.rewardedVideoBusy || SdkUtils.interstitialBusy || SdkUtils.shareBusy;
-  }
-
-  /** Banner 在后台异步拉取，不显示加载遮罩，也不暂停游戏。 */
-  static showADBanner(callback?: Function, failCB?: Function, closeCB?: Function): boolean {
-    if (!SdkUtils.sdk) {
-      SdkUtils.requireSDK();
-    }
-    if (!GameConfig.showAd) {
-      return false;
-    }
-
-    try {
-      SdkUtils.sdk.showADBanner(
-        callback,
-        failCB,
-        closeCB,
-        (height: number, viewportHeight: number) => {
-          SdkUtils.updateBannerInset(height, viewportHeight);
-        },
-      );
-      return true;
-    } catch (err) {
-      console.warn("[SdkUtils] showADBanner failed", err);
-      SdkUtils.clearBannerInset();
-      failCB && failCB(err);
-      return false;
-    }
-  }
-
-  static destroyADBanner() {
-    try {
-      SdkUtils.sdk?.destroyADBanner();
-    } catch (err) {
-      console.warn("[SdkUtils] destroyADBanner failed", err);
-    }
-    SdkUtils.clearBannerInset();
-  }
-
-  static getBannerInsetRatio(): number {
-    return SdkUtils.bannerInsetRatio;
-  }
-
-  static clearBannerInset() {
-    SdkUtils.updateBannerInset(0, 1);
   }
 
   /** 原生模板 */
@@ -350,11 +304,4 @@ export class SdkUtils {
     AudioManager.resumeLoopEffect();
   }
 
-  private static updateBannerInset(height: number, viewportHeight: number) {
-    const safeViewportHeight = Math.max(1, Number(viewportHeight) || 1);
-    const nextRatio = Math.max(0, Math.min(0.5, (Number(height) || 0) / safeViewportHeight));
-    if (Math.abs(nextRatio - SdkUtils.bannerInsetRatio) < 0.0001) return;
-    SdkUtils.bannerInsetRatio = nextRatio;
-    director.emit(SdkUtils.EVENT_BANNER_INSET_CHANGED, nextRatio);
-  }
 }

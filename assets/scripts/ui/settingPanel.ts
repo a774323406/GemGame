@@ -3,11 +3,7 @@ import UIBase, { UIOpenAnimType } from "../framework/ui/UIBase";
 import gameStorage from "../framework/gameStorage";
 import PlayData, { EventName } from "../data/PlayData";
 import AudioManager from "../framework/AudioManager";
-import { SdkUtils } from "../framework/Platform/sdk/SdkUtils";
-import { adc } from "../framework/Platform/ADController";
 const { ccclass, property } = _decorator;
-
-const SETTING_BANNER_OWNER = "ui.settingPanel";
 
 @ccclass("settingPanel")
 export class settingPanel extends UIBase {
@@ -33,11 +29,8 @@ export class settingPanel extends UIBase {
   private backCallback: (() => void) | null = null;
   private musicEnabledCallback: (() => void) | null = null;
   private actionHandled = false;
-  private bannerContentBaseY: number | null = null;
 
   public onOpen(data?: any): void {
-    adc.setBannerRequested(SETTING_BANNER_OWNER, true);
-    this.applyBannerInset(SdkUtils.getBannerInsetRatio());
     this.actionHandled = false;
     this.closeCallback = typeof data?.onClose === "function" ? data.onClose : null;
     this.retryCallback = typeof data?.onRetry === "function" ? data.onRetry : null;
@@ -64,9 +57,6 @@ export class settingPanel extends UIBase {
     PlayData.Instance.ispause = this.enterType === 1;
   }
   protected onLoad(): void {
-    const content = this.getContentNode();
-    if (content) this.bannerContentBaseY = content.position.y;
-    director.on(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
     this.closeBtn.node.on(Node.EventType.TOUCH_END, this.onClose, this);
     this.backBtn.node.on(Node.EventType.TOUCH_END, this.onBack, this);
     this.retryBtn.node.on(Node.EventType.TOUCH_END, this.onRetry, this);
@@ -80,7 +70,6 @@ export class settingPanel extends UIBase {
   public onClose() {
     // UIBase 在关闭动画结束时会再次调用 onClose；此分支完成真正关闭，并兼容外部 close。
     if (!this.isOpen) {
-      adc.setBannerRequested(SETTING_BANNER_OWNER, false);
       const shouldNotifyClose = !this.actionHandled;
       this.actionHandled = true;
       super.onClose();
@@ -98,28 +87,6 @@ export class settingPanel extends UIBase {
     this.hide(() => {
       this.closeCallback?.();
     });
-  }
-
-  protected onDestroy(): void {
-    director.off(SdkUtils.EVENT_BANNER_INSET_CHANGED, this.onBannerInsetChanged, this);
-    adc.setBannerRequested(SETTING_BANNER_OWNER, false);
-  }
-
-  private onBannerInsetChanged(ratio: number): void {
-    this.applyBannerInset(ratio);
-  }
-
-  private applyBannerInset(ratio: number): void {
-    const content = this.getContentNode();
-    if (!content) return;
-    if (this.bannerContentBaseY === null) this.bannerContentBaseY = content.position.y;
-
-    const inset = Math.max(0, Math.min(0.5, Number(ratio) || 0)) * 1334;
-    content.setPosition(
-      content.position.x,
-      this.bannerContentBaseY + inset * 0.5,
-      content.position.z,
-    );
   }
 
   onBack() {

@@ -375,9 +375,6 @@ export class gameScene extends Component {
   private glowFlashTokens = new Map<number, number>();
 
   protected onLoad() {
-    // 玩法场景不展示 Banner。必须在 onLoad 立即关闭，避免 MainScene
-    // 正在异步创建的原生 Banner 在资源加载期间短暂覆盖棋盘。
-    adc.setBannerEnabled(false);
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
     director.on(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onAdPauseChanged, this);

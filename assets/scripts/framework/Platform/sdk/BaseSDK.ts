@@ -32,14 +32,6 @@ export class BaseSDK {
     cb && cb();
   }
 
-  showADBanner(callback?: Function, failCB?: Function, closeCB?: Function, resizeCB?: Function) {
-    console.log("[BaseSDK] mock banner show success");
-    resizeCB && resizeCB(0, 1);
-    callback && callback();
-  }
-
-  destroyADBanner() {}
-
   /** 原生模板 */
   showADTemplate() {
     console.log("[BaseSDK] mock template ad show");

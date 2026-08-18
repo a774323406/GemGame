@@ -14,14 +14,9 @@ export interface LevelResultAdOptions {
 /**
  * 全局广告节奏管理。
  *
- * - Banner 全局只保留一份，全屏广告/切后台时自动销毁并恢复。
- * - 正常显示时 30 秒只做健康检查，不反复销毁刷新素材。
  * - 插屏在结果页或推荐流真实进入后触发，并统一遵守平台首屏与全屏广告间隔。
  */
 export class ADController {
-  private static readonly BANNER_HEALTH_CHECK_MS = 30_000;
-  private static readonly BANNER_RETRY_MS = 30_000;
-  private static readonly BANNER_USER_CLOSE_COOLDOWN_MS = 60_000;
   /** 抖音规定小游戏启动后的前 30 秒不能展示插屏，额外留 1 秒余量。 */
   private static readonly INTERSTITIAL_FIRST_SHOW_DELAY_MS = 31_000;
   /** 推荐流真正进入小游戏后稍作停顿，避免和平台转场动画同时弹出。 */
@@ -33,17 +28,6 @@ export class ADController {
   private readonly appStartedAt = Date.now();
   private initialized = false;
   private appHidden = false;
-  private fullscreenAdActive = false;
-
-  private bannerSceneEnabled = false;
-  private bannerRequestOwners = new Set<string>();
-  private bannerDesired = false;
-  private bannerCreating = false;
-  private bannerVisible = false;
-  private bannerGeneration = 0;
-  private bannerRetryNotBefore = 0;
-  private bannerUserClosedUntil = 0;
-  private bannerTimer: ReturnType<typeof setTimeout> | null = null;
 
   private interstitialRequestPending = false;
   private frequencyWindowStartedAt = 0;
@@ -61,44 +45,6 @@ export class ADController {
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
     director.on(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onFullscreenAdChanged, this);
-  }
-
-  /** 设置当前场景的 Banner 基础策略。主界面开启，玩法场景关闭。 */
-  public setBannerEnabled(enabled: boolean) {
-    this.initialize();
-    this.bannerSceneEnabled = enabled;
-    this.refreshBannerDesired();
-  }
-
-  /**
-   * 弹窗临时申请 Banner。使用 owner 集合而不是直接覆盖场景策略，
-   * 可正确处理复用弹窗、嵌套弹窗以及关闭动画期间的异步场景切换。
-   */
-  public setBannerRequested(owner: string, requested: boolean) {
-    this.initialize();
-    const normalizedOwner = String(owner || "").trim();
-    if (!normalizedOwner) return;
-
-    if (requested) {
-      this.bannerRequestOwners.add(normalizedOwner);
-    } else {
-      this.bannerRequestOwners.delete(normalizedOwner);
-    }
-    this.refreshBannerDesired();
-  }
-
-  private refreshBannerDesired() {
-    this.bannerDesired =
-      GameConfig.showAd &&
-      (this.bannerSceneEnabled || this.bannerRequestOwners.size > 0);
-
-    if (!this.bannerDesired) {
-      this.destroyCurrentBanner();
-      this.clearBannerTimer();
-      return;
-    }
-
-    this.ensureBanner();
   }
 
   /**
@@ -240,91 +186,12 @@ export class ADController {
     this.initialize();
   }
 
-  private ensureBanner() {
-    if (!this.bannerDesired || this.appHidden || this.fullscreenAdActive) return;
-    if (this.bannerCreating || this.bannerVisible) {
-      this.scheduleBannerCheck(ADController.BANNER_HEALTH_CHECK_MS);
-      return;
-    }
-
-    const now = Date.now();
-    const nextAllowedAt = Math.max(this.bannerRetryNotBefore, this.bannerUserClosedUntil);
-    if (now < nextAllowedAt) {
-      this.scheduleBannerCheck(nextAllowedAt - now);
-      return;
-    }
-
-    this.clearBannerTimer();
-    this.bannerCreating = true;
-    const generation = ++this.bannerGeneration;
-    const started = SdkUtils.showADBanner(
-      () => {
-        if (generation !== this.bannerGeneration) return;
-        this.bannerCreating = false;
-        this.bannerVisible = true;
-        this.bannerRetryNotBefore = 0;
-        this.scheduleBannerCheck(ADController.BANNER_HEALTH_CHECK_MS);
-      },
-      () => {
-        if (generation !== this.bannerGeneration) return;
-        this.bannerCreating = false;
-        this.bannerVisible = false;
-        this.bannerRetryNotBefore = Date.now() + ADController.BANNER_RETRY_MS;
-        SdkUtils.destroyADBanner();
-        this.scheduleBannerCheck(ADController.BANNER_RETRY_MS);
-      },
-      () => {
-        if (generation !== this.bannerGeneration) return;
-        this.bannerCreating = false;
-        this.bannerVisible = false;
-        this.bannerUserClosedUntil = Date.now() + ADController.BANNER_USER_CLOSE_COOLDOWN_MS;
-        SdkUtils.clearBannerInset();
-        this.scheduleBannerCheck(ADController.BANNER_USER_CLOSE_COOLDOWN_MS);
-      },
-    );
-
-    if (!started && generation === this.bannerGeneration) {
-      this.bannerCreating = false;
-    }
-  }
-
-  private destroyCurrentBanner() {
-    ++this.bannerGeneration;
-    this.bannerCreating = false;
-    this.bannerVisible = false;
-    SdkUtils.destroyADBanner();
-  }
-
-  private scheduleBannerCheck(delayMs: number) {
-    if (!this.bannerDesired) return;
-    this.clearBannerTimer();
-    this.bannerTimer = setTimeout(() => {
-      this.bannerTimer = null;
-      this.ensureBanner();
-    }, Math.max(250, delayMs));
-  }
-
-  private clearBannerTimer() {
-    if (!this.bannerTimer) return;
-    clearTimeout(this.bannerTimer);
-    this.bannerTimer = null;
-  }
-
   private onFullscreenAdChanged(active: boolean) {
-    this.fullscreenAdActive = active;
-    if (active) {
-      this.destroyCurrentBanner();
-      this.clearBannerTimer();
-      return;
-    }
-    this.lastFullscreenAdEndedAt = Date.now();
-    this.ensureBanner();
+    if (!active) this.lastFullscreenAdEndedAt = Date.now();
   }
 
   private onGameHide() {
     this.appHidden = true;
-    this.destroyCurrentBanner();
-    this.clearBannerTimer();
   }
 
   private onGameShow() {
@@ -332,7 +199,6 @@ export class ADController {
     if (this.feedInterstitialAttempt && !this.feedInterstitialTimer) {
       this.feedInterstitialTimer = setTimeout(this.feedInterstitialAttempt, 250);
     }
-    this.ensureBanner();
   }
 }
 

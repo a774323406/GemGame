@@ -175,36 +175,6 @@ export class HonorSDK extends BaseSDK {
         });*/
   }
 
-  private curBannerId: any = null;
-  showADBanner(callback?: Function) {
-    // if (this.curBannerId) {
-    //     this.destroyADBanner();
-    // }
-    this.sdk?.showAdvert({
-      type: 3,
-      config: {
-        top: 0,
-        left: 0,
-        width: 300,
-        heigth: 100,
-      },
-      success: (res) => {
-        this.log("bannerId", res.bannerId);
-        this.curBannerId = res.bannerId;
-        callback && callback();
-      },
-      fail: (err) => {},
-    });
-  }
-
-  destroyADBanner() {
-    this.sdk?.destroyAdvert({
-      type: 3,
-      bannerId: this.curBannerId,
-    });
-    this.curBannerId = null;
-  }
-
   private curCustomId: any = null;
   /** 原生模板 */
   showADTemplate() {
