@@ -1,5 +1,4 @@
 /** 推荐流方案管理中与实际玩法一一对应的 Content_ID。 */
-export const FEED_HAIR_CONTENT_ID = "CONTENT14298654722";
 export const FEED_SHOOTING_CONTENT_ID = "CONTENT14389313538";
 
 /**

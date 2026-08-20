@@ -16,10 +16,7 @@ import {
   FeedAcquisitionService,
   FeedDirectPlayMode,
 } from "./framework/Platform/FeedAcquisitionService";
-import {
-  FEED_HAIR_CONTENT_ID,
-  FEED_SHOOTING_CONTENT_ID,
-} from "./framework/Platform/FeedRevisitConfig";
+import { FEED_SHOOTING_CONTENT_ID } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
@@ -192,8 +189,8 @@ export class loadScene extends Component {
   }
 
   /**
-   * 获客按方案 Content_ID 分流；复访固定进入打瓶子玩法。
-   * 未知获客 ID 继续进入打瓶子，保证新建/测试方案不会卡在加载页。
+   * 推荐流和复访都统一进入打瓶子玩法。
+   * 未知 ID 同样使用打瓶子，保证旧方案或测试方案不会卡在加载页。
    */
   private resolveFeedEntry(): { sceneName: GameSceneName; reason: string } {
     const state = FeedAcquisitionService.getState();
@@ -203,13 +200,6 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.ShootingGlassBottles,
         reason: `推荐流复访打瓶子（${contentId || "无 Content_ID"}）`,
-      };
-    }
-
-    if (contentId === FEED_HAIR_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.HairGame,
-        reason: `推荐流头发校准方案（${contentId}）`,
       };
     }
 

@@ -12,9 +12,8 @@ export enum uiName {
 export enum soundName {
   bgm = "bgm",
   buttonClick = "buttonClick",
+  carClick = "carClick",
   getUserBgm = "getUserBgm",
-  getUserClick = "getUserClick",
-  hairSuccess = "hairSuccess",
   shoot = "shoot",
   glassbroke = "glassbroke",
   countDown = "countDown",
@@ -30,9 +29,8 @@ const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
 };
 
 export const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
+  [soundName.carClick]: "349dce73-7a39-4ccf-a6ef-c5cd8833b2a5",
   [soundName.getUserBgm]: "d6e118a1-2a61-4d90-90af-7637e691b99b",
-  [soundName.getUserClick]: "a3ae4a64-7a66-432a-b064-b6e5c94a4f1a",
-  [soundName.hairSuccess]: "59e2af11-9d82-4a3f-9d88-1a8b5e3c0b42",
   [soundName.shoot]: "5679fa2e-577d-4aca-be59-fafcc248401d",
   [soundName.glassbroke]: "b3987c9b-dacb-413b-80fd-c0fe739a300e",
   [soundName.countDown]: "bb6dc42a-4883-4049-a42f-dfedede2d19c",

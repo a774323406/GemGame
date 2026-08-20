@@ -6,15 +6,15 @@ export const GAME_SCENE_BUNDLE = "gamescene";
 export enum GameSceneName {
   Main = "MainScene",
   Game = "GameScene",
-  HairGame = "HairGameScene",
   ShootingGlassBottles = "ShootingGlassBottlesGame",
+  ParkingGame = "ParkingGameScene",
 }
 
 const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
   [GameSceneName.Main]: "855395d1-7838-47e0-bb59-2ae3e155eecc",
   [GameSceneName.Game]: "f1b4dce3-df3d-4fdd-b734-66899ef83623",
-  [GameSceneName.HairGame]: "d09ca677-63d5-41de-8628-cfaceb5c9af1",
   [GameSceneName.ShootingGlassBottles]: "5b031fbc-c698-4add-ae79-f39a1cfa3b8c",
+  [GameSceneName.ParkingGame]: "a3a642e4-4db2-4244-8685-6768ec4ee59e",
 };
 
 /**
