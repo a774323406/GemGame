@@ -16,7 +16,11 @@ import {
   FeedAcquisitionService,
   FeedDirectPlayMode,
 } from "./framework/Platform/FeedAcquisitionService";
-import { FEED_SHOOTING_CONTENT_ID } from "./framework/Platform/FeedRevisitConfig";
+import {
+  FEED_JUGGLE_CONTENT_ID,
+  FEED_PARKING_CONTENT_ID,
+  FEED_SHOOTING_CONTENT_ID,
+} from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 
 const { ccclass, property } = _decorator;
@@ -188,10 +192,7 @@ export class loadScene extends Component {
     }
   }
 
-  /**
-   * 推荐流和复访都统一进入打瓶子玩法。
-   * 未知 ID 同样使用打瓶子，保证旧方案或测试方案不会卡在加载页。
-   */
+  /** 推荐流按 Content_ID 进入对应玩法；复访与未知 ID 仍使用打瓶子兜底。 */
   private resolveFeedEntry(): { sceneName: GameSceneName; reason: string } {
     const state = FeedAcquisitionService.getState();
     const contentId = String(state.contentId || "").trim();
@@ -200,6 +201,20 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.ShootingGlassBottles,
         reason: `推荐流复访打瓶子（${contentId || "无 Content_ID"}）`,
+      };
+    }
+
+    if (contentId === FEED_PARKING_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.ParkingGame,
+        reason: `推荐流停车挑战方案（${contentId}）`,
+      };
+    }
+
+    if (contentId === FEED_JUGGLE_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.JuggleBallGame,
+        reason: `推荐流颠球挑战方案（${contentId}）`,
       };
     }
 

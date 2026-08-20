@@ -50,7 +50,7 @@ export class mainScene extends Component {
   @property(Button)
   parkingGameBtn: Button = null;
   @property(Button)
-  testBtn: Button = null;
+  juggleBallGameBtn: Button = null;
   private feedSubscribeBtn: Button | null = null;
   private shareInFlight = false;
 
@@ -62,7 +62,7 @@ export class mainScene extends Component {
     this.shareBtn?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
     this.shootingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
     this.parkingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoParkingGame, this);
-    this.testBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
+    this.juggleBallGameBtn?.node?.on(Button.EventType.CLICK, this.gotoJuggleBallGame, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     if (this.sidebarBtn?.node) {
@@ -98,9 +98,7 @@ export class mainScene extends Component {
   }
 
   private async gotoShootingGlassBottles(): Promise<void> {
-    const entryButton = this.shootingGameBtn?.node?.activeInHierarchy
-      ? this.shootingGameBtn
-      : this.testBtn;
+    const entryButton = this.shootingGameBtn;
     if (!entryButton?.interactable) return;
     entryButton.interactable = false;
 
@@ -126,6 +124,19 @@ export class mainScene extends Component {
       if (entryButton.node?.isValid) {
         entryButton.interactable = true;
       }
+    }
+  }
+
+  private async gotoJuggleBallGame(): Promise<void> {
+    const entryButton = this.juggleBallGameBtn;
+    if (!entryButton?.interactable) return;
+    entryButton.interactable = false;
+
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.JuggleBallGame);
+    } catch (err) {
+      console.error("[mainScene] JuggleBallGameScene 加载失败", err);
+      if (entryButton.node?.isValid) entryButton.interactable = true;
     }
   }
 

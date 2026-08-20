@@ -3,6 +3,8 @@ import {
   Button,
   Color,
   Component,
+  director,
+  Director,
   game,
   Game,
   Graphics,
@@ -19,6 +21,11 @@ import {
 } from "cc";
 import AudioManager from "./framework/AudioManager";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
+import { adc } from "./framework/Platform/ADController";
+import {
+  FeedAcquisitionService,
+  FeedAcquisitionState,
+} from "./framework/Platform/FeedAcquisitionService";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { soundName } from "./gamePrefabMgr";
 
@@ -162,6 +169,13 @@ export class parkingGameScene extends Component {
   private currentSpeed = 0;
   private appHidden = false;
   private leaving = false;
+  private feedMode = false;
+  private feedEntered = false;
+  private feedExited = false;
+  private feedAudioForeground = false;
+  private feedAudioGestureRecovered = false;
+  private feedInterstitialScheduled = false;
+  private feedExperienceFinished = false;
 
   private bayRoot: Node | null = null;
   private effectRoot: Node | null = null;
@@ -188,6 +202,8 @@ export class parkingGameScene extends Component {
 
   protected onLoad(): void {
     view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
+    FeedAcquisitionService.init();
+    this.feedMode = FeedAcquisitionService.isActive();
     this.bindSceneNodes();
     this.sceneStopButton?.node?.on(Button.EventType.CLICK, this.onBrakePressed, this);
     this.sceneSlowdownButton?.node?.on(Button.EventType.CLICK, this.onSlowdownPressed, this);
@@ -200,12 +216,22 @@ export class parkingGameScene extends Component {
 
   protected start(): void {
     AudioManager.setSoundEvent();
-    // 停车玩法与打瓶子玩法共用同一首背景音乐。
-    AudioManager.playMusic(soundName.getUserBgm);
+    if (this.feedMode) {
+      FeedAcquisitionService.addListener(this.onFeedStateChanged);
+      this.node.on(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    } else {
+      // 停车玩法与打瓶子玩法共用同一首背景音乐。
+      AudioManager.playMusic(soundName.getUserBgm);
+    }
     this.startLevel(0);
+    if (this.feedMode) {
+      director.once(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
+    }
   }
 
   protected update(deltaTime: number): void {
+    // 推荐流卡片预览阶段车辆也持续旋转；正式进入前仍禁止按钮交互。
+    if (this.feedMode && this.feedExited) return;
     if (this.appHidden || this.state === "paused" || this.state === "loading") return;
     const dt = Math.min(0.05, Math.max(0, deltaTime));
     if (this.state === "orbiting") {
@@ -214,6 +240,13 @@ export class parkingGameScene extends Component {
   }
 
   protected onDestroy(): void {
+    adc.cancelFeedEntryInterstitial();
+    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
+    FeedAcquisitionService.removeListener(this.onFeedStateChanged);
+    if (this.feedMode && !this.feedExperienceFinished) {
+      this.feedExperienceFinished = true;
+      FeedAcquisitionService.completeSession();
+    }
     game.off(Game.EVENT_HIDE, this.onGameHide, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     this.sceneStopButton?.node?.off(Button.EventType.CLICK, this.onBrakePressed, this);
@@ -221,6 +254,7 @@ export class parkingGameScene extends Component {
     this.sceneHomeButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
     this.sceneResultActionButton?.node?.off(Button.EventType.CLICK, this.onResultAction, this);
     this.sceneResultHomeButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
+    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
     this.unscheduleAllCallbacks();
     if (this.carRoot?.isValid) Tween.stopAllByTarget(this.carRoot);
     if (this.brakeButtonNode?.isValid) Tween.stopAllByTarget(this.brakeButtonNode);
@@ -314,6 +348,8 @@ export class parkingGameScene extends Component {
   }
 
   private onBrakePressed(): void {
+    this.activateFeedFromGesture();
+    if (!this.isFeedInteractionEnabled()) return;
     if (this.state !== "orbiting" || !this.carRoot) return;
     AudioManager.playEffect(soundName.carClick);
     const level = LEVELS[this.levelIndex];
@@ -331,6 +367,8 @@ export class parkingGameScene extends Component {
   }
 
   private async onSlowdownPressed(): Promise<void> {
+    this.activateFeedFromGesture();
+    if (!this.isFeedInteractionEnabled()) return;
     if (
       this.slowdownInFlight ||
       this.state !== "orbiting" ||
@@ -451,6 +489,8 @@ export class parkingGameScene extends Component {
   private returnToMain(): void {
     if (this.leaving) return;
     this.leaving = true;
+    this.finishFeedExperience();
+    AudioManager.playDefaultBgm();
     AudioManager.playEffect(soundName.carClick);
     if (this.brakeButton) this.brakeButton.interactable = false;
     void GameSceneBundle.loadScene(GameSceneName.Main).catch((err) => {
@@ -570,11 +610,95 @@ export class parkingGameScene extends Component {
 
   private onGameHide = (): void => {
     this.appHidden = true;
+    if (!this.feedMode) return;
+    this.feedAudioForeground = false;
+    AudioManager.pauseBgmForVideo();
   };
 
   private onGameShow = (): void => {
     this.appHidden = false;
+    if (!this.feedMode) return;
+    const state = FeedAcquisitionService.getState();
+    if (state.exited) return;
+    this.feedAudioForeground = true;
+    AudioManager.restartMusic(soundName.getUserBgm);
   };
+
+  private readonly onFeedFallbackTouch = (): void => {
+    this.activateFeedFromGesture();
+  };
+
+  private readonly onFeedStateChanged = (state: FeedAcquisitionState): void => {
+    this.feedMode = state.active;
+    this.feedEntered = state.entered;
+    this.feedExited = state.exited;
+
+    if (!state.active) {
+      AudioManager.playMusic(soundName.getUserBgm);
+      return;
+    }
+
+    if (state.exited) {
+      adc.cancelFeedEntryInterstitial();
+      this.feedInterstitialScheduled = false;
+      this.feedAudioForeground = false;
+      this.feedAudioGestureRecovered = false;
+      AudioManager.pauseBgmForVideo();
+      return;
+    }
+
+    if (!state.entered) return;
+    if (!this.feedInterstitialScheduled) {
+      this.feedInterstitialScheduled = true;
+      adc.scheduleFeedEntryInterstitial(() => {
+        const current = FeedAcquisitionService.getState();
+        return !!this.node?.isValid && current.active && current.entered && !current.exited;
+      });
+    }
+
+    if (!this.feedAudioForeground) {
+      this.feedAudioForeground = true;
+      AudioManager.restartMusic(soundName.getUserBgm);
+    } else {
+      AudioManager.playMusic(soundName.getUserBgm);
+    }
+  };
+
+  private activateFeedFromGesture(): void {
+    if (FeedAcquisitionService.isActive()) {
+      FeedAcquisitionService.activateFromFirstTouch();
+    }
+    const state = FeedAcquisitionService.getState();
+    if (state.active && (!state.entered || state.exited)) return;
+
+    if (state.active && !this.feedAudioGestureRecovered) {
+      this.feedAudioGestureRecovered = true;
+      AudioManager.restartMusic(soundName.getUserBgm);
+    } else if (!state.active) {
+      AudioManager.playMusic(soundName.getUserBgm);
+    }
+  }
+
+  private isFeedInteractionEnabled(): boolean {
+    return !this.feedMode || (this.feedEntered && !this.feedExited);
+  }
+
+  private reportFeedSceneReady(): void {
+    if (this.node?.isValid && FeedAcquisitionService.isActive()) {
+      FeedAcquisitionService.reportSceneReady();
+    }
+  }
+
+  private finishFeedExperience(): void {
+    if (!this.feedMode || this.feedExperienceFinished) return;
+    this.feedExperienceFinished = true;
+    adc.cancelFeedEntryInterstitial();
+    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
+    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    FeedAcquisitionService.removeListener(this.onFeedStateChanged);
+    FeedAcquisitionService.completeSession();
+    this.feedMode = false;
+  }
 
   private createNode(
     name: string,

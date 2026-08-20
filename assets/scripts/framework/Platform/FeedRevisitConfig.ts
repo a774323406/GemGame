@@ -1,6 +1,15 @@
 /** 推荐流方案管理中与实际玩法一一对应的 Content_ID。 */
 export const FEED_SHOOTING_CONTENT_ID = "CONTENT14389313538";
 
+/** 停车挑战推荐流方案 ID。 */
+export const FEED_PARKING_CONTENT_ID = "CONTENT14556677634";
+
+/**
+ * 颠球挑战推荐流方案 ID。
+ * 加载页会根据该 ID 自动路由到 JuggleBallGameScene。
+ */
+export const FEED_JUGGLE_CONTENT_ID = "CONTENT14508613634";
+
 /**
  * 抖音推荐流直玩复访版配置。
  *
