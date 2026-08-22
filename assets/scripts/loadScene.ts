@@ -17,8 +17,8 @@ import {
   FeedDirectPlayMode,
 } from "./framework/Platform/FeedAcquisitionService";
 import {
+  FEED_ARCHERY_CONTENT_ID,
   FEED_JUGGLE_CONTENT_ID,
-  FEED_PARKING_CONTENT_ID,
   FEED_SHOOTING_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -204,10 +204,10 @@ export class loadScene extends Component {
       };
     }
 
-    if (contentId === FEED_PARKING_CONTENT_ID) {
+    if (contentId === FEED_ARCHERY_CONTENT_ID) {
       return {
-        sceneName: GameSceneName.ParkingGame,
-        reason: `推荐流停车挑战方案（${contentId}）`,
+        sceneName: GameSceneName.ArcheryGame,
+        reason: `推荐流射中牛来方案（${contentId}）`,
       };
     }
 

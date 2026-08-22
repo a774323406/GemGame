@@ -2514,7 +2514,7 @@
   },
   {
     "__type__": "cc.Node",
-    "_name": "parkingGameBtn",
+    "_name": "archeryGameBtn",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": {
@@ -2568,7 +2568,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "node_ParkingEntry_081"
+    "_id": "node_ArcheryEntry_081"
   },
   {
     "__type__": "cc.Node",
@@ -2616,7 +2616,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "node_ParkingLabel_082"
+    "_id": "node_ArcheryLabel_082"
   },
   {
     "__type__": "cc.UITransform",
@@ -2638,7 +2638,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "transform_ParkingLabel_083"
+    "_id": "transform_ArcheryLabel_083"
   },
   {
     "__type__": "cc.Label",
@@ -2660,7 +2660,7 @@
       "b": 255,
       "a": 255
     },
-    "_string": "停车",
+    "_string": "射箭",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 60,
@@ -2700,7 +2700,7 @@
       "y": 2
     },
     "_shadowBlur": 2,
-    "_id": "label_ParkingEntry_084"
+    "_id": "label_ArcheryEntry_084"
   },
   {
     "__type__": "cc.UITransform",
@@ -2714,7 +2714,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 112,
+      "width": 128,
       "height": 192
     },
     "_anchorPoint": {
@@ -2722,7 +2722,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "transform_ParkingEntry_085"
+    "_id": "transform_ArcheryEntry_085"
   },
   {
     "__type__": "cc.Sprite",
@@ -2745,12 +2745,12 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "ab359f03-ab57-4a72-9cbb-19bfe018d9bd@f9941",
+      "__uuid__": "b69e9594-95a9-420b-b580-1551f86a04c9@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
     "_fillType": 0,
-    "_sizeMode": 1,
+    "_sizeMode": 0,
     "_fillCenter": {
       "__type__": "cc.Vec2",
       "x": 0,
@@ -2761,7 +2761,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "sprite_ParkingEntry_086"
+    "_id": "sprite_ArcheryEntry_086"
   },
   {
     "__type__": "cc.Button",
@@ -2813,7 +2813,7 @@
     "_target": {
       "__id__": 62
     },
-    "_id": "button_ParkingEntry_087"
+    "_id": "button_ArcheryEntry_087"
   },
   {
     "__type__": "7a1a5iVpkNPsYcjs1PU1SS/",
@@ -2827,7 +2827,7 @@
     "__prefab": null,
     "enableClickSound": true,
     "onlyPlayWhenInteractable": true,
-    "_id": "sound_ParkingEntry_088"
+    "_id": "sound_ArcheryEntry_088"
   },
   {
     "__type__": "cc.UITransform",
@@ -2929,7 +2929,7 @@
     "shootingGameBtn": {
       "__id__": 60
     },
-    "parkingGameBtn": {
+    "archeryGameBtn": {
       "__id__": 68
     },
     "juggleBallGameBtn": {

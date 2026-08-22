@@ -374,8 +374,8 @@ export class juggleBallGameScene extends Component {
       [this.scenePaddle, "juggleBallGame/mushroom-paddle/spriteFrame"],
       [this.sceneSlowdownButton?.node, "juggleBallGame/slowdown-button/spriteFrame"],
       [this.sceneExtraChanceButton?.node, "juggleBallGame/extra-chance-button/spriteFrame"],
-      [this.sceneSlowdownButton?.node.getChildByName("AdBadge"), "parkingGame/play-icon-white/spriteFrame"],
-      [this.sceneExtraChanceButton?.node.getChildByName("AdBadge"), "parkingGame/play-icon-white/spriteFrame"],
+      [this.sceneSlowdownButton?.node.getChildByName("AdBadge"), "juggleBallGame/play-icon-white/spriteFrame"],
+      [this.sceneExtraChanceButton?.node.getChildByName("AdBadge"), "juggleBallGame/play-icon-white/spriteFrame"],
     ];
 
     await Promise.all(entries.map(([node, path]) => this.loadSprite(node, path)));

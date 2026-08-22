@@ -1,8 +1,8 @@
 /** 推荐流方案管理中与实际玩法一一对应的 Content_ID。 */
 export const FEED_SHOOTING_CONTENT_ID = "CONTENT14389313538";
 
-/** 停车挑战推荐流方案 ID。 */
-export const FEED_PARKING_CONTENT_ID = "CONTENT14556677634";
+/** 射中牛来推荐流方案 ID。 */
+export const FEED_ARCHERY_CONTENT_ID = "CONTENT14389077506";
 
 /**
  * 颠球挑战推荐流方案 ID。

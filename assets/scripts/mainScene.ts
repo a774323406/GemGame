@@ -48,7 +48,7 @@ export class mainScene extends Component {
   @property(Button)
   shootingGameBtn: Button = null;
   @property(Button)
-  parkingGameBtn: Button = null;
+  archeryGameBtn: Button = null;
   @property(Button)
   juggleBallGameBtn: Button = null;
   private feedSubscribeBtn: Button | null = null;
@@ -61,7 +61,7 @@ export class mainScene extends Component {
     this.sidebarBtn?.node?.on(Button.EventType.CLICK, this.showSidebarRewardPanel, this);
     this.shareBtn?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
     this.shootingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
-    this.parkingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoParkingGame, this);
+    this.archeryGameBtn?.node?.on(Button.EventType.CLICK, this.gotoArcheryGame, this);
     this.juggleBallGameBtn?.node?.on(Button.EventType.CLICK, this.gotoJuggleBallGame, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
@@ -112,15 +112,15 @@ export class mainScene extends Component {
     }
   }
 
-  private async gotoParkingGame(): Promise<void> {
-    const entryButton = this.parkingGameBtn;
+  private async gotoArcheryGame(): Promise<void> {
+    const entryButton = this.archeryGameBtn;
     if (!entryButton?.interactable) return;
     entryButton.interactable = false;
 
     try {
-      await GameSceneBundle.loadScene(GameSceneName.ParkingGame);
+      await GameSceneBundle.loadScene(GameSceneName.ArcheryGame);
     } catch (err) {
-      console.error("[mainScene] ParkingGameScene 加载失败", err);
+      console.error("[mainScene] ArcheryGameScene 加载失败", err);
       if (entryButton.node?.isValid) {
         entryButton.interactable = true;
       }

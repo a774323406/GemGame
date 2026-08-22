@@ -7,7 +7,7 @@ export enum GameSceneName {
   Main = "MainScene",
   Game = "GameScene",
   ShootingGlassBottles = "ShootingGlassBottlesGame",
-  ParkingGame = "ParkingGameScene",
+  ArcheryGame = "ArcheryGameScene",
   JuggleBallGame = "JuggleBallGameScene",
 }
 
@@ -15,7 +15,7 @@ const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
   [GameSceneName.Main]: "855395d1-7838-47e0-bb59-2ae3e155eecc",
   [GameSceneName.Game]: "f1b4dce3-df3d-4fdd-b734-66899ef83623",
   [GameSceneName.ShootingGlassBottles]: "5b031fbc-c698-4add-ae79-f39a1cfa3b8c",
-  [GameSceneName.ParkingGame]: "a3a642e4-4db2-4244-8685-6768ec4ee59e",
+  [GameSceneName.ArcheryGame]: "48e39c54-d92f-4eaa-9c7a-8739181bf36a",
   [GameSceneName.JuggleBallGame]: "222c590e-82b2-4778-b62d-acf4b3829c0b",
 };
 
