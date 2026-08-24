@@ -135,7 +135,7 @@
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 375.00000000000006,
+      "x": 375,
       "y": 667,
       "z": 0
     },
@@ -1979,8 +1979,8 @@
     },
     "_lscale": {
       "__type__": "cc.Vec3",
-      "x": 1,
-      "y": 1,
+      "x": 0.7,
+      "y": 0.7,
       "z": 1
     },
     "_mobility": 0,
@@ -2005,8 +2005,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 18,
-      "height": 20
+      "width": 60,
+      "height": 56
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -2036,7 +2036,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "a93ed336-a588-4825-afe4-3fe6433e2aa6@f9941",
+      "__uuid__": "cf633ac8-e94b-4433-a837-05cc338157cd@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -2064,7 +2064,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "_opacity": 200,
+    "_opacity": 250,
     "_id": "juggle_slowdown_ad_opacity"
   },
   {
@@ -2407,8 +2407,8 @@
     },
     "_lscale": {
       "__type__": "cc.Vec3",
-      "x": 1,
-      "y": 1,
+      "x": 0.7,
+      "y": 0.7,
       "z": 1
     },
     "_mobility": 0,
@@ -2433,8 +2433,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 18,
-      "height": 20
+      "width": 60,
+      "height": 56
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -2464,7 +2464,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "a93ed336-a588-4825-afe4-3fe6433e2aa6@f9941",
+      "__uuid__": "cf633ac8-e94b-4433-a837-05cc338157cd@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -2492,7 +2492,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "_opacity": 200,
+    "_opacity": 250,
     "_id": "juggle_extra_chance_ad_opacity"
   },
   {
@@ -3551,7 +3551,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 750.0000000000001,
+      "width": 750,
       "height": 1334
     },
     "_anchorPoint": {
