@@ -49,12 +49,17 @@ const PLAY_RIGHT = 342;
 const MISS_Y = -650;
 const GRAVITY = -1950;
 const PADDLE_HIT_HEIGHT = 54;
+const BOUNCE_HEIGHT_SCALE = 0.85;
+const BOUNCE_VELOCITY_SCALE = Math.sqrt(BOUNCE_HEIGHT_SCALE);
 const BASE_SPEED_MULTIPLIER = 1.26;
+const SPEED_RAMP_START_SCORE = 5;
+const SPEED_RAMP_PER_HIT = 0.02;
+const MAX_SCORE_SPEED_BONUS = 0.5;
 const MIN_HORIZONTAL_SPEED = 175;
 const MAX_HORIZONTAL_SPEED = 680;
 const RANDOM_LATERAL_IMPULSE = 75;
 const VERTICAL_FORCE_VARIATION = 0.04;
-const TARGET_SCORE = 30;
+const TARGET_SCORE = 50;
 const DEG = 180 / Math.PI;
 
 /**
@@ -128,7 +133,8 @@ export class juggleBallGameScene extends Component {
 
   private state: JuggleState = "ready";
   private score = 0;
-  private chances = 3;
+  /** 额外重玩次数；首次挑战本身不计入。 */
+  private chances = 0;
   private speedMultiplier = BASE_SPEED_MULTIPLIER;
   private ballPosition = new Vec3();
   private ballVelocity = new Vec3();
@@ -146,6 +152,7 @@ export class juggleBallGameScene extends Component {
   private feedExperienceFinished = false;
   private nativeTouchApi: any | null = null;
   private nativeTouchBound = false;
+  private resultSucceeded = false;
 
   protected onLoad(): void {
     view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
@@ -204,7 +211,7 @@ export class juggleBallGameScene extends Component {
     this.sceneSlowdownButton?.node?.off(Button.EventType.CLICK, this.onSlowdownPressed, this);
     this.sceneExtraChanceButton?.node?.off(Button.EventType.CLICK, this.onExtraChancePressed, this);
     this.sceneResultActionButton?.node?.off(Button.EventType.CLICK, this.onResultAction, this);
-    this.sceneResultHomeButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
+    this.sceneResultHomeButton?.node?.off(Button.EventType.CLICK, this.onResultRevive, this);
     this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
     this.unbindNativeFeedTouchFallback();
     this.unscheduleAllCallbacks();
@@ -215,7 +222,7 @@ export class juggleBallGameScene extends Component {
     this.sceneSlowdownButton?.node?.on(Button.EventType.CLICK, this.onSlowdownPressed, this);
     this.sceneExtraChanceButton?.node?.on(Button.EventType.CLICK, this.onExtraChancePressed, this);
     this.sceneResultActionButton?.node?.on(Button.EventType.CLICK, this.onResultAction, this);
-    this.sceneResultHomeButton?.node?.on(Button.EventType.CLICK, this.returnToMain, this);
+    this.sceneResultHomeButton?.node?.on(Button.EventType.CLICK, this.onResultRevive, this);
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
     input.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
@@ -250,10 +257,11 @@ export class juggleBallGameScene extends Component {
       70,
       42,
       new Color(82, 48, 28, 255),
-      "第1关 乒乓颠球挑战",
+      "",
     );
-    this.sceneGoalLabel = this.createLabel("GoalLabel", root, -300, 428, 118, 88, 35, Color.WHITE, "目标\n30");
-    this.sceneChanceLabel = this.createLabel("ChanceLabel", root, 0, 480, 180, 38, 25, new Color(119, 74, 24, 255), "次数：3次");
+    this.sceneGoalLabel = this.createLabel("GoalLabel", root, -300, 428, 118, 88, 35, Color.WHITE, `目标\n${TARGET_SCORE}`);
+    this.sceneChanceLabel = this.createLabel("ChanceLabel", root, 0, 480, 180, 38, 25, new Color(119, 74, 24, 255), "次数：0次");
+    this.sceneChanceLabel.node.active = false;
 
     const back = this.createVisualNode("BackButton", root, -329, 535, 82, 82, false);
     back.addComponent(Sprite);
@@ -282,11 +290,11 @@ export class juggleBallGameScene extends Component {
     }
     this.sceneResultPanel = this.createVisualNode("ResultPanel", this.sceneResultOverlay, 0, 0, 536, 440, true);
     this.sceneResultTitle = this.createLabel("ResultTitle", this.sceneResultPanel, 0, 112, 470, 80, 58, new Color(115, 69, 29, 255), "挑战成功");
-    this.sceneResultDetail = this.createLabel("ResultDetail", this.sceneResultPanel, 0, 18, 470, 130, 31, new Color(115, 69, 29, 255), "目标达成\n本次颠球：30");
+    this.sceneResultDetail = this.createLabel("ResultDetail", this.sceneResultPanel, 0, 18, 470, 130, 31, new Color(115, 69, 29, 255), `目标达成\n本次颠球：${TARGET_SCORE}`);
     const resultAction = this.createActionButton("ResultActionButton", this.sceneResultPanel, 128, -142, 180, 86, "再玩一次", 31);
     this.sceneResultActionButton = resultAction.button;
     this.sceneResultActionLabel = resultAction.label;
-    this.sceneResultHomeButton = this.createActionButton("ResultHomeButton", this.sceneResultPanel, -128, -142, 180, 86, "返回主页", 31).button;
+    this.sceneResultHomeButton = this.createActionButton("ResultHomeButton", this.sceneResultPanel, -128, -142, 180, 86, "复活", 31).button;
   }
 
   private createVisualNode(
@@ -395,7 +403,8 @@ export class juggleBallGameScene extends Component {
   private startChallenge(): void {
     this.unschedule(this.launchBall);
     this.score = 0;
-    this.chances = 3;
+    this.chances = 0;
+    this.resultSucceeded = false;
     this.speedMultiplier = BASE_SPEED_MULTIPLIER;
     this.paddleX = 0;
     this.targetPaddleX = 0;
@@ -429,7 +438,7 @@ export class juggleBallGameScene extends Component {
     );
     this.ballVelocity.set(
       direction * (290 + this.score * 9),
-      1260 + Math.min(this.score * 12, 360),
+      (1260 + Math.min(this.score * 12, 360)) * BOUNCE_VELOCITY_SCALE,
       0,
     );
     this.state = "playing";
@@ -443,7 +452,7 @@ export class juggleBallGameScene extends Component {
   }
 
   private updateBall(dt: number): void {
-    const speed = this.speedMultiplier;
+    const speed = this.getGameplaySpeedMultiplier();
     this.ballVelocity.y += GRAVITY * speed * dt;
     this.ballPosition.x += this.ballVelocity.x * speed * dt;
     this.ballPosition.y += this.ballVelocity.y * speed * dt;
@@ -470,6 +479,13 @@ export class juggleBallGameScene extends Component {
     this.renderBall();
   }
 
+  /** 前几次保持容易上手，随后按颠球次数平滑提速，第 30 次达到最高 50%。 */
+  private getGameplaySpeedMultiplier(): number {
+    const rampHits = Math.max(0, this.score - SPEED_RAMP_START_SCORE);
+    const scoreBonus = Math.min(MAX_SCORE_SPEED_BONUS, rampHits * SPEED_RAMP_PER_HIT);
+    return this.speedMultiplier * (1 + scoreBonus);
+  }
+
   /** 推荐流卡片预览：使用同一套重力参数真实弹跳，但不产生横向角度或玩法结算。 */
   private updateFeedPreviewBall(dt: number): void {
     const speed = this.speedMultiplier;
@@ -484,7 +500,7 @@ export class juggleBallGameScene extends Component {
       this.ballPosition.y - BALL_RADIUS <= paddleTop && this.ballPosition.y > PADDLE_Y - 18;
     if (isDescending && isAtPaddleHeight) {
       this.ballPosition.y = paddleTop + BALL_RADIUS;
-      this.ballVelocity.y = 1260;
+      this.ballVelocity.y = 1260 * BOUNCE_VELOCITY_SCALE;
     } else if (this.ballPosition.y < MISS_Y) {
       // 极端掉帧时直接恢复到预览下落状态，避免卡片里永久丢球。
       this.ballPosition.set(this.paddleX, 230, 0);
@@ -498,7 +514,10 @@ export class juggleBallGameScene extends Component {
     this.score += 1;
     const offset = (this.ballPosition.x - this.paddleX) / PADDLE_HALF_WIDTH;
     const verticalVariation = 1 + (Math.random() * 2 - 1) * VERTICAL_FORCE_VARIATION;
-    const riseSpeed = (1260 + Math.min(this.score * 20, 360)) * verticalVariation;
+    const riseSpeed =
+      (1260 + Math.min(this.score * 20, 360)) *
+      BOUNCE_VELOCITY_SCALE *
+      verticalVariation;
     const lateralImpulse = (Math.random() * 2 - 1) * RANDOM_LATERAL_IMPULSE;
     const previousHorizontalSpeed = this.ballVelocity.x;
     let nextHorizontalSpeed = previousHorizontalSpeed + offset * 360 + lateralImpulse;
@@ -529,7 +548,6 @@ export class juggleBallGameScene extends Component {
   }
 
   private handleMiss(): void {
-    this.chances -= 1;
     AudioManager.playEffect(soundName.fail);
     if (this.chances <= 0) {
       this.state = "result";
@@ -537,6 +555,7 @@ export class juggleBallGameScene extends Component {
       return;
     }
 
+    this.chances -= 1;
     this.state = "ready";
     this.ballPosition.set(
       this.paddleX,
@@ -723,7 +742,9 @@ export class juggleBallGameScene extends Component {
   private showResult(success: boolean, detail: string): void {
     if (this.leaving) return;
     this.state = "result";
+    this.resultSucceeded = success;
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = true;
+    if (this.sceneResultHomeButton?.node) this.sceneResultHomeButton.node.active = !success;
     if (this.sceneResultPanel) {
       this.sceneResultPanel.setScale(0.7, 0.7, 1);
       tween(this.sceneResultPanel)
@@ -741,6 +762,46 @@ export class juggleBallGameScene extends Component {
     this.startChallenge();
   }
 
+  /** 失败结算时看完激励广告，从当前分数继续挑战。 */
+  private async onResultRevive(): Promise<void> {
+    const button = this.sceneResultHomeButton;
+    if (
+      this.state !== "result" ||
+      this.resultSucceeded ||
+      this.adInFlight ||
+      !button?.interactable ||
+      !this.isFeedInteractionEnabled()
+    ) return;
+
+    AudioManager.playEffect(soundName.buttonClick);
+    this.adInFlight = true;
+    this.state = "paused";
+    button.interactable = false;
+    const rewarded = await SdkUtils.showRewardedVideo();
+    if (!this.node?.isValid || this.leaving) return;
+
+    this.adInFlight = false;
+    button.interactable = true;
+    if (!rewarded) {
+      this.state = "result";
+      this.showDouyinToast("完整看完广告才能复活");
+      return;
+    }
+
+    this.resultSucceeded = false;
+    if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
+    this.state = "ready";
+    this.ballPosition.set(
+      this.paddleX,
+      PADDLE_Y + PADDLE_HIT_HEIGHT + BALL_RADIUS + 18,
+      0,
+    );
+    this.ballVelocity.set(0, 0, 0);
+    this.renderBall();
+    this.updateLabels("复活成功");
+    this.scheduleOnce(this.launchBall, 0.72);
+  }
+
   private returnToMain(): void {
     if (this.leaving) return;
     this.leaving = true;
@@ -754,9 +815,11 @@ export class juggleBallGameScene extends Component {
   }
 
   private updateLabels(status: string): void {
-    if (this.sceneLevelLabel) this.sceneLevelLabel.string = "第1关 乒乓颠球挑战";
     if (this.sceneGoalLabel) this.sceneGoalLabel.string = `目标\n${TARGET_SCORE}`;
-    if (this.sceneChanceLabel) this.sceneChanceLabel.string = `次数：${this.chances}次`;
+    if (this.sceneChanceLabel) {
+      this.sceneChanceLabel.node.active = this.chances > 0;
+      this.sceneChanceLabel.string = `次数：${this.chances}次`;
+    }
     if (this.sceneScoreLabel) this.sceneScoreLabel.string = String(this.score);
     if (this.sceneStatusLabel) this.sceneStatusLabel.string = status;
     if (this.sceneMoveHint) this.sceneMoveHint.active = this.score < 2 && this.state === "playing";

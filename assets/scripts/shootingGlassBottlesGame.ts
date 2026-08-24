@@ -266,7 +266,6 @@ export class shootingGlassBottlesGame extends Component {
   private addAmmoButton: Node | null = null;
   private addTimeButton: Node | null = null;
 
-  private levelLabel: Label | null = null;
   private timerLabel: Label | null = null;
   private scoreLabel: Label | null = null;
   private ammoLabel: Label | null = null;
@@ -624,7 +623,6 @@ export class shootingGlassBottlesGame extends Component {
     this.ammoIcon = this.ammoIconNode;
     this.addAmmoButton = this.addAmmoRewardButton?.node ?? null;
     this.addTimeButton = this.addTimeRewardButton?.node ?? null;
-    this.levelLabel = this.levelTitleLabel;
     this.timerLabel = this.countdownLabel;
     this.scoreLabel = this.currentScoreLabel;
     this.ammoLabel = this.remainingAmmoLabel;
@@ -1125,7 +1123,6 @@ export class shootingGlassBottlesGame extends Component {
   }
 
   private refreshHud(): void {
-    if (this.levelLabel) this.levelLabel.string = `第${this.level.level}关  小小神枪手`;
     if (this.scoreLabel) this.scoreLabel.string = `当前得分：\n${this.score}`;
     this.refreshTimer();
     this.refreshAmmo();
