@@ -4,7 +4,6 @@ import {
   Color,
   Component,
   director,
-  Director,
   EventTouch,
   game,
   Game,
@@ -153,6 +152,7 @@ export class juggleBallGameScene extends Component {
   private nativeTouchApi: any | null = null;
   private nativeTouchBound = false;
   private resultSucceeded = false;
+  private artworkReadyPromise: Promise<void> = Promise.resolve();
 
   protected onLoad(): void {
     view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
@@ -161,7 +161,7 @@ export class juggleBallGameScene extends Component {
     this.buildEditorNodesIfNeeded();
     this.bindEvents();
     this.drawSceneArtwork();
-    void this.loadArtwork();
+    this.artworkReadyPromise = this.loadArtwork();
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
   }
 
@@ -176,7 +176,7 @@ export class juggleBallGameScene extends Component {
     }
     this.startChallenge();
     if (this.feedMode) {
-      director.once(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
+      void this.reportFeedSceneAfterArtworkReady();
     }
   }
 
@@ -195,7 +195,6 @@ export class juggleBallGameScene extends Component {
 
   protected onDestroy(): void {
     adc.cancelFeedEntryInterstitial();
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     if (this.feedMode && !this.feedExperienceFinished) {
       this.feedExperienceFinished = true;
@@ -385,6 +384,18 @@ export class juggleBallGameScene extends Component {
     ];
 
     await Promise.all(entries.map(([node, path]) => this.loadSprite(node, path)));
+  }
+
+  private async reportFeedSceneAfterArtworkReady(): Promise<void> {
+    await this.artworkReadyPromise;
+    if (!this.node?.isValid || !this.feedMode) return;
+
+    const background = this.node.getChildByName("JuggleBackground");
+    await FeedAcquisitionService.reportSceneReadyAfterStableRender({
+      owner: this.node,
+      requiredVisibleNodes: [background, this.scenePaddle, this.sceneBall],
+      isReady: () => this.state === "playing" && !this.leaving,
+    });
   }
 
   private async loadSprite(node: Node | null | undefined, path: string): Promise<void> {
@@ -998,17 +1009,10 @@ export class juggleBallGameScene extends Component {
     return !this.feedMode || (this.feedEntered && !this.feedExited);
   }
 
-  private reportFeedSceneReady(): void {
-    if (this.node?.isValid && FeedAcquisitionService.isActive()) {
-      FeedAcquisitionService.reportSceneReady();
-    }
-  }
-
   private finishFeedExperience(): void {
     if (!this.feedMode || this.feedExperienceFinished) return;
     this.feedExperienceFinished = true;
     adc.cancelFeedEntryInterstitial();
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
     this.unbindNativeFeedTouchFallback();
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);

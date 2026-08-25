@@ -4,7 +4,6 @@ import {
   Color,
   Component,
   director,
-  Director,
   EventTouch,
   Game,
   game,
@@ -305,7 +304,16 @@ export class shootingGlassBottlesGame extends Component {
       this.bindSceneReferences();
       this.startLevel(0);
       if (this.feedMode) {
-        director.once(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
+        void FeedAcquisitionService.reportSceneReadyAfterStableRender({
+          owner: this.node,
+          requiredVisibleNodes: [
+            this.node.getChildByName("Background"),
+            this.gameplayRoot,
+            this.gunNode,
+            this.bottleLayerNode,
+          ],
+          isReady: () => this.state === "playing" && this.bottles.length > 0,
+        });
       }
     } catch (error) {
       console.error("[ShootingGlassBottles] 图片资源加载失败", error);
@@ -360,7 +368,6 @@ export class shootingGlassBottlesGame extends Component {
 
   protected onDestroy(): void {
     adc.cancelFeedEntryInterstitial();
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     if (this.feedMode && !this.feedExperienceFinished) {
       this.feedExperienceFinished = true;
@@ -502,17 +509,10 @@ export class shootingGlassBottlesGame extends Component {
     return !this.feedMode || (this.feedEntered && !this.feedExited);
   }
 
-  private reportFeedSceneReady(): void {
-    if (this.node?.isValid && FeedAcquisitionService.isActive()) {
-      FeedAcquisitionService.reportSceneReady();
-    }
-  }
-
   private finishFeedExperience(): void {
     if (!this.feedMode || this.feedExperienceFinished) return;
     this.feedExperienceFinished = true;
     adc.cancelFeedEntryInterstitial();
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     if (this.node?.isValid) {
       this.node.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
     }

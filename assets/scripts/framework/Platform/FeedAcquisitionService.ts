@@ -1,3 +1,4 @@
+import { director, Director, Node, Sprite, UITransform } from "cc";
 import { EnvTool } from "./sdk/EnvTool";
 
 export interface FeedAcquisitionState {
@@ -15,6 +16,19 @@ export interface FeedAcquisitionState {
 export type FeedDirectPlayMode = "none" | "acquisition" | "revisit";
 
 type FeedStateListener = (state: FeedAcquisitionState) => void;
+
+export interface FeedStableRenderOptions {
+  /** 挂载当前玩法脚本的场景根节点。 */
+  owner: Node;
+  /** 必须已经可见的背景和核心玩法节点。 */
+  requiredVisibleNodes?: Array<Node | null | undefined>;
+  /** 资源加载之外的自定义就绪条件。 */
+  isReady?: () => boolean;
+  /** 连续完成多少个渲染帧后才允许上报。 */
+  stableFrameCount?: number;
+  /** 给抖音原生 Surface 留出的画面提交时间。 */
+  surfaceDelayMs?: number;
+}
 
 /**
  * 抖音推荐流直玩模式。
@@ -215,6 +229,44 @@ export class FeedAcquisitionService {
     this.notify();
   }
 
+  /**
+   * 等待场景资源、节点和原生画布都稳定后再上报 7001。
+   *
+   * 推荐流会在收到 7001 后很快抓取预览画面。只等一个 Cocos 帧时，
+   * 真机的纹理上传或原生 Surface 可能仍未提交，平台就会抓到 Camera 的清屏帧。
+   */
+  public static async reportSceneReadyAfterStableRender(
+    options: FeedStableRenderOptions,
+  ): Promise<boolean> {
+    this.init();
+    if (!this.active || this.sceneReadyReported) return false;
+
+    const stableFrameCount = Math.max(2, Math.floor(options.stableFrameCount ?? 3));
+    const surfaceDelayMs = Math.max(0, Math.floor(options.surfaceDelayMs ?? 160));
+
+    for (let frame = 0; frame < stableFrameCount; frame++) {
+      if (!this.isFeedSceneRenderable(options)) {
+        this.warnFeedSceneNotRenderable(options);
+        return false;
+      }
+      await this.waitForEndFrame();
+    }
+
+    if (surfaceDelayMs > 0) {
+      await this.delay(surfaceDelayMs);
+    }
+
+    // 延迟后再跨过一个完整渲染帧，保证等待时间内产生的画面已经提交。
+    await this.waitForEndFrame();
+    if (!this.isFeedSceneRenderable(options)) {
+      this.warnFeedSceneNotRenderable(options);
+      return false;
+    }
+
+    this.reportSceneReady();
+    return this.sceneReadyReported;
+  }
+
   private static handleSceneReadyReportFailure(err: any) {
     this.sceneReadyReported = false;
     console.warn(
@@ -235,6 +287,60 @@ export class FeedAcquisitionService {
     if (!this.sceneReadyRetryTimer) return;
     clearTimeout(this.sceneReadyRetryTimer);
     this.sceneReadyRetryTimer = null;
+  }
+
+  private static isFeedSceneRenderable(options: FeedStableRenderOptions): boolean {
+    if (!this.active || !options.owner?.isValid || !options.owner.activeInHierarchy) return false;
+
+    const requiredNodes = options.requiredVisibleNodes ?? [];
+    for (const node of requiredNodes) {
+      if (!node?.isValid || !node.activeInHierarchy) return false;
+
+      const transform = node.getComponent(UITransform);
+      if (transform && (transform.width <= 1 || transform.height <= 1)) return false;
+
+      const sprite = node.getComponent(Sprite);
+      if (sprite && (!sprite.enabled || !sprite.spriteFrame?.isValid)) return false;
+    }
+
+    if (options.isReady) {
+      try {
+        if (!options.isReady()) return false;
+      } catch (err) {
+        console.warn("[FeedAcquisition] 检查推荐流场景可见状态失败", err);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private static warnFeedSceneNotRenderable(options: FeedStableRenderOptions): void {
+    if (!this.active || !options.owner?.isValid) return;
+    const invalidNodes = (options.requiredVisibleNodes ?? [])
+      .filter((node) => {
+        if (!node?.isValid || !node.activeInHierarchy) return true;
+        const transform = node.getComponent(UITransform);
+        if (transform && (transform.width <= 1 || transform.height <= 1)) return true;
+        const sprite = node.getComponent(Sprite);
+        return !!sprite && (!sprite.enabled || !sprite.spriteFrame?.isValid);
+      })
+      .map((node) => node?.name || "unknown");
+    console.warn(
+      `[FeedAcquisition] 场景尚未达到可渲染状态，暂不上报 7001${
+        invalidNodes.length > 0 ? `: ${invalidNodes.join(", ")}` : ""
+      }`,
+    );
+  }
+
+  private static waitForEndFrame(): Promise<void> {
+    return new Promise((resolve) => {
+      director.once(Director.EVENT_END_FRAME, () => resolve());
+    });
+  }
+
+  private static delay(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
   }
 
   private static readLaunchContext(options: any) {

@@ -5,7 +5,6 @@ import {
   Color,
   Component,
   director,
-  Director,
   EffectAsset,
   EventTouch,
   game,
@@ -402,8 +401,15 @@ export class gameScene extends Component {
       this.feedSceneReady = true;
       this.applyFeedState(FeedAcquisitionService.getState());
       this.bindFeedFallbackTouch();
-      // 至少完成一帧实际渲染后再通知平台，避免卡片首帧仍是空画面。
-      director.once(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
+      void FeedAcquisitionService.reportSceneReadyAfterStableRender({
+        owner: this.node,
+        requiredVisibleNodes: [
+          this.node.getChildByName("bg"),
+          this.mapControl?.node,
+          this.blockRoot,
+        ],
+        isReady: () => this.feedSceneReady && !!this.levelData && this.blocks.length > 0,
+      });
     }
   }
 
@@ -4612,11 +4618,6 @@ export class gameScene extends Component {
     this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
   }
 
-  private reportFeedSceneReady() {
-    if (!this.feedMode || !this.node?.isValid) return;
-    FeedAcquisitionService.reportSceneReady();
-  }
-
   private showFeedAcquisitionGuide() {
     if (!this.feedAcquisition || this.feedGuideShown) return;
 
@@ -4628,7 +4629,6 @@ export class gameScene extends Component {
     if (!this.feedMode) return;
 
     this.clearTutorialPresentation();
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     this.feedMode = false;
     this.feedAcquisition = false;
     this.feedRevisitChallenge = false;
@@ -4676,7 +4676,6 @@ export class gameScene extends Component {
     director.off(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onAdPauseChanged, this);
     this.resetCountdownWarning();
     this.clearTutorialPresentation(true, false);
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     // 场景销毁时 Node 会自动清理节点事件。此时再调用 off，
     // 抖音小游戏中可能会访问已清空的 EventProcessor 并抛出 Error 5000。

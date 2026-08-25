@@ -4,7 +4,6 @@ import {
   Color,
   Component,
   director,
-  Director,
   EventTouch,
   game,
   Game,
@@ -150,6 +149,7 @@ export class archeryGameScene extends Component {
   private feedExperienceFinished = false;
   private nativeTouchApi: any | null = null;
   private nativeTouchBound = false;
+  private artworkReadyPromise: Promise<void> = Promise.resolve();
 
   protected onLoad(): void {
     view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
@@ -157,7 +157,7 @@ export class archeryGameScene extends Component {
     this.feedMode = FeedAcquisitionService.isActive();
     this.prepareSceneNodes();
     this.bindEvents();
-    void this.loadArtwork();
+    this.artworkReadyPromise = this.loadArtwork();
     this.resetRound();
   }
 
@@ -166,7 +166,7 @@ export class archeryGameScene extends Component {
     if (this.feedMode) {
       FeedAcquisitionService.addListener(this.onFeedStateChanged);
       this.bindNativeFeedTouchFallback();
-      director.once(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
+      void this.reportFeedSceneAfterArtworkReady();
     } else {
       AudioManager.playMusic(soundName.archeryBgm);
     }
@@ -181,7 +181,6 @@ export class archeryGameScene extends Component {
 
   protected onDestroy(): void {
     adc.cancelFeedEntryInterstitial();
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     if (this.feedMode && !this.feedExperienceFinished) {
       this.feedExperienceFinished = true;
@@ -251,6 +250,18 @@ export class archeryGameScene extends Component {
       this.loadSprite(this.sceneBull, "archeryGame/golden-bull/spriteFrame"),
       this.loadSprite(this.sceneBow, "archeryGame/wooden-bow/spriteFrame"),
     ]);
+  }
+
+  private async reportFeedSceneAfterArtworkReady(): Promise<void> {
+    await this.artworkReadyPromise;
+    if (!this.node?.isValid || !this.feedMode) return;
+
+    const background = this.node.getChildByName("ArcheryBackground");
+    await FeedAcquisitionService.reportSceneReadyAfterStableRender({
+      owner: this.node,
+      requiredVisibleNodes: [background, this.sceneBull, this.sceneBow, this.scenePlatform],
+      isReady: () => this.state === "playing" && !this.leaving,
+    });
   }
 
   private async loadSprite(node: Node | null, path: string): Promise<void> {
@@ -645,17 +656,10 @@ export class archeryGameScene extends Component {
     return !this.feedMode || (this.feedEntered && !this.feedExited);
   }
 
-  private reportFeedSceneReady(): void {
-    if (this.node?.isValid && FeedAcquisitionService.isActive()) {
-      FeedAcquisitionService.reportSceneReady();
-    }
-  }
-
   private finishFeedExperience(): void {
     if (!this.feedMode || this.feedExperienceFinished) return;
     this.feedExperienceFinished = true;
     adc.cancelFeedEntryInterstitial();
-    director.off(Director.EVENT_END_FRAME, this.reportFeedSceneReady, this);
     this.unbindNativeFeedTouchFallback();
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     FeedAcquisitionService.completeSession();
