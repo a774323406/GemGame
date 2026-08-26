@@ -51,6 +51,7 @@ export class mainScene extends Component {
   archeryGameBtn: Button = null;
   @property(Button)
   juggleBallGameBtn: Button = null;
+  private milkTeaGameBtn: Button | null = null;
   private feedSubscribeBtn: Button | null = null;
   private shareInFlight = false;
 
@@ -63,6 +64,8 @@ export class mainScene extends Component {
     this.shootingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
     this.archeryGameBtn?.node?.on(Button.EventType.CLICK, this.gotoArcheryGame, this);
     this.juggleBallGameBtn?.node?.on(Button.EventType.CLICK, this.gotoJuggleBallGame, this);
+    this.milkTeaGameBtn = this.createMilkTeaTestButton();
+    this.milkTeaGameBtn.node.on(Button.EventType.CLICK, this.gotoMilkTeaGame, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     if (this.sidebarBtn?.node) {
@@ -136,6 +139,19 @@ export class mainScene extends Component {
       await GameSceneBundle.loadScene(GameSceneName.JuggleBallGame);
     } catch (err) {
       console.error("[mainScene] JuggleBallGameScene 加载失败", err);
+      if (entryButton.node?.isValid) entryButton.interactable = true;
+    }
+  }
+
+  private async gotoMilkTeaGame(): Promise<void> {
+    const entryButton = this.milkTeaGameBtn;
+    if (!entryButton?.interactable) return;
+    entryButton.interactable = false;
+
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.MilkTeaFeedGame);
+    } catch (err) {
+      console.error("[mainScene] MilkTeaFeedGameScene 加载失败", err);
       if (entryButton.node?.isValid) entryButton.interactable = true;
     }
   }
@@ -227,6 +243,55 @@ export class mainScene extends Component {
     const button = node.addComponent(Button);
     node.active = false;
     node.on(Button.EventType.CLICK, this.onFeedSubscribeClicked, this);
+    return button;
+  }
+
+  /** 首页右侧的开发测试入口；正式推荐流仍由 Content_ID 自动路由。 */
+  private createMilkTeaTestButton(): Button {
+    const node = new Node("milkTeaGameBtn");
+    node.layer = this.node.layer;
+    node.parent = this.node;
+    node.setPosition(306, 6, 0);
+    node.addComponent(UITransform).setContentSize(128, 192);
+
+    const graphics = node.addComponent(Graphics);
+    graphics.fillColor = new Color(255, 242, 205, 255);
+    graphics.strokeColor = new Color(109, 69, 43, 255);
+    graphics.lineWidth = 5;
+    graphics.roundRect(-48, -46, 96, 116, 16);
+    graphics.fill();
+    graphics.stroke();
+    graphics.strokeColor = new Color(241, 122, 128, 255);
+    graphics.lineWidth = 11;
+    graphics.moveTo(12, 86);
+    graphics.lineTo(-5, 62);
+    graphics.lineTo(-5, 30);
+    graphics.stroke();
+    graphics.fillColor = new Color(85, 48, 31, 255);
+    graphics.circle(-24, -20, 8);
+    graphics.circle(0, -27, 8);
+    graphics.circle(25, -17, 8);
+    graphics.fill();
+
+    const labelNode = new Node("Label");
+    labelNode.layer = node.layer;
+    labelNode.parent = node;
+    labelNode.setPosition(0, -76, 0);
+    labelNode.addComponent(UITransform).setContentSize(128, 52);
+    const label = labelNode.addComponent(Label);
+    label.string = "奶茶";
+    label.fontSize = 31;
+    label.lineHeight = 36;
+    label.isBold = true;
+    label.enableOutline = true;
+    label.outlineColor = new Color(81, 55, 38, 255);
+    label.outlineWidth = 3;
+    label.horizontalAlign = HorizontalTextAlignment.CENTER;
+    label.verticalAlign = VerticalTextAlignment.CENTER;
+
+    const button = node.addComponent(Button);
+    button.transition = Button.Transition.SCALE;
+    button.zoomScale = 1.08;
     return button;
   }
 

@@ -32,11 +32,13 @@ import {
   FeedAcquisitionService,
   FeedAcquisitionState,
 } from "./framework/Platform/FeedAcquisitionService";
+import { FEED_JUGGLE_LEVEL2_CONTENT_ID } from "./framework/Platform/FeedRevisitConfig";
 import { adc } from "./framework/Platform/ADController";
 
 const { ccclass, property } = _decorator;
 
 type JuggleState = "ready" | "playing" | "paused" | "result";
+type JuggleLevel = 1 | 2;
 
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
@@ -51,14 +53,25 @@ const PADDLE_HIT_HEIGHT = 54;
 const BOUNCE_HEIGHT_SCALE = 0.85;
 const BOUNCE_VELOCITY_SCALE = Math.sqrt(BOUNCE_HEIGHT_SCALE);
 const BASE_SPEED_MULTIPLIER = 1.26;
-const SPEED_RAMP_START_SCORE = 5;
-const SPEED_RAMP_PER_HIT = 0.02;
-const MAX_SCORE_SPEED_BONUS = 0.5;
+const LEVEL_SPEED_RAMPS: Record<
+  JuggleLevel,
+  { startScore: number; bonusPerHit: number; maxBonus: number }
+> = {
+  1: { startScore: 5, bonusPerHit: 0.02, maxBonus: 0.5 },
+  2: { startScore: 5, bonusPerHit: 0.03, maxBonus: 0.6 },
+};
 const MIN_HORIZONTAL_SPEED = 175;
 const MAX_HORIZONTAL_SPEED = 680;
 const RANDOM_LATERAL_IMPULSE = 75;
 const VERTICAL_FORCE_VARIATION = 0.04;
-const TARGET_SCORE = 50;
+const LEVEL_TARGET_SCORES: Record<JuggleLevel, number> = {
+  1: 50,
+  2: 50,
+};
+const TOP_DROP_Y = DESIGN_HEIGHT * 0.5 + BALL_RADIUS + 52;
+const TOP_DROP_INITIAL_SPEED = -260;
+const READY_COUNTDOWN_STEPS = 3;
+const READY_COUNTDOWN_INTERVAL = 0.5;
 const DEG = 180 / Math.PI;
 
 /**
@@ -67,6 +80,9 @@ const DEG = 180 / Math.PI;
  */
 @ccclass("juggleBallGameScene")
 export class juggleBallGameScene extends Component {
+  @property(Node)
+  sceneLevel2Background: Node | null = null;
+
   @property(Node)
   sceneHeaderPanel: Node | null = null;
 
@@ -99,6 +115,9 @@ export class juggleBallGameScene extends Component {
 
   @property(Label)
   sceneStatusLabel: Label | null = null;
+
+  @property(Node)
+  sceneReadyArrow: Node | null = null;
 
   @property(Button)
   sceneBackButton: Button | null = null;
@@ -153,14 +172,20 @@ export class juggleBallGameScene extends Component {
   private nativeTouchBound = false;
   private resultSucceeded = false;
   private artworkReadyPromise: Promise<void> = Promise.resolve();
+  private currentLevel: JuggleLevel = 1;
+  private pendingTopDrop = false;
+  private readyTriangleCount = 0;
 
   protected onLoad(): void {
     view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
     FeedAcquisitionService.init();
     this.feedMode = FeedAcquisitionService.isActive();
+    this.currentLevel = this.resolveEntryLevel();
     this.buildEditorNodesIfNeeded();
+    this.ensureLevelSpecificNodes();
     this.bindEvents();
     this.drawSceneArtwork();
+    this.applyLevelPresentation();
     this.artworkReadyPromise = this.loadArtwork();
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
   }
@@ -258,7 +283,17 @@ export class juggleBallGameScene extends Component {
       new Color(82, 48, 28, 255),
       "",
     );
-    this.sceneGoalLabel = this.createLabel("GoalLabel", root, -300, 428, 118, 88, 35, Color.WHITE, `目标\n${TARGET_SCORE}`);
+    this.sceneGoalLabel = this.createLabel(
+      "GoalLabel",
+      root,
+      -300,
+      428,
+      118,
+      88,
+      35,
+      Color.WHITE,
+      `目标\n${LEVEL_TARGET_SCORES[1]}`,
+    );
     this.sceneChanceLabel = this.createLabel("ChanceLabel", root, 0, 480, 180, 38, 25, new Color(119, 74, 24, 255), "次数：0次");
     this.sceneChanceLabel.node.active = false;
 
@@ -289,11 +324,86 @@ export class juggleBallGameScene extends Component {
     }
     this.sceneResultPanel = this.createVisualNode("ResultPanel", this.sceneResultOverlay, 0, 0, 536, 440, true);
     this.sceneResultTitle = this.createLabel("ResultTitle", this.sceneResultPanel, 0, 112, 470, 80, 58, new Color(115, 69, 29, 255), "挑战成功");
-    this.sceneResultDetail = this.createLabel("ResultDetail", this.sceneResultPanel, 0, 18, 470, 130, 31, new Color(115, 69, 29, 255), `目标达成\n本次颠球：${TARGET_SCORE}`);
+    this.sceneResultDetail = this.createLabel(
+      "ResultDetail",
+      this.sceneResultPanel,
+      0,
+      18,
+      470,
+      130,
+      31,
+      new Color(115, 69, 29, 255),
+      `目标达成\n本次颠球：${LEVEL_TARGET_SCORES[1]}`,
+    );
     const resultAction = this.createActionButton("ResultActionButton", this.sceneResultPanel, 128, -142, 180, 86, "再玩一次", 31);
     this.sceneResultActionButton = resultAction.button;
     this.sceneResultActionLabel = resultAction.label;
     this.sceneResultHomeButton = this.createActionButton("ResultHomeButton", this.sceneResultPanel, -128, -142, 180, 86, "复活", 31).button;
+  }
+
+  /** 兼容旧场景资源；正式节点已经固化在编辑器场景中。 */
+  private ensureLevelSpecificNodes(): void {
+    if (!this.sceneLevel2Background?.isValid) {
+      this.sceneLevel2Background = this.node.getChildByName("Level2Background");
+    }
+    if (!this.sceneLevel2Background?.isValid) {
+      this.sceneLevel2Background = this.createVisualNode(
+        "Level2Background",
+        this.node,
+        0,
+        0,
+        DESIGN_WIDTH,
+        DESIGN_HEIGHT,
+        false,
+      );
+      this.sceneLevel2Background.addComponent(Sprite);
+      const level1Background = this.node.getChildByName("JuggleBackground");
+      this.sceneLevel2Background.setSiblingIndex((level1Background?.getSiblingIndex() ?? 0) + 1);
+    }
+
+    if (!this.sceneReadyArrow?.isValid) {
+      this.sceneReadyArrow = this.node.getChildByName("ReadyArrow");
+    }
+    if (!this.sceneReadyArrow?.isValid) {
+      const arrowLabel = this.createLabel(
+        "ReadyArrow",
+        this.node,
+        0,
+        350,
+        90,
+        110,
+        34,
+        new Color(209, 153, 33, 255),
+        "▼\n▼\n▼",
+      );
+      arrowLabel.lineHeight = 30;
+      this.sceneReadyArrow = arrowLabel.node;
+      const statusSibling = this.sceneStatusLabel?.node?.getSiblingIndex() ?? 0;
+      this.sceneReadyArrow.setSiblingIndex(statusSibling + 1);
+    }
+  }
+
+  private resolveEntryLevel(): JuggleLevel {
+    if (!this.feedMode || !FEED_JUGGLE_LEVEL2_CONTENT_ID) return 1;
+    const contentId = String(FeedAcquisitionService.getContentId() || "").trim();
+    return contentId === FEED_JUGGLE_LEVEL2_CONTENT_ID ? 2 : 1;
+  }
+
+  private applyLevelPresentation(): void {
+    const level1Background = this.node.getChildByName("JuggleBackground");
+    if (level1Background) level1Background.active = this.currentLevel === 1;
+    if (this.sceneLevel2Background) this.sceneLevel2Background.active = this.currentLevel === 2;
+    this.drawBall(this.getGraphics(this.sceneBall));
+  }
+
+  private getCurrentBackground(): Node | null {
+    return this.currentLevel === 2
+      ? this.sceneLevel2Background
+      : this.node.getChildByName("JuggleBackground");
+  }
+
+  private getCurrentTargetScore(): number {
+    return LEVEL_TARGET_SCORES[this.currentLevel];
   }
 
   private createVisualNode(
@@ -376,6 +486,8 @@ export class juggleBallGameScene extends Component {
   private async loadArtwork(): Promise<void> {
     const entries: Array<[Node | null | undefined, string]> = [
       [this.node.getChildByName("JuggleBackground"), "juggleBallGame/sky-background/spriteFrame"],
+      // Level2Background 的 SpriteFrame 已固化在场景中，避免编辑器预览时重复请求
+      // 尚未刷新路径表的 res bundle 并产生 “Bundle doesn't contain” 报错。
       [this.sceneHeaderPanel, "juggleBallGame/title-plaque/spriteFrame"],
       [this.sceneBackButton?.node, "juggleBallGame/back-button/spriteFrame"],
       [this.scenePaddle, "juggleBallGame/mushroom-paddle/spriteFrame"],
@@ -390,7 +502,7 @@ export class juggleBallGameScene extends Component {
     await this.artworkReadyPromise;
     if (!this.node?.isValid || !this.feedMode) return;
 
-    const background = this.node.getChildByName("JuggleBackground");
+    const background = this.getCurrentBackground();
     await FeedAcquisitionService.reportSceneReadyAfterStableRender({
       owner: this.node,
       requiredVisibleNodes: [background, this.scenePaddle, this.sceneBall],
@@ -413,6 +525,9 @@ export class juggleBallGameScene extends Component {
 
   private startChallenge(): void {
     this.unschedule(this.launchBall);
+    this.unschedule(this.tickReadyCountdown);
+    this.pendingTopDrop = false;
+    this.readyTriangleCount = 0;
     this.score = 0;
     this.chances = 0;
     this.resultSucceeded = false;
@@ -433,14 +548,52 @@ export class juggleBallGameScene extends Component {
     }
     this.renderBall();
     this.renderPaddle();
-    this.updateLabels(isFeedPreview ? "" : "准备");
-    if (!isFeedPreview) {
+    if (isFeedPreview) this.updateLabels("");
+    else {
+      // 首次进入、下一关和重新挑战保持原来的快速开局，不显示复活倒计时。
+      this.updateLabels("");
       this.scheduleOnce(this.launchBall, 0.7);
     }
   }
 
+  /** 仅复活时显示三个三角形，总计 1.5 秒，每 0.5 秒从下方消失一个。 */
+  private beginReadyCountdown(): void {
+    this.unschedule(this.launchBall);
+    this.unschedule(this.tickReadyCountdown);
+    this.state = "ready";
+    this.readyTriangleCount = READY_COUNTDOWN_STEPS;
+    this.updateLabels("准备");
+    // Cocos 对正在执行的同一回调再次 scheduleOnce 会忽略重复注册，
+    // 因此在这里一次注册完整的三次倒计时。
+    this.schedule(
+      this.tickReadyCountdown,
+      READY_COUNTDOWN_INTERVAL,
+      READY_COUNTDOWN_STEPS - 1,
+    );
+  }
+
+  private readonly tickReadyCountdown = (): void => {
+    if (this.leaving || this.state !== "ready") return;
+    this.readyTriangleCount = Math.max(0, this.readyTriangleCount - 1);
+    this.updateLabels("准备");
+    if (this.readyTriangleCount <= 0) {
+      this.launchBall();
+    }
+  };
+
   private launchBall = (): void => {
     if (this.leaving || this.state !== "ready" || !this.isFeedInteractionEnabled()) return;
+
+    if (this.pendingTopDrop) {
+      this.pendingTopDrop = false;
+      this.ballPosition.set(this.paddleX, TOP_DROP_Y, 0);
+      this.ballVelocity.set(0, TOP_DROP_INITIAL_SPEED, 0);
+      this.state = "playing";
+      this.updateLabels("");
+      this.renderBall();
+      return;
+    }
+
     const direction = this.score % 2 === 0 ? 1 : -1;
     this.ballPosition.set(
       this.paddleX + direction * 28,
@@ -490,10 +643,11 @@ export class juggleBallGameScene extends Component {
     this.renderBall();
   }
 
-  /** 前几次保持容易上手，随后按颠球次数平滑提速，第 30 次达到最高 50%。 */
+  /** 两关都在第 5 次后提速；第二关的单次增幅和最高增幅更高。 */
   private getGameplaySpeedMultiplier(): number {
-    const rampHits = Math.max(0, this.score - SPEED_RAMP_START_SCORE);
-    const scoreBonus = Math.min(MAX_SCORE_SPEED_BONUS, rampHits * SPEED_RAMP_PER_HIT);
+    const ramp = LEVEL_SPEED_RAMPS[this.currentLevel];
+    const rampHits = Math.max(0, this.score - ramp.startScore);
+    const scoreBonus = Math.min(ramp.maxBonus, rampHits * ramp.bonusPerHit);
     return this.speedMultiplier * (1 + scoreBonus);
   }
 
@@ -552,7 +706,7 @@ export class juggleBallGameScene extends Component {
     this.pulsePaddle();
     this.updateLabels("");
 
-    if (this.score >= TARGET_SCORE) {
+    if (this.score >= this.getCurrentTargetScore()) {
       this.state = "result";
       this.scheduleOnce(() => this.showResult(true, "目标达成，颠球高手！"), 0.45);
     }
@@ -567,15 +721,19 @@ export class juggleBallGameScene extends Component {
     }
 
     this.chances -= 1;
+    this.prepareTopDropRevive();
+  }
+
+  /** 复活后先显示准备提示，再让球从屏幕上方自然落入画面。 */
+  private prepareTopDropRevive(): void {
+    this.unschedule(this.launchBall);
+    this.unschedule(this.tickReadyCountdown);
+    this.pendingTopDrop = true;
     this.state = "ready";
-    this.ballPosition.set(
-      this.paddleX,
-      PADDLE_Y + PADDLE_HIT_HEIGHT + BALL_RADIUS + 18,
-      0,
-    );
+    this.ballPosition.set(this.paddleX, TOP_DROP_Y, 0);
     this.ballVelocity.set(0, 0, 0);
-    this.updateLabels("再来一次");
-    this.scheduleOnce(this.launchBall, 0.72);
+    this.renderBall();
+    this.beginReadyCountdown();
   }
 
   private onTouchStart(event: EventTouch): void {
@@ -765,11 +923,22 @@ export class juggleBallGameScene extends Component {
     }
     if (this.sceneResultTitle) this.sceneResultTitle.string = success ? "挑战成功" : "挑战结束";
     if (this.sceneResultDetail) this.sceneResultDetail.string = `${detail}\n本次颠球：${this.score}`;
-    if (this.sceneResultActionLabel) this.sceneResultActionLabel.string = success ? "再玩一次" : "重新挑战";
+    if (this.sceneResultActionLabel) {
+      this.sceneResultActionLabel.string =
+        success && this.currentLevel === 1
+          ? "下一关"
+          : success
+            ? "再玩一次"
+            : "重新挑战";
+    }
   }
 
   private onResultAction(): void {
     AudioManager.playEffect(soundName.buttonClick);
+    if (this.resultSucceeded && this.currentLevel === 1) {
+      this.currentLevel = 2;
+      this.applyLevelPresentation();
+    }
     this.startChallenge();
   }
 
@@ -801,16 +970,7 @@ export class juggleBallGameScene extends Component {
 
     this.resultSucceeded = false;
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
-    this.state = "ready";
-    this.ballPosition.set(
-      this.paddleX,
-      PADDLE_Y + PADDLE_HIT_HEIGHT + BALL_RADIUS + 18,
-      0,
-    );
-    this.ballVelocity.set(0, 0, 0);
-    this.renderBall();
-    this.updateLabels("复活成功");
-    this.scheduleOnce(this.launchBall, 0.72);
+    this.prepareTopDropRevive();
   }
 
   private returnToMain(): void {
@@ -826,13 +986,29 @@ export class juggleBallGameScene extends Component {
   }
 
   private updateLabels(status: string): void {
-    if (this.sceneGoalLabel) this.sceneGoalLabel.string = `目标\n${TARGET_SCORE}`;
+    if (this.sceneGoalLabel) {
+      this.sceneGoalLabel.string = `目标\n${this.getCurrentTargetScore()}`;
+    }
     if (this.sceneChanceLabel) {
       this.sceneChanceLabel.node.active = this.chances > 0;
       this.sceneChanceLabel.string = `次数：${this.chances}次`;
     }
     if (this.sceneScoreLabel) this.sceneScoreLabel.string = String(this.score);
-    if (this.sceneStatusLabel) this.sceneStatusLabel.string = status;
+    const showingReady = this.state === "ready" && status === "准备";
+    if (this.sceneStatusLabel) {
+      this.sceneStatusLabel.node.active = !!status;
+      this.sceneStatusLabel.string = status;
+    }
+    if (this.sceneReadyArrow) {
+      const arrowLabel = this.sceneReadyArrow.getComponent(Label);
+      if (arrowLabel) {
+        arrowLabel.string = Array.from(
+          { length: this.readyTriangleCount },
+          () => "▼",
+        ).join("\n");
+      }
+      this.sceneReadyArrow.active = showingReady && this.readyTriangleCount > 0;
+    }
     if (this.sceneMoveHint) this.sceneMoveHint.active = this.score < 2 && this.state === "playing";
   }
 
@@ -900,7 +1076,10 @@ export class juggleBallGameScene extends Component {
     graphics.fillColor = new Color(25, 41, 57, 255);
     graphics.circle(0, 0, BALL_RADIUS);
     graphics.fill();
-    graphics.fillColor = new Color(53, 189, 249, 255);
+    graphics.fillColor =
+      this.currentLevel === 2
+        ? new Color(61, 240, 112, 255)
+        : new Color(53, 189, 249, 255);
     graphics.circle(0, 0, BALL_RADIUS - 6);
     graphics.fill();
     graphics.fillColor = Color.WHITE;

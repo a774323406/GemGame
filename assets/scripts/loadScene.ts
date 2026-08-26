@@ -19,6 +19,8 @@ import {
 import {
   FEED_ARCHERY_CONTENT_ID,
   FEED_JUGGLE_CONTENT_ID,
+  FEED_JUGGLE_LEVEL2_CONTENT_ID,
+  FEED_MILK_TEA_CONTENT_ID,
   FEED_SHOOTING_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -214,7 +216,24 @@ export class loadScene extends Component {
     if (contentId === FEED_JUGGLE_CONTENT_ID) {
       return {
         sceneName: GameSceneName.JuggleBallGame,
-        reason: `推荐流颠球挑战方案（${contentId}）`,
+        reason: `推荐流颠球挑战第一关方案（${contentId}）`,
+      };
+    }
+
+    if (
+      FEED_JUGGLE_LEVEL2_CONTENT_ID &&
+      contentId === FEED_JUGGLE_LEVEL2_CONTENT_ID
+    ) {
+      return {
+        sceneName: GameSceneName.JuggleBallGame,
+        reason: `推荐流颠球挑战第二关方案（${contentId}）`,
+      };
+    }
+
+    if (FEED_MILK_TEA_CONTENT_ID && contentId === FEED_MILK_TEA_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.MilkTeaFeedGame,
+        reason: `推荐流投吸管奶茶方案（${contentId}）`,
       };
     }
 

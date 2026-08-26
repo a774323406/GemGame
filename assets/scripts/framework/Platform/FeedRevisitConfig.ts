@@ -11,6 +11,18 @@ export const FEED_ARCHERY_CONTENT_ID = "CONTENT14389077506";
 export const FEED_JUGGLE_CONTENT_ID = "CONTENT14508613634";
 
 /**
+ * 颠球挑战第二关推荐流方案 ID。
+ * 该方案直接进入 JuggleBallGameScene 第二关。
+ */
+export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14612123394";
+
+/**
+ * 投吸管奶茶推荐流方案 ID。
+ * 该方案直接进入 MilkTeaFeedGameScene。
+ */
+export const FEED_MILK_TEA_CONTENT_ID = "CONTENT14484635394";
+
+/**
  * 抖音推荐流直玩复访版配置。
  *
  * 复访固定使用打瓶子方案。后台路径：运营 -> 能力中心 ->
