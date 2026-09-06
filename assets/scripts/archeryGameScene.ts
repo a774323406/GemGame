@@ -17,6 +17,7 @@ import {
   SpriteFrame,
   tween,
   Tween,
+  UIOpacity,
   UITransform,
   Vec3,
   view,
@@ -29,6 +30,7 @@ import {
   FeedAcquisitionState,
 } from "./framework/Platform/FeedAcquisitionService";
 import { ResourceManager } from "./framework/ResourceManager";
+import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { soundName } from "./gamePrefabMgr";
 
 const { ccclass, property } = _decorator;
@@ -58,6 +60,8 @@ const ARROW_BULL_PENETRATION = 26;
 const HIT_CENTER_TOLERANCE = 3;
 const SHOT_COOLDOWN_MS = 105;
 const TARGET_HITS = 1;
+const INITIAL_ARROW_COUNT = 10;
+const REVIVE_ARROW_COUNT = 5;
 const MAX_STUCK_ARROWS = 30;
 
 /**
@@ -129,8 +133,23 @@ export class archeryGameScene extends Component {
   @property(Button)
   sceneResultHomeButton: Button | null = null;
 
+  @property(Label)
+  sceneResultHomeLabel: Label | null = null;
+
+  @property(Node)
+  sceneResultAdBadge: Node | null = null;
+
+  @property(SpriteFrame)
+  sceneResultSuccessButtonFrame: SpriteFrame | null = null;
+
+  @property(SpriteFrame)
+  sceneResultAdButtonFrame: SpriteFrame | null = null;
+
   private state: ArcheryState = "playing";
   private hitCount = 0;
+  private remainingArrows = INITIAL_ARROW_COUNT;
+  private resultSucceeded = false;
+  private adInFlight = false;
   private bowX = 0;
   private bowDirection = 1;
   private lastShotAt = 0;
@@ -191,9 +210,16 @@ export class archeryGameScene extends Component {
     input.off(Input.EventType.TOUCH_CANCEL, this.onCanvasTouchCancel, this);
     game.off(Game.EVENT_HIDE, this.onGameHide, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
-    this.sceneBackButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneResultActionButton?.node?.off(Button.EventType.CLICK, this.resetRound, this);
-    this.sceneResultHomeButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
+    const backButtonNode = this.sceneBackButton?.node;
+    const resultActionNode = this.sceneResultActionButton?.node;
+    const resultHomeNode = this.sceneResultHomeButton?.node;
+    if (backButtonNode?.isValid) backButtonNode.off(Button.EventType.CLICK, this.returnToMain, this);
+    if (resultActionNode?.isValid) {
+      resultActionNode.off(Button.EventType.CLICK, this.onResultActionPressed, this);
+    }
+    if (resultHomeNode?.isValid) {
+      resultHomeNode.off(Button.EventType.CLICK, this.onResultRestartPressed, this);
+    }
     this.unscheduleAllCallbacks();
     this.stopSceneTweens();
   }
@@ -223,6 +249,7 @@ export class archeryGameScene extends Component {
     if (this.sceneTitleLabel) this.sceneTitleLabel.string = "射箭挑战之牛来";
     if (this.sceneHintLabel) this.sceneHintLabel.string = "点击屏幕发射，瞄准中央缺口";
     if (this.sceneResultActionLabel) this.sceneResultActionLabel.string = "再玩一次";
+    if (this.sceneResultHomeLabel) this.sceneResultHomeLabel.string = "重新开始";
     if (this.sceneGradeLabel) {
       this.sceneGradeLabel.node.setPosition(0, -125, 0);
       this.sceneGradeLabel.fontSize = 72;
@@ -241,8 +268,8 @@ export class archeryGameScene extends Component {
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
     this.sceneBackButton?.node?.on(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneResultActionButton?.node?.on(Button.EventType.CLICK, this.resetRound, this);
-    this.sceneResultHomeButton?.node?.on(Button.EventType.CLICK, this.returnToMain, this);
+    this.sceneResultActionButton?.node?.on(Button.EventType.CLICK, this.onResultActionPressed, this);
+    this.sceneResultHomeButton?.node?.on(Button.EventType.CLICK, this.onResultRestartPressed, this);
   }
 
   private async loadArtwork(): Promise<void> {
@@ -284,6 +311,9 @@ export class archeryGameScene extends Component {
     this.clearArrows();
     this.state = "playing";
     this.hitCount = 0;
+    this.remainingArrows = INITIAL_ARROW_COUNT;
+    this.resultSucceeded = false;
+    this.adInFlight = false;
     this.bowX = 0;
     this.bowDirection = Math.random() < 0.5 ? -1 : 1;
     this.lastShotAt = 0;
@@ -300,6 +330,8 @@ export class archeryGameScene extends Component {
       this.sceneBow.angle = 0;
     }
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
+    if (this.sceneResultActionButton) this.sceneResultActionButton.interactable = true;
+    if (this.sceneResultHomeButton) this.sceneResultHomeButton.interactable = true;
     if (this.sceneStatusLabel) this.sceneStatusLabel.node.active = true;
     if (this.sceneGradeLabel?.node?.isValid) {
       this.sceneGradeLabel.node.active = true;
@@ -335,7 +367,7 @@ export class archeryGameScene extends Component {
   private handleFireGesture(): void {
     const enteredBeforeGesture = FeedAcquisitionService.getState().entered;
     this.activateFeedFromGesture();
-    if (!this.isFeedInteractionEnabled() || this.state !== "playing" || this.leaving) return;
+    if (!this.isFeedInteractionEnabled() || this.state !== "playing" || this.leaving || this.adInFlight) return;
     if (this.feedMode && !enteredBeforeGesture) return;
     this.fireArrow();
   }
@@ -343,6 +375,7 @@ export class archeryGameScene extends Component {
   private fireArrow(): void {
     const now = Date.now();
     if (
+      this.remainingArrows <= 0 ||
       now - this.lastShotAt < SHOT_COOLDOWN_MS ||
       !this.sceneArrowLayer ||
       !this.sceneArrowSpriteFrame
@@ -361,6 +394,8 @@ export class archeryGameScene extends Component {
     const y = BOW_Y + ARROW_HALF_HEIGHT;
     node.setPosition(this.bowX, y, 0);
     this.flyingArrows.push({ node, x: this.bowX, y, passedGap: false });
+    this.remainingArrows -= 1;
+    this.updateLabels();
 
     if (this.sceneBow?.isValid) {
       Tween.stopAllByTarget(this.sceneBow);
@@ -415,6 +450,7 @@ export class archeryGameScene extends Component {
       }
       arrow.node.setPosition(arrow.x, arrow.y, 0);
     }
+    this.checkArrowSupply();
   }
 
   private stickArrow(node: Node): void {
@@ -470,6 +506,7 @@ export class archeryGameScene extends Component {
   private finishRound(): void {
     if (this.state !== "playing") return;
     this.state = "result";
+    this.resultSucceeded = true;
     this.clearFlyingArrows();
     this.clearMissedArrows();
     director.emit("vibrate_success");
@@ -527,12 +564,37 @@ export class archeryGameScene extends Component {
 
   private showResult = (): void => {
     if (!this.sceneResultOverlay?.isValid || this.leaving) return;
+    const success = this.resultSucceeded;
     if (this.sceneGradeLabel?.node?.isValid) this.sceneGradeLabel.node.active = false;
     this.sceneResultOverlay.active = true;
-    if (this.sceneResultTitle) this.sceneResultTitle.string = "挑战成功";
-    if (this.sceneResultDetail) {
-      this.sceneResultDetail.string = "成功穿过中央缺口！\n你射中了牛来！";
+    const overlayOpacity = this.sceneResultOverlay.getComponent(UIOpacity);
+    if (overlayOpacity) {
+      Tween.stopAllByTarget(overlayOpacity);
+      overlayOpacity.opacity = 0;
+      tween(overlayOpacity).to(0.2, { opacity: 255 }).start();
     }
+    if (this.sceneResultTitle) {
+      this.sceneResultTitle.string = success ? "挑战成功" : "挑战失败";
+      this.sceneResultTitle.color = success
+        ? new Color(220, 87, 29, 255)
+        : new Color(211, 49, 89, 255);
+    }
+    if (this.sceneResultDetail) {
+      this.sceneResultDetail.string = success
+        ? "成功穿过中央缺口！\n你射中了牛来！"
+        : `10支箭已经用完，牛来还在上面！\n命中 ${this.hitCount}/${TARGET_HITS}`;
+    }
+    if (this.sceneResultActionLabel) {
+      this.sceneResultActionLabel.string = success ? "再玩一次" : `+${REVIVE_ARROW_COUNT}支箭复活`;
+    }
+    const actionSprite = this.sceneResultActionButton?.node?.getComponent(Sprite);
+    if (actionSprite) {
+      actionSprite.spriteFrame = success
+        ? this.sceneResultSuccessButtonFrame
+        : this.sceneResultAdButtonFrame;
+    }
+    if (this.sceneResultAdBadge) this.sceneResultAdBadge.active = !success;
+    if (this.sceneResultHomeButton?.node) this.sceneResultHomeButton.node.active = !success;
     if (this.sceneResultPanel?.isValid) {
       Tween.stopAllByTarget(this.sceneResultPanel);
       this.sceneResultPanel.setScale(0.7, 0.7, 1);
@@ -545,7 +607,7 @@ export class archeryGameScene extends Component {
 
   private updateLabels(): void {
     if (this.sceneHitsLabel) {
-      this.sceneHitsLabel.string = this.hitCount > 0 ? `${this.hitCount} Hits` : "Hits";
+      this.sceneHitsLabel.string = `剩余箭：${this.remainingArrows}`;
     }
     if (this.sceneGradeLabel) {
       this.sceneGradeLabel.string = this.hitCount >= 20 ? "大师级" : this.hitCount >= 10 ? "高手级" : "";
@@ -585,6 +647,77 @@ export class archeryGameScene extends Component {
     if (this.sceneBow?.isValid) Tween.stopAllByTarget(this.sceneBow);
     if (this.sceneGradeLabel?.node?.isValid) Tween.stopAllByTarget(this.sceneGradeLabel.node);
     if (this.sceneResultPanel?.isValid) Tween.stopAllByTarget(this.sceneResultPanel);
+    if (this.sceneResultOverlay?.isValid) {
+      const overlayOpacity = this.sceneResultOverlay.getComponent(UIOpacity);
+      if (overlayOpacity?.isValid) Tween.stopAllByTarget(overlayOpacity);
+    }
+  }
+
+  /** 等最后一支在飞的箭落定后再失败，避免提前覆盖最后一箭的命中结果。 */
+  private checkArrowSupply(): void {
+    if (this.state !== "playing" || this.remainingArrows > 0 || this.flyingArrows.length > 0) return;
+    this.state = "result";
+    this.resultSucceeded = false;
+    if (this.sceneStatusLabel?.node?.isValid) this.sceneStatusLabel.node.active = false;
+    AudioManager.playEffect(soundName.fail);
+    director.emit("vibrate_light");
+    this.scheduleOnce(this.showResult, 0.35);
+  }
+
+  private onResultActionPressed = (): void => {
+    if (this.state !== "result" || this.leaving || this.adInFlight) return;
+    if (this.resultSucceeded) {
+      this.resetRound();
+      return;
+    }
+    void this.watchAdForArrows();
+  };
+
+  private onResultRestartPressed = (): void => {
+    if (this.state !== "result" || this.resultSucceeded || this.leaving || this.adInFlight) return;
+    this.resetRound();
+  };
+
+  private async watchAdForArrows(): Promise<void> {
+    if (this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
+    this.adInFlight = true;
+    this.setResultButtonsInteractable(false);
+    AudioManager.playEffect(soundName.buttonClick);
+    const rewarded = await SdkUtils.showRewardedVideo();
+    if (!this.node?.isValid) return;
+
+    this.adInFlight = false;
+    this.setResultButtonsInteractable(true);
+    if (!rewarded) {
+      this.showDouyinToast("完整看完广告才能获得箭");
+      return;
+    }
+
+    this.remainingArrows += REVIVE_ARROW_COUNT;
+    this.resultSucceeded = false;
+    this.state = "playing";
+    this.lastShotAt = 0;
+    if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
+    if (this.sceneStatusLabel?.node?.isValid) {
+      this.sceneStatusLabel.node.active = true;
+      this.sceneStatusLabel.string = `已补充${REVIVE_ARROW_COUNT}支箭，继续瞄准！`;
+    }
+    this.updateLabels();
+  }
+
+  private setResultButtonsInteractable(interactable: boolean): void {
+    if (this.sceneResultActionButton) this.sceneResultActionButton.interactable = interactable;
+    if (this.sceneResultHomeButton) this.sceneResultHomeButton.interactable = interactable;
+  }
+
+  private showDouyinToast(title: string): void {
+    try {
+      const api = typeof tt !== "undefined" ? tt : null;
+      if (typeof api?.showToast === "function") api.showToast({ title, icon: "none" });
+      else console.log(`[archeryGameScene] ${title}`);
+    } catch {
+      console.log(`[archeryGameScene] ${title}`);
+    }
   }
 
   private isNodeInside(candidate: Node | null, root: Node | null | undefined): boolean {

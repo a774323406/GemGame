@@ -31,7 +31,9 @@ const { ccclass, property } = _decorator;
 
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
-const REQUIRED_HITS = 12;
+const REQUIRED_HITS = 8;
+const INITIAL_REFILL_COUNT = 12;
+const REVIVE_REFILL_COUNT = 3;
 const TARGET_SPEED = 330;
 const TARGET_SPACING = 285;
 const TARGET_WRAP_LEFT = -465;
@@ -109,7 +111,10 @@ export class penRefillFeedGameScene extends Component {
   public sceneResultPanel: Node | null = null;
 
   @property(Label)
-  public sceneResultTitle: Label | null = null;
+  public sceneResultSuccessTitle: Label | null = null;
+
+  @property(Label)
+  public sceneResultFailureTitle: Label | null = null;
 
   @property(Label)
   public sceneResultDetail: Label | null = null;
@@ -123,6 +128,15 @@ export class penRefillFeedGameScene extends Component {
   @property(Button)
   public sceneSlowdownButton: Button | null = null;
 
+  @property(Label)
+  public sceneRetryButtonLabel: Label | null = null;
+
+  @property(Label)
+  public sceneNextButtonLabel: Label | null = null;
+
+  @property(Node)
+  public sceneResultAdBadge: Node | null = null;
+
   private roundState: RoundState = "ready";
   private targets: TargetState[] = [];
   private projectileState: ProjectileState = "idle";
@@ -130,6 +144,7 @@ export class penRefillFeedGameScene extends Component {
   private projectileAngularVelocity = 0;
   private projectileChecked = false;
   private successfulHits = 0;
+  private remainingRefills = INITIAL_REFILL_COUNT;
   private targetSpeedScale = 1;
   private slowdownUsed = false;
   private adInFlight = false;
@@ -187,14 +202,35 @@ export class penRefillFeedGameScene extends Component {
     input.off(Input.EventType.TOUCH_START, this.onGlobalTouchStart, this);
     input.off(Input.EventType.TOUCH_END, this.onGlobalTouchEnd, this);
     input.off(Input.EventType.TOUCH_CANCEL, this.onGlobalTouchCancel, this);
-    this.sceneBackButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneRetryButton?.node?.off(Button.EventType.CLICK, this.retryRound, this);
-    this.sceneNextButton?.node?.off(Button.EventType.CLICK, this.goToMainGame, this);
-    this.sceneSlowdownButton?.node?.off(Button.EventType.CLICK, this.onSlowdownPressed, this);
+    const backNode = this.sceneBackButton?.node;
+    const retryNode = this.sceneRetryButton?.node;
+    const nextNode = this.sceneNextButton?.node;
+    const slowdownNode = this.sceneSlowdownButton?.node;
+    if (backNode?.isValid) backNode.off(Button.EventType.CLICK, this.returnToMain, this);
+    if (retryNode?.isValid) retryNode.off(Button.EventType.CLICK, this.onResultActionPressed, this);
+    if (nextNode?.isValid) nextNode.off(Button.EventType.CLICK, this.onResultSecondaryPressed, this);
+    if (slowdownNode?.isValid) slowdownNode.off(Button.EventType.CLICK, this.onSlowdownPressed, this);
     this.unscheduleAllCallbacks();
   }
 
   private bindSceneNodes(): void {
+    const resultPanel = this.sceneResultPanel?.isValid ? this.sceneResultPanel : null;
+    // 构建缓存没有及时写入新增属性时，仍可从场景层级按节点名稳定绑定。
+    this.sceneResultSuccessTitle = this.sceneResultSuccessTitle?.isValid
+      ? this.sceneResultSuccessTitle
+      : resultPanel?.getChildByName("SuccessTitle")?.getComponent(Label) ?? null;
+    this.sceneResultFailureTitle = this.sceneResultFailureTitle?.isValid
+      ? this.sceneResultFailureTitle
+      : resultPanel?.getChildByName("FailureTitle")?.getComponent(Label) ?? null;
+    this.sceneRetryButtonLabel = this.sceneRetryButtonLabel?.isValid
+      ? this.sceneRetryButtonLabel
+      : this.sceneRetryButton?.node?.getChildByName("RetryButtonLabel")?.getComponent(Label) ?? null;
+    this.sceneNextButtonLabel = this.sceneNextButtonLabel?.isValid
+      ? this.sceneNextButtonLabel
+      : this.sceneNextButton?.node?.getChildByName("NextButtonLabel")?.getComponent(Label) ?? null;
+    this.sceneResultAdBadge = this.sceneResultAdBadge?.isValid
+      ? this.sceneResultAdBadge
+      : this.sceneRetryButton?.node?.getChildByName("AdBadge") ?? null;
     const roots = this.sceneTargetRoots.filter((node) => node?.isValid);
     this.targets = roots.map((root) => {
       const insertedRefill = root.getChildByName("InsertedRefill");
@@ -209,31 +245,36 @@ export class penRefillFeedGameScene extends Component {
       };
     });
 
-    if (
-      !this.sceneBackground?.isValid ||
-      !this.sceneBackButton?.node?.isValid ||
-      !this.sceneRemainingLabel?.isValid ||
-      !this.sceneTimerLabel?.isValid ||
-      !this.sceneReadyHand?.isValid ||
-      !this.sceneProjectileRefill?.isValid ||
-      !this.sceneHintLabel?.isValid ||
-      !this.sceneResultOverlay?.isValid ||
-      !this.sceneResultPanel?.isValid ||
-      !this.sceneResultTitle?.isValid ||
-      !this.sceneResultDetail?.isValid ||
-      !this.sceneRetryButton?.node?.isValid ||
-      !this.sceneNextButton?.node?.isValid ||
-      !this.sceneSlowdownButton?.node?.isValid ||
-      this.targets.length === 0
-    ) {
-      throw new Error("[penRefillFeedGameScene] 场景节点绑定不完整，请在 Creator 属性面板检查引用");
+    const missingBindings = [
+      ["sceneBackground", !!this.sceneBackground?.isValid],
+      ["sceneBackButton", !!this.sceneBackButton?.node?.isValid],
+      ["sceneRemainingLabel", !!this.sceneRemainingLabel?.isValid],
+      ["sceneTimerLabel", !!this.sceneTimerLabel?.isValid],
+      ["sceneReadyHand", !!this.sceneReadyHand?.isValid],
+      ["sceneProjectileRefill", !!this.sceneProjectileRefill?.isValid],
+      ["sceneHintLabel", !!this.sceneHintLabel?.isValid],
+      ["sceneResultOverlay", !!this.sceneResultOverlay?.isValid],
+      ["sceneResultPanel", !!this.sceneResultPanel?.isValid],
+      ["SuccessTitle", !!this.sceneResultSuccessTitle?.isValid],
+      ["FailureTitle", !!this.sceneResultFailureTitle?.isValid],
+      ["sceneResultDetail", !!this.sceneResultDetail?.isValid],
+      ["sceneRetryButton", !!this.sceneRetryButton?.node?.isValid],
+      ["sceneNextButton", !!this.sceneNextButton?.node?.isValid],
+      ["sceneSlowdownButton", !!this.sceneSlowdownButton?.node?.isValid],
+      ["sceneRetryButtonLabel", !!this.sceneRetryButtonLabel?.isValid],
+      ["sceneNextButtonLabel", !!this.sceneNextButtonLabel?.isValid],
+      ["sceneResultAdBadge", !!this.sceneResultAdBadge?.isValid],
+      ["sceneTargetRoots", this.targets.length > 0],
+    ].filter(([, valid]) => !valid).map(([name]) => name);
+    if (missingBindings.length > 0) {
+      throw new Error(`[penRefillFeedGameScene] 场景节点绑定不完整: ${missingBindings.join(", ")}`);
     }
   }
 
   private bindEvents(): void {
     this.sceneBackButton?.node?.on(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneRetryButton?.node?.on(Button.EventType.CLICK, this.retryRound, this);
-    this.sceneNextButton?.node?.on(Button.EventType.CLICK, this.goToMainGame, this);
+    this.sceneRetryButton?.node?.on(Button.EventType.CLICK, this.onResultActionPressed, this);
+    this.sceneNextButton?.node?.on(Button.EventType.CLICK, this.onResultSecondaryPressed, this);
     this.sceneSlowdownButton?.node?.on(Button.EventType.CLICK, this.onSlowdownPressed, this);
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
@@ -262,6 +303,7 @@ export class penRefillFeedGameScene extends Component {
     this.projectileAngularVelocity = 0;
     this.projectileChecked = false;
     this.successfulHits = 0;
+    this.remainingRefills = INITIAL_REFILL_COUNT;
     this.targetSpeedScale = 1;
     this.slowdownUsed = false;
     this.adInFlight = false;
@@ -272,9 +314,18 @@ export class penRefillFeedGameScene extends Component {
     this.sceneResultPanel.setScale(Vec3.ONE);
     this.sceneRetryButton.node.active = false;
     this.sceneNextButton.node.active = false;
+    this.sceneRetryButton.node.setPosition(0, -154, 0);
+    this.sceneNextButton.node.setPosition(0, -154, 0);
+    this.sceneRetryButton.interactable = true;
+    this.sceneNextButton.interactable = true;
+    this.sceneResultAdBadge.active = false;
+    this.sceneRetryButtonLabel.string = `+${REVIVE_REFILL_COUNT}笔芯复活`;
+    this.sceneNextButtonLabel.string = "下一关";
     this.sceneSlowdownButton.node.active = true;
     this.sceneSlowdownButton.interactable = true;
     this.sceneRemainingLabel.string = `还需要放入${REQUIRED_HITS}个`;
+    this.sceneTimerLabel.node.active = true;
+    this.sceneTimerLabel.string = `剩余笔芯：${this.remainingRefills}`;
     this.sceneHintLabel.string = "点击屏幕开始";
 
     const startX = -285;
@@ -334,6 +385,7 @@ export class penRefillFeedGameScene extends Component {
       if (this.sceneHintLabel?.isValid && this.roundState === "playing") {
         this.sceneHintLabel.string = "差一点，再看准时机";
       }
+      this.checkRefillSupply();
     }
   }
 
@@ -369,6 +421,7 @@ export class penRefillFeedGameScene extends Component {
     this.sceneRemainingLabel.string = `还需要放入${remaining}个`;
     this.sceneHintLabel.string = `插入成功 ${this.successfulHits}/${REQUIRED_HITS}`;
     if (remaining === 0) this.completeRound();
+    else this.checkRefillSupply();
   }
 
   private finishProjectile(): void {
@@ -421,13 +474,15 @@ export class penRefillFeedGameScene extends Component {
       return;
     }
     if (this.roundState === "complete" || this.roundState === "failed" || this.roundState === "leaving") return;
-    if (this.projectileState !== "idle" || this.adInFlight) return;
+    if (this.projectileState !== "idle" || this.adInFlight || this.remainingRefills <= 0) return;
 
     if (this.roundState === "ready") {
       this.roundState = "playing";
       this.sceneHintLabel.string = "看准笔帽中心再点";
     }
     AudioManager.playEffect(soundName.up);
+    this.remainingRefills -= 1;
+    this.sceneTimerLabel.string = `剩余笔芯：${this.remainingRefills}`;
     this.projectileState = "falling";
     this.projectileVelocity.set(0, PROJECTILE_INITIAL_VY, 0);
     this.projectileAngularVelocity = 0;
@@ -468,21 +523,68 @@ export class penRefillFeedGameScene extends Component {
     this.showDouyinToast("钢笔速度已降低");
   };
 
+  /** 等最后一根笔芯完成碰撞或落地后再判失败。 */
+  private checkRefillSupply(): void {
+    if (
+      this.roundState !== "playing" ||
+      this.remainingRefills > 0 ||
+      this.projectileState !== "idle"
+    ) return;
+    this.roundState = "failed";
+    AudioManager.playEffect(soundName.fail);
+    this.scheduleOnce(() => {
+      this.showResult(
+        `笔芯已经用完，还有笔套是空的！\n成功插入 ${this.successfulHits}/${REQUIRED_HITS}`,
+        false,
+      );
+    }, 0.3);
+  }
+
   private completeRound(): void {
     if (this.roundState !== "playing") return;
     this.roundState = "complete";
     this.finishProjectile();
     this.scheduleOnce(() => {
-      this.showResult("挑战成功！", "12根笔芯全部插好了", true);
+      this.showResult(`${REQUIRED_HITS}根笔芯全部插好了`, true);
     }, 0.4);
   }
 
-  private showResult(title: string, detail: string, success: boolean): void {
+  private showResult(detail: string, success: boolean): void {
     if (!this.sceneResultOverlay?.isValid || !this.sceneResultPanel?.isValid) return;
-    this.sceneResultTitle.string = title;
+    const starsNode = this.sceneResultPanel.getChildByName("SuccessStars");
+    const countNode = this.sceneResultPanel.getChildByName("SuccessCount");
+    const countLabel = countNode?.getComponent(Label);
+    // 成功、失败标题的位置与样式完全由场景节点控制，运行时只切换显隐。
+    this.sceneResultSuccessTitle.node.active = success;
+    this.sceneResultFailureTitle.node.active = !success;
     this.sceneResultDetail.string = detail;
+    this.sceneResultDetail.node.setPosition(0, success ? -52 : -10, 0);
+    if (starsNode?.isValid) starsNode.active = success;
+    if (countNode?.isValid) {
+      countNode.active = true;
+      countNode.setPosition(0, success ? 38 : 80, 0);
+    }
+    if (countLabel?.isValid) {
+      countLabel.string = success
+        ? `${REQUIRED_HITS} / ${REQUIRED_HITS}`
+        : `${this.successfulHits} / ${REQUIRED_HITS}`;
+    }
+    this.sceneRetryButtonLabel.string = `+${REVIVE_REFILL_COUNT}笔芯复活`;
+    this.sceneNextButtonLabel.string = success ? "下一关" : "重新开始";
+    const retryTransform = this.sceneRetryButton.node.getComponent(UITransform);
+    const nextTransform = this.sceneNextButton.node.getComponent(UITransform);
+    retryTransform?.setContentSize(360, 100);
+    nextTransform?.setContentSize(success ? 356 : 255, success ? 112 : 86);
+    this.sceneRetryButtonLabel.fontSize = 27;
+    this.sceneRetryButtonLabel.lineHeight = 34;
+    this.sceneNextButtonLabel.fontSize = success ? 42 : 29;
+    this.sceneNextButtonLabel.lineHeight = success ? 50 : 38;
+    this.sceneResultAdBadge.active = !success;
     this.sceneRetryButton.node.active = !success;
-    this.sceneNextButton.node.active = success;
+    this.sceneNextButton.node.active = true;
+    this.sceneRetryButton.node.setPosition(0, -120, 0);
+    // 失败态的重新开始按钮避开面板底部装饰边框。
+    this.sceneNextButton.node.setPosition(0, success ? -154 : -200, 0);
     this.sceneResultOverlay.active = true;
     Tween.stopAllByTarget(this.sceneResultPanel);
     this.sceneResultPanel.setScale(0.92, 0.92, 1);
@@ -490,21 +592,54 @@ export class penRefillFeedGameScene extends Component {
       .to(0.24, { scale: Vec3.ONE }, { easing: "backOut" })
       .start();
 
-    const shownButton = success ? this.sceneNextButton : this.sceneRetryButton;
-    const opacity = shownButton.node.getComponent(UIOpacity);
-    if (!opacity?.isValid) return;
-    // 入场后保持完全不透明，避免文字随呼吸闪烁持续变淡。
-    Tween.stopAllByTarget(opacity);
-    opacity.opacity = 0;
-    tween(opacity)
-      .to(0.22, { opacity: 255 }, { easing: "quadOut" })
-      .start();
+    for (const button of success
+      ? [this.sceneNextButton]
+      : [this.sceneRetryButton, this.sceneNextButton]) {
+      const opacity = button.node.getComponent(UIOpacity);
+      if (!opacity?.isValid) continue;
+      Tween.stopAllByTarget(opacity);
+      opacity.opacity = 0;
+      tween(opacity).to(0.22, { opacity: 255 }, { easing: "quadOut" }).start();
+    }
   }
 
-  private retryRound = (): void => {
-    if (this.roundState !== "failed") return;
-    this.resetRound();
+  private onResultActionPressed = (): void => {
+    if (this.roundState !== "failed" || this.adInFlight) return;
+    void this.watchAdForRefills();
   };
+
+  private onResultSecondaryPressed = (): void => {
+    if (this.adInFlight) return;
+    if (this.roundState === "complete") this.goToMainGame();
+    else if (this.roundState === "failed") this.resetRound();
+  };
+
+  private async watchAdForRefills(): Promise<void> {
+    if (this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
+    this.adInFlight = true;
+    this.setResultButtonsInteractable(false);
+    AudioManager.playEffect(soundName.buttonClick);
+    const rewarded = await SdkUtils.showRewardedVideo();
+    if (!this.node?.isValid) return;
+
+    this.adInFlight = false;
+    this.setResultButtonsInteractable(true);
+    if (!rewarded) {
+      this.showDouyinToast("完整看完广告才能获得笔芯");
+      return;
+    }
+
+    this.remainingRefills += REVIVE_REFILL_COUNT;
+    this.roundState = "playing";
+    this.sceneResultOverlay.active = false;
+    this.sceneTimerLabel.string = `剩余笔芯：${this.remainingRefills}`;
+    this.sceneHintLabel.string = `已补充${REVIVE_REFILL_COUNT}根笔芯，继续！`;
+  }
+
+  private setResultButtonsInteractable(interactable: boolean): void {
+    this.sceneRetryButton.interactable = interactable;
+    this.sceneNextButton.interactable = interactable;
+  }
 
   private goToMainGame = (): void => {
     if (this.roundState !== "complete" || this.adInFlight) return;

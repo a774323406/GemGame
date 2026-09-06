@@ -17,6 +17,7 @@ import {
   Sprite,
   SpriteFrame,
   tween,
+  Tween,
   UIOpacity,
   UITransform,
   Vec3,
@@ -30,6 +31,7 @@ import {
   FeedAcquisitionState,
 } from "./framework/Platform/FeedAcquisitionService";
 import { ResourceManager } from "./framework/ResourceManager";
+import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { soundName } from "./gamePrefabMgr";
 import { adc } from "./framework/Platform/ADController";
 
@@ -55,6 +57,8 @@ const STRAW_HIT_CHECK_Y = -246;
 const STRAW_CATCH_HALF_WIDTH = 24;
 const STRAW_MISS_Y = -720;
 const MAX_FALLING_STRAWS = 1;
+const INITIAL_STRAW_COUNT = 10;
+const REVIVE_STRAW_COUNT = 3;
 
 /** Bundle 热刷新时路径清单可能仍是旧缓存，固定 UUID 用作可靠兜底。 */
 const MILK_TEA_SPRITE_UUIDS: Record<string, string> = {
@@ -73,7 +77,7 @@ const MILK_TEA_CUP_PATHS = [
   "milkTeaFeed/jasmine-tea/spriteFrame",
 ] as const;
 
-type MilkTeaRoundState = "playing" | "complete" | "leaving";
+type MilkTeaRoundState = "playing" | "complete" | "failed" | "leaving";
 
 interface CupState {
   root: Node;
@@ -129,6 +133,30 @@ export class milkTeaFeedGameScene extends Component {
   @property(Button)
   public sceneNextButton: Button | null = null;
 
+  @property(Label)
+  public sceneResultTitle: Label | null = null;
+
+  @property(Label)
+  public sceneResultDetail: Label | null = null;
+
+  @property(Label)
+  public sceneResultActionLabel: Label | null = null;
+
+  @property(Button)
+  public sceneRestartButton: Button | null = null;
+
+  @property(Label)
+  public sceneRestartLabel: Label | null = null;
+
+  @property(Node)
+  public sceneResultAdBadge: Node | null = null;
+
+  @property(SpriteFrame)
+  public sceneResultSuccessButtonFrame: SpriteFrame | null = null;
+
+  @property(SpriteFrame)
+  public sceneResultAdButtonFrame: SpriteFrame | null = null;
+
   private roundState: MilkTeaRoundState = "playing";
   private cups: CupState[] = [];
   private fallingStraws: FallingStraw[] = [];
@@ -138,10 +166,13 @@ export class milkTeaFeedGameScene extends Component {
   private resultOverlay: Node | null = null;
   private resultPanel: Node | null = null;
   private nextButton: Button | null = null;
+  private restartButton: Button | null = null;
   private nextButtonOpacity: UIOpacity | null = null;
   private backButton: Button | null = null;
   private background: Node | null = null;
   private readyStraw: Node | null = null;
+  private remainingStraws = 0;
+  private adInFlight = false;
   private feedMode = false;
   private feedEntered = false;
   private feedExited = false;
@@ -164,6 +195,7 @@ export class milkTeaFeedGameScene extends Component {
       this.buildScene();
     }
     this.prepareSceneVisuals();
+    this.resetRound();
     this.bindEvents();
     this.artworkReadyPromise = this.loadArtwork();
   }
@@ -197,12 +229,20 @@ export class milkTeaFeedGameScene extends Component {
     input.off(Input.EventType.TOUCH_START, this.onGlobalTouchStart, this);
     input.off(Input.EventType.TOUCH_END, this.onGlobalTouchEnd, this);
     input.off(Input.EventType.TOUCH_CANCEL, this.onGlobalTouchCancel, this);
+    const backNode = this.backButton?.node;
+    const actionNode = this.nextButton?.node;
+    const restartNode = this.restartButton?.node;
+    if (backNode?.isValid) backNode.off(Button.EventType.CLICK, this.returnToMain, this);
+    if (actionNode?.isValid) actionNode.off(Button.EventType.CLICK, this.onResultActionPressed, this);
+    if (restartNode?.isValid) restartNode.off(Button.EventType.CLICK, this.onRestartPressed, this);
     this.unscheduleAllCallbacks();
+    this.stopResultTweens();
   }
 
   private bindEvents(): void {
     this.backButton?.node?.on(Button.EventType.CLICK, this.returnToMain, this);
-    this.nextButton?.node?.on(Button.EventType.CLICK, this.goToMainGame, this);
+    this.nextButton?.node?.on(Button.EventType.CLICK, this.onResultActionPressed, this);
+    this.restartButton?.node?.on(Button.EventType.CLICK, this.onRestartPressed, this);
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
     input.on(Input.EventType.TOUCH_START, this.onGlobalTouchStart, this);
@@ -304,6 +344,7 @@ export class milkTeaFeedGameScene extends Component {
     this.sceneResultOverlay = this.resultOverlay;
     this.sceneResultPanel = this.resultPanel;
     this.sceneNextButton = this.nextButton;
+    this.sceneRestartButton = this.restartButton;
   }
 
   /** 优先使用场景中已经摆好的节点，运行时不再重复生成 UI。 */
@@ -318,6 +359,24 @@ export class milkTeaFeedGameScene extends Component {
     this.resultOverlay = this.validNode(this.sceneResultOverlay) ?? root.getChildByName("ResultOverlay");
     this.resultPanel = this.validNode(this.sceneResultPanel) ?? this.resultOverlay?.getChildByName("ResultPanel") ?? null;
     this.nextButton = this.validComponent(this.sceneNextButton) ?? this.resultPanel?.getChildByName("NextButton")?.getComponent(Button) ?? null;
+    this.restartButton = this.validComponent(this.sceneRestartButton)
+      ?? this.resultPanel?.getChildByName("RestartButton")?.getComponent(Button)
+      ?? null;
+    this.sceneResultTitle = this.validComponent(this.sceneResultTitle)
+      ?? this.resultPanel?.getChildByName("ResultTitle")?.getComponent(Label)
+      ?? null;
+    this.sceneResultDetail = this.validComponent(this.sceneResultDetail)
+      ?? this.resultPanel?.getChildByName("ResultDetail")?.getComponent(Label)
+      ?? null;
+    this.sceneResultActionLabel = this.validComponent(this.sceneResultActionLabel)
+      ?? this.nextButton?.node?.getChildByName("Label")?.getComponent(Label)
+      ?? null;
+    this.sceneRestartLabel = this.validComponent(this.sceneRestartLabel)
+      ?? this.restartButton?.node?.getChildByName("Label")?.getComponent(Label)
+      ?? null;
+    this.sceneResultAdBadge = this.validNode(this.sceneResultAdBadge)
+      ?? this.nextButton?.node?.getChildByName("AdBadge")
+      ?? null;
     this.nextButtonOpacity = this.nextButton?.node?.getComponent(UIOpacity) ?? null;
 
     const configuredCups = this.sceneCupRoots.filter((node) => node?.isValid);
@@ -352,6 +411,11 @@ export class milkTeaFeedGameScene extends Component {
       this.resultOverlay &&
       this.resultPanel &&
       this.nextButton &&
+      this.restartButton &&
+      this.sceneResultTitle &&
+      this.sceneResultDetail &&
+      this.sceneResultActionLabel &&
+      this.sceneRestartLabel &&
       this.cups.length === MILK_TEA_CUP_PATHS.length
     );
   }
@@ -369,11 +433,18 @@ export class milkTeaFeedGameScene extends Component {
       }
     }
     if (this.resultOverlay?.isValid) {
-      this.drawOverlayGraphics(this.resultOverlay);
+      if (!this.resultOverlay.getComponent(Sprite)) this.drawOverlayGraphics(this.resultOverlay);
       this.resultOverlay.active = false;
     }
-    if (this.resultPanel?.isValid) this.drawResultPanelGraphics(this.resultPanel);
-    if (this.nextButton?.node?.isValid) this.drawNextButtonGraphics(this.nextButton.node);
+    if (this.resultPanel?.isValid && !this.resultPanel.getComponent(Sprite)) {
+      this.drawResultPanelGraphics(this.resultPanel);
+    }
+    if (this.nextButton?.node?.isValid && !this.nextButton.node.getComponent(Sprite)) {
+      this.drawNextButtonGraphics(this.nextButton.node);
+    }
+    if (this.restartButton?.node?.isValid && !this.restartButton.node.getComponent(Sprite)) {
+      this.drawRestartButtonGraphics(this.restartButton.node);
+    }
     this.nextButtonOpacity = this.nextButton?.node?.getComponent(UIOpacity) ?? this.nextButton?.node?.addComponent(UIOpacity) ?? null;
   }
 
@@ -384,34 +455,55 @@ export class milkTeaFeedGameScene extends Component {
     overlayGraphics.rect(-375, -667, 750, 1334);
     overlayGraphics.fill();
 
-    this.resultPanel = this.createNode("ResultPanel", this.resultOverlay, 0, 20, 540, 390);
+    this.resultPanel = this.createNode("ResultPanel", this.resultOverlay, 0, 15, 680, 560);
     const panelGraphics = this.resultPanel.addComponent(Graphics);
     panelGraphics.fillColor = new Color(245, 255, 236, 255);
     panelGraphics.strokeColor = new Color(63, 166, 103, 255);
     panelGraphics.lineWidth = 6;
-    panelGraphics.roundRect(-270, -195, 540, 390, 34);
+    panelGraphics.roundRect(-340, -280, 680, 560, 34);
     panelGraphics.fill();
     panelGraphics.stroke();
 
-    const title = this.createLabel("ResultTitle", this.resultPanel, 0, 102, 460, 78, 55, "全部插好了！", new Color(35, 145, 86, 255));
-    const detail = this.createLabel("ResultDetail", this.resultPanel, 0, 25, 460, 64, 31, "四杯奶茶全部完成", new Color(70, 119, 88, 255));
+    const title = this.createLabel("ResultTitle", this.resultPanel, 0, 150, 540, 80, 50, "挑战成功", new Color(220, 87, 29, 255));
+    const detail = this.createLabel("ResultDetail", this.resultPanel, 0, 25, 540, 170, 29, "四杯奶茶全部完成", new Color(78, 48, 25, 255));
     title.isBold = true;
     detail.isBold = true;
+    this.sceneResultTitle = title;
+    this.sceneResultDetail = detail;
 
-    const buttonNode = this.createNode("NextButton", this.resultPanel, 0, -112, 300, 86);
+    const buttonNode = this.createNode("NextButton", this.resultPanel, 0, -120, 360, 100);
     const buttonGraphics = buttonNode.addComponent(Graphics);
     buttonGraphics.fillColor = new Color(255, 158, 64, 255);
     buttonGraphics.strokeColor = new Color(193, 96, 36, 255);
     buttonGraphics.lineWidth = 5;
-    buttonGraphics.roundRect(-150, -43, 300, 86, 42);
+    buttonGraphics.roundRect(-180, -50, 360, 100, 50);
     buttonGraphics.fill();
     buttonGraphics.stroke();
     this.nextButton = buttonNode.addComponent(Button);
     this.nextButton.transition = Button.Transition.SCALE;
     this.nextButton.zoomScale = 1.06;
     this.nextButtonOpacity = buttonNode.addComponent(UIOpacity);
-    const label = this.createLabel("Label", buttonNode, 0, -2, 270, 70, 36, "下一关");
+    const label = this.createLabel("Label", buttonNode, 0, 0, 290, 65, 27, "下一关");
     label.isBold = true;
+    this.sceneResultActionLabel = label;
+
+    const restartNode = this.createNode("RestartButton", this.resultPanel, 0, -220, 255, 86);
+    const restartGraphics = restartNode.addComponent(Graphics);
+    restartGraphics.fillColor = new Color(72, 151, 238, 255);
+    restartGraphics.strokeColor = new Color(27, 104, 200, 255);
+    restartGraphics.lineWidth = 5;
+    restartGraphics.roundRect(-127.5, -43, 255, 86, 43);
+    restartGraphics.fill();
+    restartGraphics.stroke();
+    this.restartButton = restartNode.addComponent(Button);
+    this.restartButton.transition = Button.Transition.SCALE;
+    this.restartButton.zoomScale = 1.06;
+    restartNode.addComponent(UIOpacity);
+    const restartLabel = this.createLabel("Label", restartNode, 0, 1, 215, 60, 29, "重新开始");
+    restartLabel.isBold = true;
+    this.sceneRestartButton = this.restartButton;
+    this.sceneRestartLabel = restartLabel;
+    restartNode.active = false;
     this.resultOverlay.active = false;
   }
 
@@ -468,6 +560,51 @@ export class milkTeaFeedGameScene extends Component {
     });
   }
 
+  private resetRound = (): void => {
+    if (this.roundState === "leaving") return;
+    this.unschedule(this.showResult);
+    this.stopResultTweens();
+    for (const falling of this.fallingStraws) {
+      if (falling.node?.isValid) falling.node.destroy();
+    }
+    this.fallingStraws.length = 0;
+    this.roundState = "playing";
+    this.throwCount = 0;
+    this.remainingStraws = INITIAL_STRAW_COUNT;
+    this.adInFlight = false;
+
+    const startX = -360;
+    for (let index = 0; index < this.cups.length; index++) {
+      const cup = this.cups[index];
+      Tween.stopAllByTarget(cup.root);
+      cup.filled = false;
+      cup.strawClip.active = false;
+      cup.root.setPosition(startX + index * CUP_SPACING, cup.baseY, 0);
+      cup.root.setScale(Vec3.ONE);
+    }
+
+    if (this.resultOverlay?.isValid) this.resultOverlay.active = false;
+    if (this.resultPanel?.isValid) this.resultPanel.setScale(Vec3.ONE);
+    if (this.nextButton?.node?.isValid) {
+      this.nextButton.node.active = true;
+      this.nextButton.interactable = true;
+      this.nextButton.node.setPosition(0, -120, 0);
+    }
+    if (this.restartButton?.node?.isValid) {
+      this.restartButton.node.active = false;
+      this.restartButton.interactable = true;
+    }
+    if (this.sceneResultAdBadge?.isValid) this.sceneResultAdBadge.active = false;
+    if (this.sceneResultActionLabel?.isValid) this.sceneResultActionLabel.string = "下一关";
+    if (this.sceneRestartLabel?.isValid) this.sceneRestartLabel.string = "重新开始";
+    const actionSprite = this.nextButton?.node?.getComponent(Sprite);
+    if (actionSprite && this.sceneResultSuccessButtonFrame) {
+      actionSprite.spriteFrame = this.sceneResultSuccessButtonFrame;
+    }
+    if (this.counterLabel?.isValid) this.counterLabel.string = `剩余吸管：${this.remainingStraws}`;
+    if (this.hintLabel?.isValid) this.hintLabel.string = "点击屏幕投下吸管";
+  };
+
   private updateCups(deltaTime: number): void {
     let furthestX = Math.max(...this.cups.map((cup) => cup.root.position.x));
     for (const cup of this.cups) {
@@ -506,6 +643,7 @@ export class milkTeaFeedGameScene extends Component {
         this.fallingStraws.splice(index, 1);
       }
     }
+    this.checkStrawSupply();
   }
 
   private findCatchableCup(): CupState | null {
@@ -555,10 +693,15 @@ export class milkTeaFeedGameScene extends Component {
     ) {
       return;
     }
-    if (this.fallingStraws.length >= MAX_FALLING_STRAWS) return;
+    if (
+      this.remainingStraws <= 0 ||
+      this.fallingStraws.length >= MAX_FALLING_STRAWS ||
+      this.adInFlight
+    ) return;
 
     this.throwCount += 1;
-    if (this.counterLabel) this.counterLabel.string = `一共投了${this.throwCount}次`;
+    this.remainingStraws -= 1;
+    if (this.counterLabel) this.counterLabel.string = `剩余吸管：${this.remainingStraws}`;
     if (this.hintLabel && this.throwCount === 1) this.hintLabel.string = "对准移动中的杯口";
     AudioManager.playEffect(soundName.up);
     const readyTransform = this.readyStraw?.getComponent(UITransform);
@@ -577,8 +720,55 @@ export class milkTeaFeedGameScene extends Component {
 
   private onGlobalTouchCancel = (): void => {};
 
+  /** 等最后一根吸管落定后再失败，避免最后一次命中被提前覆盖。 */
+  private checkStrawSupply(): void {
+    if (
+      this.roundState !== "playing" ||
+      this.remainingStraws > 0 ||
+      this.fallingStraws.length > 0
+    ) return;
+    this.roundState = "failed";
+    AudioManager.playEffect(soundName.fail);
+    this.scheduleOnce(this.showResult, 0.3);
+  }
+
   private readonly showResult = (): void => {
-    if (!this.resultOverlay?.isValid || this.roundState !== "complete") return;
+    if (
+      !this.resultOverlay?.isValid ||
+      (this.roundState !== "complete" && this.roundState !== "failed")
+    ) return;
+    const success = this.roundState === "complete";
+    const completedCount = this.cups.filter((cup) => cup.filled).length;
+    if (this.sceneResultTitle?.isValid) {
+      this.sceneResultTitle.string = success ? "挑战成功" : "挑战失败";
+      this.sceneResultTitle.color = success
+        ? new Color(220, 87, 29, 255)
+        : new Color(211, 49, 89, 255);
+    }
+    if (this.sceneResultDetail?.isValid) {
+      this.sceneResultDetail.string = success
+        ? `${this.cups.length}杯奶茶全部插好了！`
+        : `吸管已经用完，还有奶茶没有插好！\n已插好 ${completedCount}/${this.cups.length} 杯`;
+    }
+    if (this.sceneResultActionLabel?.isValid) {
+      this.sceneResultActionLabel.string = success ? "下一关" : `+${REVIVE_STRAW_COUNT}根吸管复活`;
+    }
+    if (this.sceneRestartLabel?.isValid) this.sceneRestartLabel.string = "重新开始";
+    const actionSprite = this.nextButton?.node?.getComponent(Sprite);
+    if (actionSprite) {
+      actionSprite.spriteFrame = success
+        ? this.sceneResultSuccessButtonFrame
+        : this.sceneResultAdButtonFrame;
+    }
+    if (this.sceneResultAdBadge?.isValid) this.sceneResultAdBadge.active = !success;
+    if (this.nextButton?.node?.isValid) {
+      this.nextButton.node.active = true;
+      this.nextButton.node.setPosition(0, -120, 0);
+    }
+    if (this.restartButton?.node?.isValid) {
+      this.restartButton.node.active = !success;
+      this.restartButton.node.setPosition(0, -220, 0);
+    }
     this.resultOverlay.active = true;
     if (this.resultPanel?.isValid) {
       this.resultPanel.setScale(0.72, 0.72, 1);
@@ -588,17 +778,69 @@ export class milkTeaFeedGameScene extends Component {
         .start();
     }
     if (this.nextButtonOpacity?.isValid) {
+      Tween.stopAllByTarget(this.nextButtonOpacity);
       this.nextButtonOpacity.opacity = 0;
-      tween(this.nextButtonOpacity)
-        .to(0.3, { opacity: 255 }, { easing: "quadOut" })
-        .repeatForever(
-          tween(this.nextButtonOpacity)
-            .to(0.65, { opacity: 185 }, { easing: "sineInOut" })
-            .to(0.65, { opacity: 255 }, { easing: "sineInOut" }),
-        )
-        .start();
+      const entrance = tween(this.nextButtonOpacity).to(0.3, { opacity: 255 }, { easing: "quadOut" });
+      if (success) {
+        entrance
+          .repeatForever(
+            tween(this.nextButtonOpacity)
+              .to(0.65, { opacity: 185 }, { easing: "sineInOut" })
+              .to(0.65, { opacity: 255 }, { easing: "sineInOut" }),
+          )
+          .start();
+      } else {
+        entrance.start();
+      }
+    }
+    const restartOpacity = this.restartButton?.node?.getComponent(UIOpacity);
+    if (!success && restartOpacity?.isValid) {
+      Tween.stopAllByTarget(restartOpacity);
+      restartOpacity.opacity = 0;
+      tween(restartOpacity).to(0.3, { opacity: 255 }, { easing: "quadOut" }).start();
     }
   };
+
+  private onResultActionPressed = (): void => {
+    if (this.adInFlight || this.roundState === "leaving") return;
+    if (this.roundState === "complete") {
+      this.goToMainGame();
+    } else if (this.roundState === "failed") {
+      void this.watchAdForStraws();
+    }
+  };
+
+  private onRestartPressed = (): void => {
+    if (this.roundState !== "failed" || this.adInFlight) return;
+    this.resetRound();
+  };
+
+  private async watchAdForStraws(): Promise<void> {
+    if (this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
+    this.adInFlight = true;
+    this.setResultButtonsInteractable(false);
+    AudioManager.playEffect(soundName.buttonClick);
+    const rewarded = await SdkUtils.showRewardedVideo();
+    if (!this.node?.isValid) return;
+
+    this.adInFlight = false;
+    this.setResultButtonsInteractable(true);
+    if (!rewarded) {
+      this.showDouyinToast("完整看完广告才能获得吸管");
+      return;
+    }
+
+    this.remainingStraws += REVIVE_STRAW_COUNT;
+    this.roundState = "playing";
+    if (this.resultOverlay?.isValid) this.resultOverlay.active = false;
+    if (this.counterLabel?.isValid) this.counterLabel.string = `剩余吸管：${this.remainingStraws}`;
+    if (this.hintLabel?.isValid) this.hintLabel.string = `已补充${REVIVE_STRAW_COUNT}根吸管，继续！`;
+  }
+
+  private setResultButtonsInteractable(interactable: boolean): void {
+    if (this.nextButton) this.nextButton.interactable = interactable;
+    if (this.restartButton) this.restartButton.interactable = interactable;
+  }
 
   private goToMainGame = (): void => {
     if (this.roundState !== "complete") return;
@@ -673,6 +915,25 @@ export class milkTeaFeedGameScene extends Component {
     adc.cancelFeedEntryInterstitial();
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     FeedAcquisitionService.completeSession();
+  }
+
+  private stopResultTweens(): void {
+    if (this.resultPanel?.isValid) Tween.stopAllByTarget(this.resultPanel);
+    if (this.nextButtonOpacity?.isValid) Tween.stopAllByTarget(this.nextButtonOpacity);
+    if (this.restartButton?.node?.isValid) {
+      const opacity = this.restartButton.node.getComponent(UIOpacity);
+      if (opacity?.isValid) Tween.stopAllByTarget(opacity);
+    }
+  }
+
+  private showDouyinToast(title: string): void {
+    try {
+      const api = typeof tt !== "undefined" ? tt : null;
+      if (typeof api?.showToast === "function") api.showToast({ title, icon: "none" });
+      else console.log(`[milkTeaFeedGameScene] ${title}`);
+    } catch {
+      console.log(`[milkTeaFeedGameScene] ${title}`);
+    }
   }
 
   private createNode(name: string, parent: Node, x: number, y: number, width: number, height: number): Node {
@@ -780,6 +1041,20 @@ export class milkTeaFeedGameScene extends Component {
     graphics.clear();
     graphics.fillColor = new Color(255, 158, 64, 255);
     graphics.strokeColor = new Color(193, 96, 36, 255);
+    graphics.lineWidth = 5;
+    graphics.roundRect(-width / 2, -height / 2, width, height, height / 2);
+    graphics.fill();
+    graphics.stroke();
+  }
+
+  private drawRestartButtonGraphics(node: Node): void {
+    const transform = node.getComponent(UITransform);
+    const graphics = node.getComponent(Graphics) ?? node.addComponent(Graphics);
+    const width = transform?.width || 255;
+    const height = transform?.height || 86;
+    graphics.clear();
+    graphics.fillColor = new Color(72, 151, 238, 255);
+    graphics.strokeColor = new Color(27, 104, 200, 255);
     graphics.lineWidth = 5;
     graphics.roundRect(-width / 2, -height / 2, width, height, height / 2);
     graphics.fill();

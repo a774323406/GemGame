@@ -24,9 +24,9 @@ export const FEED_MILK_TEA_CONTENT_ID = "CONTENT14484635394";
 
 /**
  * 插入笔芯推荐流方案 ID。
- * 在抖音后台创建并上线新方案后，把 Content_ID 填到这里即可自动进入新场景。
+ * 该方案直接进入 PenRefillFeedGameScene。
  */
-export const FEED_PEN_REFILL_CONTENT_ID = "";
+export const FEED_PEN_REFILL_CONTENT_ID = "CONTENT14615823362";
 
 /**
  * 抖音推荐流直玩复访版配置。
