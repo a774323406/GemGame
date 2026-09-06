@@ -51,6 +51,8 @@ export class mainScene extends Component {
   archeryGameBtn: Button = null;
   @property(Button)
   juggleBallGameBtn: Button = null;
+  @property(Button)
+  penRefillGameBtn: Button = null;
   private milkTeaGameBtn: Button | null = null;
   private feedSubscribeBtn: Button | null = null;
   private shareInFlight = false;
@@ -64,6 +66,7 @@ export class mainScene extends Component {
     this.shootingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
     this.archeryGameBtn?.node?.on(Button.EventType.CLICK, this.gotoArcheryGame, this);
     this.juggleBallGameBtn?.node?.on(Button.EventType.CLICK, this.gotoJuggleBallGame, this);
+    this.penRefillGameBtn?.node?.on(Button.EventType.CLICK, this.gotoPenRefillGame, this);
     this.milkTeaGameBtn = this.createMilkTeaTestButton();
     this.milkTeaGameBtn.node.on(Button.EventType.CLICK, this.gotoMilkTeaGame, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
@@ -152,6 +155,19 @@ export class mainScene extends Component {
       await GameSceneBundle.loadScene(GameSceneName.MilkTeaFeedGame);
     } catch (err) {
       console.error("[mainScene] MilkTeaFeedGameScene 加载失败", err);
+      if (entryButton.node?.isValid) entryButton.interactable = true;
+    }
+  }
+
+  private async gotoPenRefillGame(): Promise<void> {
+    const entryButton = this.penRefillGameBtn;
+    if (!entryButton?.interactable) return;
+    entryButton.interactable = false;
+
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.PenRefillFeedGame);
+    } catch (err) {
+      console.error("[mainScene] PenRefillFeedGameScene 加载失败", err);
       if (entryButton.node?.isValid) entryButton.interactable = true;
     }
   }

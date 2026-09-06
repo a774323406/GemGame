@@ -21,6 +21,7 @@ import {
   FEED_JUGGLE_CONTENT_ID,
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
   FEED_MILK_TEA_CONTENT_ID,
+  FEED_PEN_REFILL_CONTENT_ID,
   FEED_SHOOTING_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -234,6 +235,13 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.MilkTeaFeedGame,
         reason: `推荐流投吸管奶茶方案（${contentId}）`,
+      };
+    }
+
+    if (FEED_PEN_REFILL_CONTENT_ID && contentId === FEED_PEN_REFILL_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.PenRefillFeedGame,
+        reason: `推荐流插入笔芯方案（${contentId}）`,
       };
     }
 

@@ -23,6 +23,12 @@ export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14612123394";
 export const FEED_MILK_TEA_CONTENT_ID = "CONTENT14484635394";
 
 /**
+ * 插入笔芯推荐流方案 ID。
+ * 在抖音后台创建并上线新方案后，把 Content_ID 填到这里即可自动进入新场景。
+ */
+export const FEED_PEN_REFILL_CONTENT_ID = "";
+
+/**
  * 抖音推荐流直玩复访版配置。
  *
  * 复访固定使用打瓶子方案。后台路径：运营 -> 能力中心 ->
