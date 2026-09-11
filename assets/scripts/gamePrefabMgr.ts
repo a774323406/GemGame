@@ -22,6 +22,8 @@ export enum soundName {
   fail = "fail",
   up = "up",
   down = "down",
+  nailHit = "nailHit",
+  nailMiss = "nailMiss",
 }
 
 const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
@@ -38,6 +40,8 @@ export const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
   [soundName.pingPongHit]: "cb69a817-40f3-4cd8-b99d-4aad28b3f1c7",
   [soundName.glassbroke]: "b3987c9b-dacb-413b-80fd-c0fe739a300e",
   [soundName.countDown]: "bb6dc42a-4883-4049-a42f-dfedede2d19c",
+  [soundName.nailHit]: "ed96897e-8b47-4fcf-bd99-702e6b8ab670",
+  [soundName.nailMiss]: "045b060e-de86-450e-b955-3a1cf8b5e0fd",
 };
 
 type LoadTask = {

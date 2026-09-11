@@ -53,6 +53,8 @@ export class mainScene extends Component {
   juggleBallGameBtn: Button = null;
   @property(Button)
   penRefillGameBtn: Button = null;
+  @property(Button)
+  nailHammerGameBtn: Button = null;
   private milkTeaGameBtn: Button | null = null;
   private feedSubscribeBtn: Button | null = null;
   private shareInFlight = false;
@@ -67,6 +69,7 @@ export class mainScene extends Component {
     this.archeryGameBtn?.node?.on(Button.EventType.CLICK, this.gotoArcheryGame, this);
     this.juggleBallGameBtn?.node?.on(Button.EventType.CLICK, this.gotoJuggleBallGame, this);
     this.penRefillGameBtn?.node?.on(Button.EventType.CLICK, this.gotoPenRefillGame, this);
+    this.nailHammerGameBtn?.node?.on(Button.EventType.CLICK, this.gotoNailHammerGame, this);
     this.milkTeaGameBtn = this.createMilkTeaTestButton();
     this.milkTeaGameBtn.node.on(Button.EventType.CLICK, this.gotoMilkTeaGame, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
@@ -78,8 +81,10 @@ export class mainScene extends Component {
     SidebarRewardService.init();
     SidebarRewardService.checkAvailability();
 
-    this.feedSubscribeBtn = this.createFeedSubscribeButton();
-    void this.refreshFeedSubscribeEntry();
+    if (FeedRevisitService.isEnabled()) {
+      this.feedSubscribeBtn = this.createFeedSubscribeButton();
+      void this.refreshFeedSubscribeEntry();
+    }
     ShareRewardService.refreshDailyState();
     this.refreshShareEntry();
   }
@@ -87,6 +92,7 @@ export class mainScene extends Component {
   protected onDestroy(): void {
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
+    this.nailHammerGameBtn?.node?.off(Button.EventType.CLICK, this.gotoNailHammerGame, this);
   }
   async startGame() {
     if (this.startBtn) {
@@ -172,6 +178,19 @@ export class mainScene extends Component {
     }
   }
 
+  private async gotoNailHammerGame(): Promise<void> {
+    const entryButton = this.nailHammerGameBtn;
+    if (!entryButton?.interactable) return;
+    entryButton.interactable = false;
+
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.NailHammerFeedGame);
+    } catch (err) {
+      console.error("[mainScene] NailHammerFeedGameScene 加载失败", err);
+      if (entryButton.node?.isValid) entryButton.interactable = true;
+    }
+  }
+
   clearData() {
     sys.localStorage.clear();
     this.refreshShareEntry();
@@ -205,6 +224,7 @@ export class mainScene extends Component {
   }
 
   private handleFeedSubscribeResult(result: FeedSubscribeResult) {
+    if (result === "disabled") return;
     if (result === "subscribed" || result === "already-subscribed") {
       if (this.feedSubscribeBtn?.node) this.feedSubscribeBtn.node.active = false;
       this.showDouyinToast("挑战提醒已开启");

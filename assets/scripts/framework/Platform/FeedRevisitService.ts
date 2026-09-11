@@ -3,6 +3,7 @@ import { EnvTool } from "./sdk/EnvTool";
 import {
   createFeedRevisitExtra,
   FEED_REVISIT_CONTENT_ID,
+  FEED_REVISIT_ENABLED,
   FEED_REVISIT_EVENT,
   FEED_REVISIT_LEGACY_CHALLENGE_LEVELS,
   FEED_REVISIT_PRODUCTION_DELAY_MS,
@@ -16,6 +17,7 @@ const STORAGE_CONTENT_ID_KEY = "gem_sort_feed_revisit_content_id_v1";
 const STORAGE_REWARD_READY_AT_KEY = "gem_sort_feed_revisit_reward_ready_at_v2";
 
 export type FeedSubscribeResult =
+  | "disabled"
   | "subscribed"
   | "already-subscribed"
   | "login-required"
@@ -47,11 +49,25 @@ export class FeedRevisitService {
   private static interactiveLoginPending = false;
   private static warnedMissingContentId = false;
 
+  public static isEnabled(): boolean {
+    return FEED_REVISIT_ENABLED;
+  }
+
   public static isConfigured(): boolean {
     return this.isValidContentId(FEED_REVISIT_CONTENT_ID);
   }
 
   public static async initialize(): Promise<FeedRevisitInitResult> {
+    // 后台下线时不进行复访静默登录、订阅查询或 storeFeedData 上报。
+    if (!this.isEnabled()) {
+      return {
+        available: false,
+        configured: this.isConfigured(),
+        loggedIn: false,
+        subscribed: false,
+        shouldShowSubscribeEntry: false,
+      };
+    }
     const api = this.getDouyinApi();
     const configured = this.isConfigured();
     const available = Boolean(
@@ -110,6 +126,7 @@ export class FeedRevisitService {
    * 必须直接从用户点击事件中调用。未登录时先完成宿主登录，用户需再次点击订阅。
    */
   public static requestSubscribeFromUserGesture(): Promise<FeedSubscribeResult> {
+    if (!this.isEnabled()) return Promise.resolve("disabled");
     const api = this.getDouyinApi();
     if (!this.isConfigured()) {
       this.warnMissingContentId();
@@ -181,6 +198,7 @@ export class FeedRevisitService {
 
   /** 首次配置时只排期一次；事件已经到点后不会被普通启动向后顺延。 */
   public static async ensureImportantEventScheduled(): Promise<boolean> {
+    if (!this.isEnabled()) return false;
     const contentId = FEED_REVISIT_CONTENT_ID;
     if (!this.isValidContentId(contentId)) return false;
 
@@ -195,6 +213,7 @@ export class FeedRevisitService {
 
   /** 挑战完成后覆盖旧规则，测试版 60 秒、正式版 24 小时后再次就绪。 */
   public static scheduleNextImportantEvent(contentId = ""): void {
+    if (!this.isEnabled()) return;
     const requestedContentId = String(contentId || "").trim();
     if (requestedContentId && requestedContentId !== FEED_REVISIT_CONTENT_ID) {
       console.warn(
@@ -211,6 +230,7 @@ export class FeedRevisitService {
 
   /** 同一期回流挑战只允许领取一次奖励。 */
   public static claimChallengeReward(contentId = "", extra = ""): boolean {
+    if (!this.isEnabled()) return false;
     const resolvedContentId = String(contentId || "").trim();
     const readyAt = this.parseChallengeReadyAt(extra);
     if (
@@ -433,7 +453,7 @@ export class FeedRevisitService {
   }
 
   private static getDouyinApi(): any | null {
-    if (!EnvTool.isByteDanceMiniGame()) return null;
+    if (!this.isEnabled() || !EnvTool.isByteDanceMiniGame()) return null;
     return EnvTool.getMiniGameApi() || null;
   }
 }

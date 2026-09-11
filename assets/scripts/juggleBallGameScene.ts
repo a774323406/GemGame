@@ -1036,7 +1036,11 @@ export class juggleBallGameScene extends Component {
   }
 
   private drawSceneArtwork(): void {
-    this.drawResultOverlay(this.getGraphics(this.sceneResultOverlay));
+    // The authored scene uses a full-stretch Sprite/Widget, editable in Creator.
+    // Do not add a second, fixed-size Graphics dim layer on top of that sprite.
+    if (!this.sceneResultOverlay?.getComponent(Sprite)) {
+      this.drawResultOverlay(this.getGraphics(this.sceneResultOverlay));
+    }
     this.drawGoalPanel(this.getGraphics(this.sceneGoalPanel));
     this.drawBall(this.getGraphics(this.sceneBall));
     this.drawTrail(this.getGraphics(this.sceneBallTrail));
@@ -1053,9 +1057,12 @@ export class juggleBallGameScene extends Component {
 
   private drawResultOverlay(graphics: Graphics | null): void {
     if (!graphics) return;
+    const transform = graphics.node.getComponent(UITransform);
+    if (!transform) return;
+    const { width, height } = transform.contentSize;
     graphics.clear();
     graphics.fillColor = new Color(13, 50, 78, 175);
-    graphics.rect(-375, -667, 750, 1334);
+    graphics.rect(-width * transform.anchorX, -height * transform.anchorY, width, height);
     graphics.fill();
   }
 

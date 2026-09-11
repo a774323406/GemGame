@@ -733,7 +733,7 @@
       "b": 255,
       "a": 255
     },
-    "_string": "剩余吸管：10",
+    "_string": "剩余吸管：15",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 45,
@@ -2977,6 +2977,9 @@
       },
       {
         "__id__": 110
+      },
+      {
+        "__id__": 124
       }
     ],
     "_prefab": null,
@@ -4534,5 +4537,35 @@
     "__prefab": null,
     "_opacity": 255,
     "_id": "milkTea_RestartButton_Opacity"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 79
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 45,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": 0,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MilkTeaFeedGameScene_ResultOverlay_Widget"
   }
 ]

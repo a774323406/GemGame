@@ -377,6 +377,7 @@ export class shootingGlassBottlesGame extends Component {
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     PlayData.Instance.ispause = false;
     this.unscheduleAllCallbacks();
+    this.hideOverlay();
     if (this.gameRoot?.isValid) Tween.stopAllByTarget(this.gameRoot);
     if (this.gun?.isValid) Tween.stopAllByTarget(this.gun);
     this.stopTimerBreathing();
@@ -1107,18 +1108,31 @@ export class shootingGlassBottlesGame extends Component {
 
   private showOverlay(): void {
     const overlay = this.overlay;
+    if (!overlay?.isValid) return;
     const opacity = this.resultOverlayOpacity ?? overlay?.getComponent(UIOpacity);
-    if (!overlay || !opacity) return;
+    if (!opacity?.isValid) return;
+    Tween.stopAllByTarget(overlay);
+    Tween.stopAllByTarget(opacity);
     overlay.active = true;
-    overlay.setScale(0.9, 0.9, 1);
+    // Keep the dim layer full-screen throughout the entrance animation.
+    overlay.setScale(Vec3.ONE);
     opacity.opacity = 0;
     tween(opacity).to(0.2, { opacity: 255 }).start();
-    tween(overlay).to(0.22, { scale: Vec3.ONE }, { easing: "backOut" }).start();
+    const panel = overlay.getChildByName("CuteResultPanel");
+    if (panel?.isValid) {
+      Tween.stopAllByTarget(panel);
+      panel.setScale(0.9, 0.9, 1);
+      tween(panel).to(0.22, { scale: Vec3.ONE }, { easing: "backOut" }).start();
+    }
   }
 
   private hideOverlay(): void {
-    if (!this.overlay) return;
+    if (!this.overlay?.isValid) return;
     Tween.stopAllByTarget(this.overlay);
+    const panel = this.overlay.getChildByName("CuteResultPanel");
+    if (panel?.isValid) Tween.stopAllByTarget(panel);
+    const opacity = this.resultOverlayOpacity ?? this.overlay.getComponent(UIOpacity);
+    if (opacity?.isValid) Tween.stopAllByTarget(opacity);
     this.overlay.active = false;
   }
 

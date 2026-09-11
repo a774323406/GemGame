@@ -21,6 +21,7 @@ import {
   FEED_JUGGLE_CONTENT_ID,
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
   FEED_MILK_TEA_CONTENT_ID,
+  FEED_NAIL_HAMMER_CONTENT_ID,
   FEED_PEN_REFILL_CONTENT_ID,
   FEED_SHOOTING_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
@@ -242,6 +243,13 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.PenRefillFeedGame,
         reason: `推荐流插入笔芯方案（${contentId}）`,
+      };
+    }
+
+    if (contentId === FEED_NAIL_HAMMER_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.NailHammerFeedGame,
+        reason: `推荐流砸钉子方案（${contentId}）`,
       };
     }
 

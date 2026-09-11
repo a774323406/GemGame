@@ -60,7 +60,7 @@ const ARROW_BULL_PENETRATION = 26;
 const HIT_CENTER_TOLERANCE = 3;
 const SHOT_COOLDOWN_MS = 105;
 const TARGET_HITS = 1;
-const INITIAL_ARROW_COUNT = 10;
+const INITIAL_ARROW_COUNT = 20;
 const REVIVE_ARROW_COUNT = 5;
 const MAX_STUCK_ARROWS = 30;
 
@@ -582,7 +582,7 @@ export class archeryGameScene extends Component {
     if (this.sceneResultDetail) {
       this.sceneResultDetail.string = success
         ? "成功穿过中央缺口！\n你射中了牛来！"
-        : `10支箭已经用完，牛来还在上面！\n命中 ${this.hitCount}/${TARGET_HITS}`;
+        : `${INITIAL_ARROW_COUNT}支箭已经用完，牛来还在上面！\n命中 ${this.hitCount}/${TARGET_HITS}`;
     }
     if (this.sceneResultActionLabel) {
       this.sceneResultActionLabel.string = success ? "再玩一次" : `+${REVIVE_ARROW_COUNT}支箭复活`;

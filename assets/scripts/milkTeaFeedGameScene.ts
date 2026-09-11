@@ -57,7 +57,7 @@ const STRAW_HIT_CHECK_Y = -246;
 const STRAW_CATCH_HALF_WIDTH = 24;
 const STRAW_MISS_Y = -720;
 const MAX_FALLING_STRAWS = 1;
-const INITIAL_STRAW_COUNT = 10;
+const INITIAL_STRAW_COUNT = 15;
 const REVIVE_STRAW_COUNT = 3;
 
 /** Bundle 热刷新时路径清单可能仍是旧缓存，固定 UUID 用作可靠兜底。 */

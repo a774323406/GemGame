@@ -8,13 +8,13 @@ export const FEED_ARCHERY_CONTENT_ID = "CONTENT14389077506";
  * 颠球挑战推荐流方案 ID。
  * 加载页会根据该 ID 自动路由到 JuggleBallGameScene。
  */
-export const FEED_JUGGLE_CONTENT_ID = "CONTENT14508613634";
+export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
 
 /**
  * 颠球挑战第二关推荐流方案 ID。
  * 该方案直接进入 JuggleBallGameScene 第二关。
  */
-export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14612123394";
+export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
 /**
  * 投吸管奶茶推荐流方案 ID。
@@ -28,9 +28,16 @@ export const FEED_MILK_TEA_CONTENT_ID = "CONTENT14484635394";
  */
 export const FEED_PEN_REFILL_CONTENT_ID = "CONTENT14615823362";
 
+/** 砸钉子推荐流方案，直接进入 NailHammerFeedGameScene。 */
+export const FEED_NAIL_HAMMER_CONTENT_ID = "CONTENT14868790274";
+
+/** 复访方案已在抖音后台下线：暂停订阅、排期上报与奖励；获客直玩不受影响。 */
+export const FEED_REVISIT_ENABLED = false;
+
 /**
  * 抖音推荐流直玩复访版配置。
  *
+ * 恢复前须核对后台实际复访 Content_ID，不能直接复用获客 ID。
  * 复访固定使用打瓶子方案。后台路径：运营 -> 能力中心 ->
  * 推荐流直玩游戏能力 -> 复访能力。该方案必须处于已上线状态才能承接正式流量。
  */

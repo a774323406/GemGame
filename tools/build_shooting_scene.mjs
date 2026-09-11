@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { appendSceneGlobals, fitFeedResultOverlay } from "./feed_result_layout.mjs";
 
 const root = process.cwd();
 const scenePath = path.join(root, "assets/gamescene/ShootingGlassBottlesGame.scene");
@@ -537,19 +538,9 @@ const scriptComponent = addComponent(canvas, {
 });
 
 // Reuse the valid Creator 3.8 scene-global payload and remap its object indices.
-const oldGlobalsStart = previous.findIndex((item) => item.__type__ === "cc.SceneGlobals");
-const newGlobalsStart = objects.length;
-const remapGlobals = (value) => {
-  if (Array.isArray(value)) return value.map(remapGlobals);
-  if (!value || typeof value !== "object") return value;
-  if (Object.keys(value).length === 1 && Number.isInteger(value.__id__) && value.__id__ >= oldGlobalsStart) {
-    return ref(newGlobalsStart + value.__id__ - oldGlobalsStart);
-  }
-  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, remapGlobals(child)]));
-};
-for (const globalObject of previous.slice(oldGlobalsStart)) objects.push(remapGlobals(globalObject));
-objects[sceneId]._globals = ref(newGlobalsStart);
+objects[sceneId]._globals = ref(appendSceneGlobals(previous, objects));
 
 if (sceneAssetId !== 0 || sceneId !== 1 || scriptComponent < 1) throw new Error("Scene index invariant failed");
+fitFeedResultOverlay(objects, "ShootingGlassBottlesGame");
 fs.writeFileSync(scenePath, `${JSON.stringify(objects, null, 2)}\n`);
 console.log(`Wrote ${scenePath} (${objects.length} serialized objects)`);
