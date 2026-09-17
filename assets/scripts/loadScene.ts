@@ -6,7 +6,6 @@ import {
   Label,
   Node,
   ProgressBar,
-  sys,
   UITransform,
 } from "cc";
 import AudioManager from "./framework/AudioManager";
@@ -18,18 +17,19 @@ import {
 } from "./framework/Platform/FeedAcquisitionService";
 import {
   FEED_ARCHERY_CONTENT_ID,
+  FEED_BALLOON_WHEEL_CONTENT_ID,
   FEED_JUGGLE_CONTENT_ID,
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
   FEED_MILK_TEA_CONTENT_ID,
   FEED_NAIL_HAMMER_CONTENT_ID,
   FEED_PEN_REFILL_CONTENT_ID,
+  FEED_PENGUIN_STACK_CONTENT_ID,
   FEED_SHOOTING_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
+import { adc } from "./framework/Platform/ADController";
 
 const { ccclass, property } = _decorator;
-const FIRST_DIRECT_GAME_ENTRY_KEY = "gem_first_direct_game_entry_v1";
-const EXISTING_LEVEL_PROGRESS_KEY = "gem_sort_level";
 
 @ccclass("loadScene")
 export class loadScene extends Component {
@@ -46,6 +46,7 @@ export class loadScene extends Component {
   start() {
     SdkUtils.requireSDK();
     FeedAcquisitionService.init();
+    adc.initialize();
     if (this.loading) {
       this.loading.progress = 0;
     }
@@ -116,24 +117,9 @@ export class loadScene extends Component {
         await gamePrefabMgr.Instance.loadDefaultAssets();
 
         const isFeedDirectPlay = FeedAcquisitionService.isActive();
-        const hasFirstEntryMarker = !!sys.localStorage.getItem(FIRST_DIRECT_GAME_ENTRY_KEY);
-        const hasExistingProgress = sys.localStorage.getItem(EXISTING_LEVEL_PROGRESS_KEY) !== null;
-        const isFirstLaunch = !hasFirstEntryMarker && !hasExistingProgress;
-        if (!hasFirstEntryMarker && hasExistingProgress) {
-          // 旧版本玩家已有关卡进度，迁移为“已完成首次入口”。
-          sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
-        }
         const feedEntry = isFeedDirectPlay ? this.resolveFeedEntry() : null;
-        const nextScene = feedEntry
-          ? feedEntry.sceneName
-          : isFirstLaunch
-            ? GameSceneName.Game
-            : GameSceneName.Main;
-        const entryReason = feedEntry
-          ? feedEntry.reason
-          : isFirstLaunch
-            ? "首次启动直接进入关卡"
-            : "正常进入主界面";
+        const nextScene = feedEntry?.sceneName ?? GameSceneName.Main;
+        const entryReason = feedEntry?.reason ?? "正常进入新主界面";
         console.log(
           `[loadScene] 所有资源加载完成，准备进入 ${nextScene}（${entryReason}）`,
         );
@@ -142,7 +128,7 @@ export class loadScene extends Component {
           AudioManager.playDefaultBgm();
         }
 
-        await this.enterNextScene(nextScene, isFirstLaunch);
+        await this.enterNextScene(nextScene);
         this.isLoading = false;
         return;
       } catch (err) {
@@ -161,11 +147,8 @@ export class loadScene extends Component {
     this.showLoadError();
   }
 
-  /**
-   * 进入下一个场景。
-   * 首次标记在切场景前写入；如果切场景失败则回滚，保证重试时仍能直接进关卡。
-   */
-  private async enterNextScene(sceneName: GameSceneName, markFirstLaunch: boolean) {
+  /** 进入推荐流玩法或新的主界面。 */
+  private async enterNextScene(sceneName: GameSceneName) {
     if (this.hasEnteredNextScene) {
       return;
     }
@@ -181,16 +164,9 @@ export class loadScene extends Component {
 
     this.clearProgressTimer();
 
-    if (markFirstLaunch) {
-      sys.localStorage.setItem(FIRST_DIRECT_GAME_ENTRY_KEY, "1");
-    }
-
     try {
       await GameSceneBundle.loadScene(sceneName);
     } catch (err) {
-      if (markFirstLaunch) {
-        sys.localStorage.removeItem(FIRST_DIRECT_GAME_ENTRY_KEY);
-      }
       this.hasEnteredNextScene = false;
       throw err;
     }
@@ -243,6 +219,20 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.PenRefillFeedGame,
         reason: `推荐流插入笔芯方案（${contentId}）`,
+      };
+    }
+
+    if (FEED_BALLOON_WHEEL_CONTENT_ID && contentId === FEED_BALLOON_WHEEL_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.BalloonWheelFeedGame,
+        reason: "旋转打气球获客玩法",
+      };
+    }
+
+    if (FEED_PENGUIN_STACK_CONTENT_ID && contentId === FEED_PENGUIN_STACK_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.PenguinStackFeedGame,
+        reason: `推荐流企鹅叠叠乐方案（${contentId}）`,
       };
     }
 

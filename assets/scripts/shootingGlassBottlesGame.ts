@@ -444,9 +444,7 @@ export class shootingGlassBottlesGame extends Component {
 
   private readonly onGameShow = (): void => {
     this.appVisible = true;
-    if (!this.feedMode) return;
-    const state = FeedAcquisitionService.getState();
-    if (state.exited) return;
+    if (!this.feedMode || this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
     this.feedAudioForeground = true;
     AudioManager.restartMusic(soundName.getUserBgm);
   };
@@ -460,17 +458,19 @@ export class shootingGlassBottlesGame extends Component {
     this.feedEntered = state.entered;
     this.feedExited = state.exited;
 
-    if (!state.active) {
-      AudioManager.playMusic(soundName.getUserBgm);
-      return;
+    // 展示阶段即播放本玩法 BGM，交互和插屏仍按原来的进入状态判断。
+    if (this.appVisible && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
+      if (!this.feedAudioForeground) {
+        this.feedAudioForeground = true;
+        AudioManager.restartMusic(soundName.getUserBgm);
+      } else AudioManager.playMusic(soundName.getUserBgm);
     }
+    if (!state.active) return;
 
     if (state.exited) {
       adc.cancelFeedEntryInterstitial();
       this.feedInterstitialScheduled = false;
-      this.feedAudioForeground = false;
       this.feedAudioGestureRecovered = false;
-      AudioManager.pauseBgmForVideo();
       return;
     }
 
@@ -481,13 +481,6 @@ export class shootingGlassBottlesGame extends Component {
         const current = FeedAcquisitionService.getState();
         return !!this.node?.isValid && current.active && current.entered && !current.exited;
       });
-    }
-
-    if (!this.feedAudioForeground) {
-      this.feedAudioForeground = true;
-      AudioManager.restartMusic(soundName.getUserBgm);
-    } else {
-      AudioManager.playMusic(soundName.getUserBgm);
     }
   };
 

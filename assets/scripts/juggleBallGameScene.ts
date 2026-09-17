@@ -160,6 +160,7 @@ export class juggleBallGameScene extends Component {
   private targetPaddleX = 0;
   private isDragging = false;
   private adInFlight = false;
+  private appHidden = false;
   private leaving = false;
   private feedMode = false;
   private feedEntered = false;
@@ -387,6 +388,11 @@ export class juggleBallGameScene extends Component {
     if (!this.feedMode || !FEED_JUGGLE_LEVEL2_CONTENT_ID) return 1;
     const contentId = String(FeedAcquisitionService.getContentId() || "").trim();
     return contentId === FEED_JUGGLE_LEVEL2_CONTENT_ID ? 2 : 1;
+  }
+
+  /** 广告按当前关卡打点，支持主页顺序通关及推荐流直接进入第二关。 */
+  public get adAnalyticsFeedType(): string {
+    return this.currentLevel === 2 ? "乒乓球第二关" : "乒乓球第一关";
   }
 
   private applyLevelPresentation(): void {
@@ -1139,18 +1145,20 @@ export class juggleBallGameScene extends Component {
     this.feedEntered = state.entered;
     this.feedExited = state.exited;
 
-    if (!state.active) {
-      AudioManager.playMusic(soundName.getUserBgm);
-      return;
+    // 展示阶段也播放 BGM，不提前启动正式挑战或插屏。
+    if (!this.appHidden && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
+      if (!this.feedAudioForeground) {
+        this.feedAudioForeground = true;
+        AudioManager.restartMusic(soundName.getUserBgm);
+      } else AudioManager.playMusic(soundName.getUserBgm);
     }
+    if (!state.active) return;
 
     if (state.exited) {
       this.isDragging = false;
       adc.cancelFeedEntryInterstitial();
       this.feedInterstitialScheduled = false;
-      this.feedAudioForeground = false;
       this.feedAudioGestureRecovered = false;
-      AudioManager.pauseBgmForVideo();
       return;
     }
 
@@ -1161,13 +1169,6 @@ export class juggleBallGameScene extends Component {
         const current = FeedAcquisitionService.getState();
         return !!this.node?.isValid && current.active && current.entered && !current.exited;
       });
-    }
-
-    if (!this.feedAudioForeground) {
-      this.feedAudioForeground = true;
-      AudioManager.restartMusic(soundName.getUserBgm);
-    } else {
-      AudioManager.playMusic(soundName.getUserBgm);
     }
 
     if (this.state === "ready") {
@@ -1207,6 +1208,7 @@ export class juggleBallGameScene extends Component {
   }
 
   private onGameHide = (): void => {
+    this.appHidden = true;
     this.isDragging = false;
     if (this.feedMode) {
       this.feedAudioForeground = false;
@@ -1215,9 +1217,8 @@ export class juggleBallGameScene extends Component {
   };
 
   private onGameShow = (): void => {
-    if (!this.feedMode) return;
-    const state = FeedAcquisitionService.getState();
-    if (state.exited) return;
+    this.appHidden = false;
+    if (!this.feedMode || this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
     this.feedAudioForeground = true;
     AudioManager.restartMusic(soundName.getUserBgm);
   };

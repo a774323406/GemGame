@@ -171,8 +171,10 @@ export class milkTeaFeedGameScene extends Component {
   private backButton: Button | null = null;
   private background: Node | null = null;
   private readyStraw: Node | null = null;
+  private initialHintText = "";
   private remainingStraws = 0;
   private adInFlight = false;
+  private appHidden = false;
   private feedMode = false;
   private feedEntered = false;
   private feedExited = false;
@@ -194,6 +196,7 @@ export class milkTeaFeedGameScene extends Component {
       // 兼容还没刷新到新版场景资源的旧预览缓存。
       this.buildScene();
     }
+    this.initialHintText = this.hintLabel?.string ?? "";
     this.prepareSceneVisuals();
     this.resetRound();
     this.bindEvents();
@@ -294,7 +297,7 @@ export class milkTeaFeedGameScene extends Component {
       420,
       48,
       27,
-      "点击屏幕投下吸管",
+      "",
       new Color(61, 133, 90, 220),
     );
 
@@ -602,7 +605,7 @@ export class milkTeaFeedGameScene extends Component {
       actionSprite.spriteFrame = this.sceneResultSuccessButtonFrame;
     }
     if (this.counterLabel?.isValid) this.counterLabel.string = `剩余吸管：${this.remainingStraws}`;
-    if (this.hintLabel?.isValid) this.hintLabel.string = "点击屏幕投下吸管";
+    if (this.hintLabel?.isValid) this.hintLabel.string = this.initialHintText;
   };
 
   private updateCups(deltaTime: number): void {
@@ -871,14 +874,17 @@ export class milkTeaFeedGameScene extends Component {
     this.feedMode = state.active;
     this.feedEntered = !state.active || (state.entered && !state.exited);
     this.feedExited = state.active && state.exited;
+    // 推荐流展示时直接播放 BGM，不等待正式进入；后台和激励广告仍暂停。
+    if (!this.appHidden && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
+      if (!this.feedAudioForeground) {
+        this.feedAudioForeground = true;
+        AudioManager.restartMusic(soundName.getUserBgm);
+      } else AudioManager.playMusic(soundName.getUserBgm);
+    }
     if (this.feedExited) {
       adc.cancelFeedEntryInterstitial();
       this.feedInterstitialScheduled = false;
-      this.feedAudioForeground = false;
-      AudioManager.pauseBgmForVideo();
-    } else if (!state.active) {
-      AudioManager.playMusic(soundName.getUserBgm);
-    } else if (state.entered) {
+    } else if (state.active && state.entered) {
       if (!this.feedInterstitialScheduled) {
         this.feedInterstitialScheduled = true;
         adc.scheduleFeedEntryInterstitial(() => {
@@ -886,20 +892,18 @@ export class milkTeaFeedGameScene extends Component {
           return !!this.node?.isValid && current.active && current.entered && !current.exited;
         });
       }
-      if (!this.feedAudioForeground) {
-        this.feedAudioForeground = true;
-        AudioManager.restartMusic(soundName.getUserBgm);
-      }
     }
   };
 
   private readonly onGameShow = (): void => {
-    if (!this.feedMode || this.feedExited) return;
+    this.appHidden = false;
+    if (!this.feedMode || this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
     this.feedAudioForeground = true;
     AudioManager.restartMusic(soundName.getUserBgm);
   };
 
   private readonly onGameHide = (): void => {
+    this.appHidden = true;
     if (!this.feedMode) return;
     this.feedAudioForeground = false;
     AudioManager.pauseBgmForVideo();

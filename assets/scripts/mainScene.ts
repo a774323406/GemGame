@@ -1,17 +1,12 @@
 import {
   _decorator,
   Button,
-  Color,
   Component,
   game,
   Game,
-  Graphics,
-  HorizontalTextAlignment,
   Label,
   Node,
   sys,
-  UITransform,
-  VerticalTextAlignment,
 } from "cc";
 import UIManager from "./framework/ui/UIManager";
 import { uiName } from "./gamePrefabMgr";
@@ -50,13 +45,17 @@ export class mainScene extends Component {
   @property(Button)
   archeryGameBtn: Button = null;
   @property(Button)
-  juggleBallGameBtn: Button = null;
-  @property(Button)
   penRefillGameBtn: Button = null;
   @property(Button)
   nailHammerGameBtn: Button = null;
-  private milkTeaGameBtn: Button | null = null;
-  private feedSubscribeBtn: Button | null = null;
+  @property(Button)
+  balloonWheelGameBtn: Button = null;
+  @property(Button)
+  penguinStackGameBtn: Button = null;
+  @property(Button)
+  milkTeaGameBtn: Button = null;
+  @property(Button)
+  feedSubscribeBtn: Button = null;
   private shareInFlight = false;
 
   protected onLoad(): void {
@@ -67,11 +66,11 @@ export class mainScene extends Component {
     this.shareBtn?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
     this.shootingGameBtn?.node?.on(Button.EventType.CLICK, this.gotoShootingGlassBottles, this);
     this.archeryGameBtn?.node?.on(Button.EventType.CLICK, this.gotoArcheryGame, this);
-    this.juggleBallGameBtn?.node?.on(Button.EventType.CLICK, this.gotoJuggleBallGame, this);
     this.penRefillGameBtn?.node?.on(Button.EventType.CLICK, this.gotoPenRefillGame, this);
     this.nailHammerGameBtn?.node?.on(Button.EventType.CLICK, this.gotoNailHammerGame, this);
-    this.milkTeaGameBtn = this.createMilkTeaTestButton();
-    this.milkTeaGameBtn.node.on(Button.EventType.CLICK, this.gotoMilkTeaGame, this);
+    this.balloonWheelGameBtn?.node?.on(Button.EventType.CLICK, this.gotoBalloonWheelGame, this);
+    this.penguinStackGameBtn?.node?.on(Button.EventType.CLICK, this.gotoPenguinStackGame, this);
+    this.milkTeaGameBtn?.node?.on(Button.EventType.CLICK, this.gotoMilkTeaGame, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     if (this.sidebarBtn?.node) {
@@ -81,9 +80,13 @@ export class mainScene extends Component {
     SidebarRewardService.init();
     SidebarRewardService.checkAvailability();
 
-    if (FeedRevisitService.isEnabled()) {
-      this.feedSubscribeBtn = this.createFeedSubscribeButton();
-      void this.refreshFeedSubscribeEntry();
+    // 按钮和外观由场景配置；这里只控制复访功能可用时的显示状态。
+    if (this.feedSubscribeBtn?.node) {
+      this.feedSubscribeBtn.node.active = false;
+      if (FeedRevisitService.isEnabled()) {
+        this.feedSubscribeBtn.node.on(Button.EventType.CLICK, this.onFeedSubscribeClicked, this);
+        void this.refreshFeedSubscribeEntry();
+      }
     }
     ShareRewardService.refreshDailyState();
     this.refreshShareEntry();
@@ -93,6 +96,14 @@ export class mainScene extends Component {
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
     this.nailHammerGameBtn?.node?.off(Button.EventType.CLICK, this.gotoNailHammerGame, this);
+    const balloonEntryNode = this.balloonWheelGameBtn?.node;
+    if (balloonEntryNode?.isValid) balloonEntryNode.off(Button.EventType.CLICK, this.gotoBalloonWheelGame, this);
+    const penguinEntryNode = this.penguinStackGameBtn?.node;
+    if (penguinEntryNode?.isValid) penguinEntryNode.off(Button.EventType.CLICK, this.gotoPenguinStackGame, this);
+    const milkTeaEntryNode = this.milkTeaGameBtn?.node;
+    if (milkTeaEntryNode?.isValid) milkTeaEntryNode.off(Button.EventType.CLICK, this.gotoMilkTeaGame, this);
+    const subscribeEntryNode = this.feedSubscribeBtn?.node;
+    if (subscribeEntryNode?.isValid) subscribeEntryNode.off(Button.EventType.CLICK, this.onFeedSubscribeClicked, this);
   }
   async startGame() {
     if (this.startBtn) {
@@ -113,14 +124,11 @@ export class mainScene extends Component {
     const entryButton = this.shootingGameBtn;
     if (!entryButton?.interactable) return;
     entryButton.interactable = false;
-
     try {
       await GameSceneBundle.loadScene(GameSceneName.ShootingGlassBottles);
     } catch (err) {
       console.error("[mainScene] ShootingGlassBottlesGame 加载失败", err);
-      if (entryButton.node?.isValid) {
-        entryButton.interactable = true;
-      }
+      if (entryButton.node?.isValid) entryButton.interactable = true;
     }
   }
 
@@ -128,26 +136,10 @@ export class mainScene extends Component {
     const entryButton = this.archeryGameBtn;
     if (!entryButton?.interactable) return;
     entryButton.interactable = false;
-
     try {
       await GameSceneBundle.loadScene(GameSceneName.ArcheryGame);
     } catch (err) {
       console.error("[mainScene] ArcheryGameScene 加载失败", err);
-      if (entryButton.node?.isValid) {
-        entryButton.interactable = true;
-      }
-    }
-  }
-
-  private async gotoJuggleBallGame(): Promise<void> {
-    const entryButton = this.juggleBallGameBtn;
-    if (!entryButton?.interactable) return;
-    entryButton.interactable = false;
-
-    try {
-      await GameSceneBundle.loadScene(GameSceneName.JuggleBallGame);
-    } catch (err) {
-      console.error("[mainScene] JuggleBallGameScene 加载失败", err);
       if (entryButton.node?.isValid) entryButton.interactable = true;
     }
   }
@@ -156,7 +148,6 @@ export class mainScene extends Component {
     const entryButton = this.milkTeaGameBtn;
     if (!entryButton?.interactable) return;
     entryButton.interactable = false;
-
     try {
       await GameSceneBundle.loadScene(GameSceneName.MilkTeaFeedGame);
     } catch (err) {
@@ -169,7 +160,6 @@ export class mainScene extends Component {
     const entryButton = this.penRefillGameBtn;
     if (!entryButton?.interactable) return;
     entryButton.interactable = false;
-
     try {
       await GameSceneBundle.loadScene(GameSceneName.PenRefillFeedGame);
     } catch (err) {
@@ -182,11 +172,34 @@ export class mainScene extends Component {
     const entryButton = this.nailHammerGameBtn;
     if (!entryButton?.interactable) return;
     entryButton.interactable = false;
-
     try {
       await GameSceneBundle.loadScene(GameSceneName.NailHammerFeedGame);
     } catch (err) {
       console.error("[mainScene] NailHammerFeedGameScene 加载失败", err);
+      if (entryButton.node?.isValid) entryButton.interactable = true;
+    }
+  }
+
+  private async gotoBalloonWheelGame(): Promise<void> {
+    const entryButton = this.balloonWheelGameBtn;
+    if (!entryButton?.interactable) return;
+    entryButton.interactable = false;
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.BalloonWheelFeedGame);
+    } catch (error) {
+      console.error("[mainScene] BalloonWheelFeedGameScene 加载失败", error);
+      if (entryButton.node?.isValid) entryButton.interactable = true;
+    }
+  }
+
+  private async gotoPenguinStackGame(): Promise<void> {
+    const entryButton = this.penguinStackGameBtn;
+    if (!entryButton?.interactable) return;
+    entryButton.interactable = false;
+    try {
+      await GameSceneBundle.loadScene(GameSceneName.PenguinStackFeedGame);
+    } catch (error) {
+      console.error("[mainScene] PenguinStackFeedGameScene 加载失败", error);
       if (entryButton.node?.isValid) entryButton.interactable = true;
     }
   }
@@ -247,88 +260,6 @@ export class mainScene extends Component {
       return;
     }
     this.showDouyinToast("开启失败，请稍后重试");
-  }
-
-  private createFeedSubscribeButton(): Button {
-    const node = new Node("FeedChallengeSubscribeButton");
-    node.layer = this.node.layer;
-    node.parent = this.node;
-    node.setPosition(306, 388, 0);
-    node.addComponent(UITransform).setContentSize(156, 86);
-
-    const graphics = node.addComponent(Graphics);
-    graphics.fillColor = new Color(92, 64, 184, 235);
-    graphics.strokeColor = new Color(214, 197, 255, 255);
-    graphics.lineWidth = 4;
-    graphics.roundRect(-78, -43, 156, 86, 22);
-    graphics.fill();
-    graphics.stroke();
-
-    const labelNode = new Node("Label");
-    labelNode.layer = node.layer;
-    labelNode.parent = node;
-    labelNode.addComponent(UITransform).setContentSize(148, 76);
-    const label = labelNode.addComponent(Label);
-    label.string = "每日挑战\n提醒";
-    label.fontSize = 25;
-    label.lineHeight = 30;
-    label.color = Color.WHITE;
-    label.horizontalAlign = HorizontalTextAlignment.CENTER;
-    label.verticalAlign = VerticalTextAlignment.CENTER;
-
-    const button = node.addComponent(Button);
-    node.active = false;
-    node.on(Button.EventType.CLICK, this.onFeedSubscribeClicked, this);
-    return button;
-  }
-
-  /** 首页右侧的开发测试入口；正式推荐流仍由 Content_ID 自动路由。 */
-  private createMilkTeaTestButton(): Button {
-    const node = new Node("milkTeaGameBtn");
-    node.layer = this.node.layer;
-    node.parent = this.node;
-    node.setPosition(306, 6, 0);
-    node.addComponent(UITransform).setContentSize(128, 192);
-
-    const graphics = node.addComponent(Graphics);
-    graphics.fillColor = new Color(255, 242, 205, 255);
-    graphics.strokeColor = new Color(109, 69, 43, 255);
-    graphics.lineWidth = 5;
-    graphics.roundRect(-48, -46, 96, 116, 16);
-    graphics.fill();
-    graphics.stroke();
-    graphics.strokeColor = new Color(241, 122, 128, 255);
-    graphics.lineWidth = 11;
-    graphics.moveTo(12, 86);
-    graphics.lineTo(-5, 62);
-    graphics.lineTo(-5, 30);
-    graphics.stroke();
-    graphics.fillColor = new Color(85, 48, 31, 255);
-    graphics.circle(-24, -20, 8);
-    graphics.circle(0, -27, 8);
-    graphics.circle(25, -17, 8);
-    graphics.fill();
-
-    const labelNode = new Node("Label");
-    labelNode.layer = node.layer;
-    labelNode.parent = node;
-    labelNode.setPosition(0, -76, 0);
-    labelNode.addComponent(UITransform).setContentSize(128, 52);
-    const label = labelNode.addComponent(Label);
-    label.string = "奶茶";
-    label.fontSize = 31;
-    label.lineHeight = 36;
-    label.isBold = true;
-    label.enableOutline = true;
-    label.outlineColor = new Color(81, 55, 38, 255);
-    label.outlineWidth = 3;
-    label.horizontalAlign = HorizontalTextAlignment.CENTER;
-    label.verticalAlign = VerticalTextAlignment.CENTER;
-
-    const button = node.addComponent(Button);
-    button.transition = Button.Transition.SCALE;
-    button.zoomScale = 1.08;
-    return button;
   }
 
   private showDouyinToast(title: string) {

@@ -4,7 +4,10 @@ import { ResourceManager } from "./ResourceManager";
 export const GAME_SCENE_BUNDLE = "gamescene";
 
 export enum GameSceneName {
-  Main = "MainScene",
+  /** 当前正式主界面。 */
+  Main = "NewMainScene",
+  /** 保留的旧主界面，便于需要时快速切回。 */
+  LegacyMain = "MainScene",
   Game = "GameScene",
   ShootingGlassBottles = "ShootingGlassBottlesGame",
   ArcheryGame = "ArcheryGameScene",
@@ -12,10 +15,13 @@ export enum GameSceneName {
   MilkTeaFeedGame = "MilkTeaFeedGameScene",
   PenRefillFeedGame = "PenRefillFeedGameScene",
   NailHammerFeedGame = "NailHammerFeedGameScene",
+  BalloonWheelFeedGame = "BalloonWheelFeedGameScene",
+  PenguinStackFeedGame = "PenguinStackFeedGameScene",
 }
 
 const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
-  [GameSceneName.Main]: "855395d1-7838-47e0-bb59-2ae3e155eecc",
+  [GameSceneName.Main]: "e2f66be5-60ce-4ebc-90a4-d99841dd2b9a",
+  [GameSceneName.LegacyMain]: "855395d1-7838-47e0-bb59-2ae3e155eecc",
   [GameSceneName.Game]: "f1b4dce3-df3d-4fdd-b734-66899ef83623",
   [GameSceneName.ShootingGlassBottles]: "5b031fbc-c698-4add-ae79-f39a1cfa3b8c",
   [GameSceneName.ArcheryGame]: "48e39c54-d92f-4eaa-9c7a-8739181bf36a",
@@ -23,20 +29,27 @@ const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
   [GameSceneName.MilkTeaFeedGame]: "39f4adf0-fb6a-400f-87ec-b3d26e9cae00",
   [GameSceneName.PenRefillFeedGame]: "ac4d1c84-6d9a-4b9a-a2e3-bc2a19d476ee",
   [GameSceneName.NailHammerFeedGame]: "cd1d5a38-5c59-4e1a-aa6e-f9ed1d66512b",
+  [GameSceneName.BalloonWheelFeedGame]: "1c6b548c-ff93-5519-a51a-1cc2ed5ccaf4",
+  [GameSceneName.PenguinStackFeedGame]: "85cdd217-919a-5695-a19b-1a2d0618addf",
 };
 
 /**
- * MainScene 和 GameScene 位于独立 Asset Bundle，不能再使用 director.loadScene。
+ * 主界面和玩法场景位于独立 Asset Bundle，不能再使用 director.loadScene。
  */
 export class GameSceneBundle {
   private static loadingScene = false;
+  private static sceneLaunchPending = false;
+
+  public static get isLoadingScene(): boolean {
+    return this.loadingScene || this.sceneLaunchPending;
+  }
 
   public static async preload(): Promise<void> {
     await ResourceManager.ins.loadBundle(GAME_SCENE_BUNDLE);
   }
 
   public static async loadScene(sceneName: GameSceneName): Promise<void> {
-    if (this.loadingScene) return;
+    if (this.isLoadingScene) return;
     this.loadingScene = true;
 
     try {
@@ -75,7 +88,14 @@ export class GameSceneBundle {
         }
       }
 
-      director.runScene(scene);
+      // 仅标记下一帧的场景提交，不等待场景回调、不暂停引擎。
+      this.sceneLaunchPending = true;
+      try {
+        director.runScene(scene, undefined, () => { this.sceneLaunchPending = false; });
+      } catch (err) {
+        this.sceneLaunchPending = false;
+        throw err;
+      }
     } finally {
       this.loadingScene = false;
     }

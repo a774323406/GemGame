@@ -1,204 +1,184 @@
-import { director, game, Game } from "cc";
+import { director, Director, game, Game } from "cc";
 import { GameConfig } from "../../GameConfig";
+import { GameSceneBundle, GameSceneName } from "../GameSceneBundle";
+import { FeedAcquisitionService } from "./FeedAcquisitionService";
 import { SdkUtils } from "./sdk/SdkUtils";
 
 export type LevelResultKind = "pass" | "fail";
-
 export interface LevelResultAdOptions {
-  /** 推荐流直玩等特殊流程可禁止本次插屏。 */
   eligible?: boolean;
-  /** 延迟期间玩家可能已离开结果页，触发前再确认一次。 */
   isStillValid?: () => boolean;
 }
 
 /**
- * 全局广告节奏管理。
- *
- * - 插屏在结果页或推荐流真实进入后触发，并统一遵守平台首屏与全屏广告间隔。
+ * 所有入口共用一个广告时钟。只管理“何时请求”，不暂停引擎、不操作按钮或触摸。
+ * 推荐流预览不弹；真正进入后和主页、正常游戏、结算页一样可以重复展示。
  */
 export class ADController {
-  /** 抖音规定小游戏启动后的前 30 秒不能展示插屏，额外留 1 秒余量。 */
-  private static readonly INTERSTITIAL_FIRST_SHOW_DELAY_MS = 31_000;
-  /** 推荐流真正进入小游戏后稍作停顿，避免和平台转场动画同时弹出。 */
-  private static readonly INTERSTITIAL_FEED_ENTER_DELAY_MS = 2_000;
-  private static readonly INTERSTITIAL_RESULT_DELAY_MS = 650;
-  private static readonly INTERSTITIAL_MIN_INTERVAL_MS = 60_000;
+  private static readonly FIRST_DELAY_MS = 31_000;
+  private static readonly FEED_ENTER_DELAY_MS = 2_000;
+  private static readonly INTERVAL_MS = 60_000;
+  private static readonly RETRY_DELAYS_MS = [15_000, 30_000, 60_000];
 
-  /** adc 在脚本首次执行时就创建，可近似视为小游戏进程启动时间。 */
   private readonly appStartedAt = Date.now();
   private initialized = false;
   private appHidden = false;
+  private sceneReadyAt = 0;
+  private generation = 0;
+  private feedEnteredAt: number | null = null;
+  private feedKey = "";
+  private feedValidity: (() => boolean) | null = null;
+  private lastFullscreenAdEndedAt: number | null = null;
+  private retryAt = 0;
+  private failures = 0;
+  private requestPending = false;
+  private timer: ReturnType<typeof setTimeout> | null = null;
 
-  private interstitialRequestPending = false;
-  private frequencyWindowStartedAt = 0;
-  private lastInterstitialShownAt = 0;
-  private lastFullscreenAdEndedAt = 0;
-  private feedInterstitialTimer: ReturnType<typeof setTimeout> | null = null;
-  private feedInterstitialAttempt: (() => void) | null = null;
-  private feedInterstitialGeneration = 0;
-
-  public initialize() {
+  public initialize(): void {
     if (this.initialized) return;
     this.initialized = true;
-    this.frequencyWindowStartedAt = Date.now();
-
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
-    director.on(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onFullscreenAdChanged, this);
+    director.on(Director.EVENT_AFTER_SCENE_LAUNCH, this.onSceneLaunched, this);
+    director.on(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onRewardedPauseChanged, this);
+    director.on(SdkUtils.EVENT_INTERSTITIAL_ENDED, this.onFullscreenAdEnded, this);
+    this.wake();
   }
 
-  /**
-   * 结果面板已显示后上报。策略失效或广告加载失败时不会阻塞关卡流程。
-   */
-  public onLevelResult(level: number, kind: LevelResultKind, options: LevelResultAdOptions = {}) {
+  /** 保留结算页入口，但不另开一个计时器，也不把全局广告限定在结果页。 */
+  public onLevelResult(_level: number, _kind: LevelResultKind, _options: LevelResultAdOptions = {}): void {
     this.initialize();
-
-    const normalizedLevel = Math.max(1, Math.floor(Number(level) || 1));
-    if (!GameConfig.showAd || options.eligible === false) return;
-    if (this.interstitialRequestPending) return;
-
-    if (SdkUtils.isFullscreenAdBusy()) return;
-    const lastFullscreenAt = Math.max(
-      this.frequencyWindowStartedAt,
-      this.lastInterstitialShownAt,
-      this.lastFullscreenAdEndedAt,
-    );
-    if (Date.now() - lastFullscreenAt < ADController.INTERSTITIAL_MIN_INTERVAL_MS) return;
-
-    this.interstitialRequestPending = true;
-    setTimeout(() => {
-      if (!this.interstitialRequestPending) return;
-      if (options.isStillValid && !options.isStillValid()) {
-        this.interstitialRequestPending = false;
-        return;
-      }
-      if (this.appHidden || SdkUtils.isFullscreenAdBusy()) {
-        this.interstitialRequestPending = false;
-        return;
-      }
-      const lastFullscreenAt = Math.max(
-        this.frequencyWindowStartedAt,
-        this.lastInterstitialShownAt,
-        this.lastFullscreenAdEndedAt,
-      );
-      if (Date.now() - lastFullscreenAt < ADController.INTERSTITIAL_MIN_INTERVAL_MS) {
-        this.interstitialRequestPending = false;
-        return;
-      }
-
-      console.log(`[ADController] 尝试显示插屏: level=${normalizedLevel}, result=${kind}`);
-      const started = SdkUtils.showInterstitialAd(
-        () => {
-          this.interstitialRequestPending = false;
-        },
-        () => {
-          this.interstitialRequestPending = false;
-        },
-        () => {
-          this.lastInterstitialShownAt = Date.now();
-        },
-      );
-
-      if (!started) {
-        this.interstitialRequestPending = false;
-      }
-    }, ADController.INTERSTITIAL_RESULT_DELAY_MS);
+    this.wake();
   }
 
-  /**
-   * 推荐流用户真正进入小游戏后安排一次插屏。
-   *
-   * start 阶段属于平台后台预启动，不能在那里直接调用广告 API；这里会同时等待：
-   * 1. feedEnter 后 2 秒；
-   * 2. 小游戏启动满 31 秒；
-   * 3. 距离上一全屏广告至少 60 秒。
-   */
-  public scheduleFeedEntryInterstitial(isStillValid?: () => boolean) {
+  public onEnterGame(): void { this.initialize(); }
+
+  /** 场景的 feedEnter 回调只唤醒全局检查，重复通知不会重置冷却。 */
+  public scheduleFeedEntryInterstitial(isStillValid?: () => boolean): void {
     this.initialize();
-    this.cancelFeedEntryInterstitial();
-    if (!GameConfig.showAd) return;
-
-    const generation = ++this.feedInterstitialGeneration;
-    const feedEnteredAt = Date.now();
-
-    const attempt = () => {
-      if (generation !== this.feedInterstitialGeneration) return;
-      this.feedInterstitialTimer = null;
-      if (isStillValid && !isStillValid()) {
-        this.feedInterstitialAttempt = null;
-        return;
-      }
-
-      // 后台不轮询；恢复前台后由 onGameShow 继续本次排队。
-      if (this.appHidden) return;
-
-      const now = Date.now();
-      const nextAllowedAt = Math.max(
-        feedEnteredAt + ADController.INTERSTITIAL_FEED_ENTER_DELAY_MS,
-        this.appStartedAt + ADController.INTERSTITIAL_FIRST_SHOW_DELAY_MS,
-        this.lastInterstitialShownAt + ADController.INTERSTITIAL_MIN_INTERVAL_MS,
-        this.lastFullscreenAdEndedAt + ADController.INTERSTITIAL_MIN_INTERVAL_MS,
-      );
-
-      if (now < nextAllowedAt || this.interstitialRequestPending || SdkUtils.isFullscreenAdBusy()) {
-        const retryDelay = now < nextAllowedAt ? nextAllowedAt - now : 1_000;
-        this.feedInterstitialTimer = setTimeout(attempt, Math.max(250, retryDelay));
-        return;
-      }
-
-      this.feedInterstitialAttempt = null;
-      this.interstitialRequestPending = true;
-      console.log("[ADController] 推荐流已真实进入，尝试显示插屏");
-      const finish = () => {
-        this.interstitialRequestPending = false;
-      };
-      const started = SdkUtils.showInterstitialAd(
-        finish,
-        finish,
-        () => {
-          this.lastInterstitialShownAt = Date.now();
-        },
-      );
-
-      if (!started) finish();
-    };
-
-    const initialDelay = Math.max(
-      ADController.INTERSTITIAL_FEED_ENTER_DELAY_MS,
-      this.appStartedAt + ADController.INTERSTITIAL_FIRST_SHOW_DELAY_MS - Date.now(),
-    );
-    console.log(`[ADController] 推荐流插屏已排队，约 ${Math.ceil(initialDelay / 1000)} 秒后检查`);
-    this.feedInterstitialAttempt = attempt;
-    this.feedInterstitialTimer = setTimeout(attempt, Math.max(250, initialDelay));
+    this.feedValidity = isStillValid ?? null;
+    this.observeFeedState();
+    this.wake();
   }
 
-  /** 离开推荐流或销毁对应场景时，取消尚未发起的插屏请求。 */
-  public cancelFeedEntryInterstitial() {
-    ++this.feedInterstitialGeneration;
-    this.feedInterstitialAttempt = null;
-    if (!this.feedInterstitialTimer) return;
-    clearTimeout(this.feedInterstitialTimer);
-    this.feedInterstitialTimer = null;
+  /** 使当前加载中的请求失效，不关闭整个应用的重复广告时钟。 */
+  public cancelFeedEntryInterstitial(): void {
+    ++this.generation;
+    this.feedValidity = null;
+    this.feedEnteredAt = null;
+    if (this.initialized) this.wake();
   }
 
-  /** 保留旧 SDK 登录回调入口，仅负责初始化监听。 */
-  public onEnterGame() {
-    this.initialize();
-  }
-
-  private onFullscreenAdChanged(active: boolean) {
-    if (!active) this.lastFullscreenAdEndedAt = Date.now();
-  }
-
-  private onGameHide() {
-    this.appHidden = true;
-  }
-
-  private onGameShow() {
-    this.appHidden = false;
-    if (this.feedInterstitialAttempt && !this.feedInterstitialTimer) {
-      this.feedInterstitialTimer = setTimeout(this.feedInterstitialAttempt, 250);
+  private observeFeedState(): void {
+    // FeedService.completeSession 会清空监听者，所以这里读取当前状态，不挂永久监听。
+    const feed = FeedAcquisitionService.getState();
+    const key = `${feed.mode}:${feed.contentId}`;
+    if (!feed.active || !feed.entered || feed.exited) {
+      if (this.feedEnteredAt !== null) ++this.generation;
+      this.feedEnteredAt = null;
+    } else if (this.feedEnteredAt === null || this.feedKey !== key) {
+      this.feedEnteredAt = Date.now();
+      ++this.generation;
     }
+    this.feedKey = key;
+  }
+
+  private nextAllowedAt(): number {
+    return Math.max(
+      this.appStartedAt + ADController.FIRST_DELAY_MS,
+      this.sceneReadyAt,
+      this.feedEnteredAt === null ? 0 : this.feedEnteredAt + ADController.FEED_ENTER_DELAY_MS,
+      this.lastFullscreenAdEndedAt === null ? 0 : this.lastFullscreenAdEndedAt + ADController.INTERVAL_MS,
+      this.retryAt,
+    );
+  }
+
+  private canRequestHere(): boolean {
+    this.observeFeedState();
+    const scene = director.getScene();
+    const feed = FeedAcquisitionService.getState();
+    if (!GameConfig.showAd || this.appHidden || GameSceneBundle.isLoadingScene) return false;
+    if (!scene || !scene.isValid ||
+      !Object.keys(GameSceneName).some(key => GameSceneName[key] === scene.name)) return false;
+    if (feed.active && (!feed.entered || feed.exited ||
+      (this.feedValidity && !this.feedValidity()))) return false;
+    return Date.now() >= this.nextAllowedAt();
+  }
+
+  private clearTimer(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+  }
+
+  private wake(delay = 250): void {
+    this.clearTimer();
+    if (!this.initialized || this.appHidden || this.requestPending) return;
+    this.timer = setTimeout(() => this.tick(), Math.max(1, delay));
+  }
+
+  private tick(): void {
+    this.timer = null;
+    if (this.appHidden || this.requestPending) return;
+    if (!this.canRequestHere() || SdkUtils.isFullscreenAdBusy()) {
+      // 未到期/不在合适的前台场景时只检查状态，不请求广告。
+      this.wake(Math.min(1_000, Math.max(250, this.nextAllowedAt() - Date.now())));
+      return;
+    }
+
+    const scene = director.getScene();
+    const generation = this.generation;
+    this.requestPending = true;
+    let shown = false;
+    let finished = false;
+    const canShow = () => this.canRequestHere() &&
+      generation === this.generation && scene === director.getScene();
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      this.requestPending = false;
+      if (shown) {
+        this.lastFullscreenAdEndedAt = Date.now();
+        this.failures = 0;
+        this.retryAt = 0;
+      } else if (canShow()) {
+        const delays = ADController.RETRY_DELAYS_MS;
+        this.retryAt = Date.now() + delays[Math.min(this.failures++, delays.length - 1)];
+      }
+      this.wake();
+    };
+    console.log("[ADController] 插屏间隔已到，尝试展示", scene.name);
+    const started = SdkUtils.showInterstitialAd(finish, finish, () => { shown = true; }, canShow);
+    if (!started) finish();
+  }
+
+  private onRewardedPauseChanged(active: boolean): void {
+    // 激励沿用原有流程；插屏不再写入或订阅游戏暂停状态来控制玩法。
+    if (!active) this.onFullscreenAdEnded();
+  }
+
+  private onFullscreenAdEnded(): void {
+    this.lastFullscreenAdEndedAt = Date.now();
+    this.failures = 0;
+    this.retryAt = 0;
+    this.wake();
+  }
+
+  private onSceneLaunched(): void {
+    ++this.generation;
+    this.feedValidity = null;
+    this.sceneReadyAt = Date.now() + 650;
+    this.wake();
+  }
+
+  private onGameHide(): void {
+    this.appHidden = true;
+    ++this.generation;
+    this.clearTimer();
+  }
+
+  private onGameShow(): void {
+    this.appHidden = false;
+    this.wake();
   }
 }
 

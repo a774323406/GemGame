@@ -36,7 +36,8 @@ export class BaseSDK {
   showADTemplate() {
     console.log("[BaseSDK] mock template ad show");
   }
-  showInterstitialAd(cb?: Function, failCB?: Function, shownCB?: Function) {
+  showInterstitialAd(cb?: Function, failCB?: Function, shownCB?: Function, canShow?: () => boolean) {
+    if (canShow && !canShow()) { failCB && failCB(); return; }
     console.log("[BaseSDK] mock interstitial ad show success");
     shownCB && shownCB();
     cb && cb();

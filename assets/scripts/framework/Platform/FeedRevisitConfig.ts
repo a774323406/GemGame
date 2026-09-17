@@ -31,6 +31,12 @@ export const FEED_PEN_REFILL_CONTENT_ID = "CONTENT14615823362";
 /** 砸钉子推荐流方案，直接进入 NailHammerFeedGameScene。 */
 export const FEED_NAIL_HAMMER_CONTENT_ID = "CONTENT14868790274";
 
+/** 旋转打气球推荐流方案，直接进入 BalloonWheelFeedGameScene。 */
+export const FEED_BALLOON_WHEEL_CONTENT_ID = "CONTENT14816266754";
+
+/** 企鹅叠叠乐推荐流方案，直接进入 PenguinStackFeedGameScene。 */
+export const FEED_PENGUIN_STACK_CONTENT_ID = "CONTENT14860954626";
+
 /** 复访方案已在抖音后台下线：暂停订阅、排期上报与奖励；获客直玩不受影响。 */
 export const FEED_REVISIT_ENABLED = false;
 

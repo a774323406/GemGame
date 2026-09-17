@@ -1,7 +1,7 @@
 /*
  * @author: wch
  */
-import { director } from "cc";
+import { Component, director } from "cc";
 import { BaseSDK, GameShareOptions } from "./BaseSDK";
 import { ByteDanceSDK } from "./ByteDanceSDK";
 import { EnvTool } from "./EnvTool";
@@ -15,8 +15,24 @@ import { GameConfig } from "../../../GameConfig";
 import { adLoadPanel } from "../../../ui/adLoadPanel";
 import { GlobalTool } from "./GlobalTool";
 
+/** 以当前玩法归因，避免从推荐流返回主页后仍沿用启动时的 Content_ID。 */
+const AD_FEED_TYPES: Readonly<Record<string, string>> = {
+  NewMainScene: "玩法大厅",
+  MainScene: "拼豆排序",
+  GameScene: "拼豆排序",
+  ShootingGlassBottlesGame: "打瓶子",
+  ArcheryGameScene: "射箭",
+  JuggleBallGameScene: "乒乓球第一关",
+  MilkTeaFeedGameScene: "奶茶",
+  PenRefillFeedGameScene: "插入笔芯",
+  NailHammerFeedGameScene: "砸钉子",
+  BalloonWheelFeedGameScene: "旋转打气球",
+  PenguinStackFeedGameScene: "企鹅叠叠乐",
+};
+
 export class SdkUtils {
   static readonly EVENT_AD_PAUSE_CHANGED = "sdk_rewarded_video_pause_changed";
+  static readonly EVENT_INTERSTITIAL_ENDED = "sdk_interstitial_ended";
   static sdk: BaseSDK = null;
   private static adPauseCount: number = 0;
   private static pauseBeforeAd: boolean = false;
@@ -69,6 +85,8 @@ export class SdkUtils {
       cb && cb();
       return true;
     }
+    // 记录点击意图，不等待展示或看完；Promise 包装入口不再重复上报。
+    SdkUtils.reportAdAnalytics("adType", SdkUtils.getAdAnalyticsFeedType());
     if (SdkUtils.isFullscreenAdBusy()) {
       console.warn("[SdkUtils] 全屏广告正在加载或播放，本次激励视频请求已忽略");
       failCB && failCB();
@@ -141,8 +159,8 @@ export class SdkUtils {
   static showADTemplate() {
     SdkUtils.sdk.showADTemplate();
   }
-  /** 插屏拉取阶段不遮挡或暂停游戏；仅在原生广告真正显示后暂停。 */
-  static showInterstitialAd(closeCB?: Function, failCB?: Function, shownCB?: Function): boolean {
+  /** 插屏只请求/展示原生广告，不改游戏暂停状态，也不添加遮罩或触摸拦截。 */
+  static showInterstitialAd(closeCB?: Function, failCB?: Function, shownCB?: Function, canShow?: () => boolean): boolean {
     if (!SdkUtils.sdk) {
       SdkUtils.requireSDK();
     }
@@ -156,25 +174,22 @@ export class SdkUtils {
     }
 
     SdkUtils.interstitialBusy = true;
+    // 加载期间可能切场景或进入下一关，固定本次广告发起时的玩法名称。
+    const feedType = SdkUtils.getAdAnalyticsFeedType();
 
     let finished = false;
     let adShown = false;
-    let adPauseEntered = false;
     const onAdShown = () => {
       if (finished || adShown) return;
       adShown = true;
-      adPauseEntered = true;
-      SdkUtils.enterAdPause();
+      SdkUtils.reportAdAnalytics("interAdType", feedType);
       shownCB && shownCB();
     };
     const finish = (success: boolean, callback?: Function) => {
       if (finished) return;
       finished = true;
       SdkUtils.interstitialBusy = false;
-      if (adPauseEntered) {
-        adPauseEntered = false;
-        SdkUtils.leaveAdPause();
-      }
+      if (adShown) director.emit(SdkUtils.EVENT_INTERSTITIAL_ENDED);
       callback && callback(success);
     };
 
@@ -183,6 +198,7 @@ export class SdkUtils {
         () => finish(true, closeCB),
         () => finish(false, failCB),
         onAdShown,
+        canShow,
       );
     } catch (err) {
       console.warn("[SdkUtils] showInterstitialAd failed", err);
@@ -191,6 +207,34 @@ export class SdkUtils {
 
     return true;
   }
+
+  private static getAdAnalyticsFeedType(): string {
+    try {
+      const scene = director.getScene();
+      if (scene?.name === "JuggleBallGameScene") {
+        const juggle = scene.getComponentInChildren("juggleBallGameScene") as
+          (Component & { readonly adAnalyticsFeedType?: string }) | null;
+        return juggle?.adAnalyticsFeedType || AD_FEED_TYPES.JuggleBallGameScene;
+      }
+      return AD_FEED_TYPES[scene?.name] || scene?.name || "未知玩法";
+    } catch (err) {
+      console.warn("[SdkUtils] 读取广告打点玩法失败", err);
+      return "未知玩法";
+    }
+  }
+
+  private static reportAdAnalytics(eventName: "adType" | "interAdType", feedType: string): void {
+    if (!EnvTool.isByteDanceMiniGame()) return;
+    try {
+      const api = typeof tt !== "undefined" ? tt : null;
+      if (typeof api?.reportAnalytics !== "function") return;
+      api.reportAnalytics(eventName, { feedType });
+    } catch (err) {
+      // 数据上报异常不能阻断广告播放、奖励发放或暂停状态恢复。
+      console.warn(`[SdkUtils] 广告打点失败: ${eventName}`, err);
+    }
+  }
+
   static destroyADTemplate() {
     SdkUtils.sdk.destroyADTemplate();
   }

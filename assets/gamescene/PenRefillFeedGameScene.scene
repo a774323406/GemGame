@@ -130,7 +130,7 @@
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 375,
-      "y": 667,
+      "y": 812,
       "z": 0
     },
     "_lrot": {
@@ -215,7 +215,7 @@
     "_priority": 0,
     "_fov": 45,
     "_fovAxis": 0,
-    "_orthoHeight": 667,
+    "_orthoHeight": 812,
     "_near": 0,
     "_far": 2000,
     "_color": {
@@ -1552,7 +1552,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 286,
+      "width": 10,
       "height": 76.78
     },
     "_anchorPoint": {
@@ -1582,7 +1582,7 @@
       "b": 255,
       "a": 255
     },
-    "_string": "点击屏幕开始",
+    "_string": "",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 46,
@@ -4740,7 +4740,7 @@
     "_contentSize": {
       "__type__": "cc.Size",
       "width": 750,
-      "height": 1334
+      "height": 1624
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",

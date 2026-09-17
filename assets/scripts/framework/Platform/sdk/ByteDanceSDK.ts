@@ -214,7 +214,7 @@ export class ByteDanceSDK extends BaseSDK {
 
   private interstitialAd: any = null;
 
-  showInterstitialAd(closeCB?: Function, failCB?: Function, shownCB?: Function) {
+  showInterstitialAd(closeCB?: Function, failCB?: Function, shownCB?: Function, canShow?: () => boolean) {
     if (typeof tt === "undefined" || typeof tt.createInterstitialAd !== "function") {
       this.warn("tt.createInterstitialAd unavailable");
       failCB && failCB(new Error("tt.createInterstitialAd unavailable"));
@@ -256,12 +256,18 @@ export class ByteDanceSDK extends BaseSDK {
     };
     const show = () => {
       if (finished || shown || this.interstitialAd !== ad) return;
-      shown = true;
       try {
-        const showResult = ad.show?.();
+        // 异步加载期间可能已退到后台或切场景，真正展示前再确认一次。
+        if (canShow && !canShow()) {
+          fail(new Error("interstitial presentation cancelled"));
+          return;
+        }
+        shown = true;
+        const showResult = ad.show();
         if (showResult?.then) {
           showResult
             .then(() => {
+              if (finished) return;
               if (loadTimeout) {
                 clearTimeout(loadTimeout);
                 loadTimeout = null;

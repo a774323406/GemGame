@@ -166,6 +166,7 @@ export class nailHammerFeedGameScene extends Component {
   private hammerCount = 0;
   private hammerLimit = INITIAL_HAMMER_COUNT;
   private adInFlight = false;
+  private appHidden = false;
   private roundSerial = 0;
   private nailHitCount = 0;
   private nailNeedsReplacement = false;
@@ -740,14 +741,17 @@ export class nailHammerFeedGameScene extends Component {
     this.feedEntered = !state.active || (state.entered && !state.exited);
     this.feedExited = state.active && state.exited;
     this.refreshButtons();
+    // 推荐流展示时直接播放 BGM，不等待正式进入；后台和激励广告仍暂停。
+    if (!this.appHidden && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
+      if (!this.feedAudioForeground) {
+        this.feedAudioForeground = true;
+        AudioManager.restartMusic(soundName.getUserBgm);
+      } else AudioManager.playMusic(soundName.getUserBgm);
+    }
     if (this.feedExited) {
       adc.cancelFeedEntryInterstitial();
       this.feedInterstitialScheduled = false;
-      this.feedAudioForeground = false;
-      AudioManager.pauseBgmForVideo();
-    } else if (!state.active) {
-      AudioManager.playMusic(soundName.getUserBgm);
-    } else if (state.entered) {
+    } else if (state.active && state.entered) {
       if (!this.feedInterstitialScheduled) {
         this.feedInterstitialScheduled = true;
         adc.scheduleFeedEntryInterstitial(() => {
@@ -756,20 +760,18 @@ export class nailHammerFeedGameScene extends Component {
             !this.feedExperienceFinished && current.active && current.entered && !current.exited;
         });
       }
-      if (!this.feedAudioForeground) {
-        this.feedAudioForeground = true;
-        AudioManager.restartMusic(soundName.getUserBgm);
-      }
     }
   };
 
   private readonly onGameShow = (): void => {
-    if (!this.feedMode || this.feedExited || this.adInFlight) return;
+    this.appHidden = false;
+    if (!this.feedMode || this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
     this.feedAudioForeground = true;
     AudioManager.restartMusic(soundName.getUserBgm);
   };
 
   private readonly onGameHide = (): void => {
+    this.appHidden = true;
     if (!this.feedMode) return;
     this.feedAudioForeground = false;
     AudioManager.pauseBgmForVideo();

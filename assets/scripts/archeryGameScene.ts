@@ -247,7 +247,6 @@ export class archeryGameScene extends Component {
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
 
     if (this.sceneTitleLabel) this.sceneTitleLabel.string = "射箭挑战之牛来";
-    if (this.sceneHintLabel) this.sceneHintLabel.string = "点击屏幕发射，瞄准中央缺口";
     if (this.sceneResultActionLabel) this.sceneResultActionLabel.string = "再玩一次";
     if (this.sceneResultHomeLabel) this.sceneResultHomeLabel.string = "重新开始";
     if (this.sceneGradeLabel) {
@@ -745,16 +744,18 @@ export class archeryGameScene extends Component {
     this.feedMode = state.active;
     this.feedEntered = state.entered;
     this.feedExited = state.exited;
-    if (!state.active) {
-      AudioManager.playMusic(soundName.archeryBgm);
-      return;
+    // 展示阶段也播放射箭自己的 BGM，不用等待点击进入。
+    if (!this.appHidden && !this.leaving && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
+      if (!this.feedAudioForeground) {
+        this.feedAudioForeground = true;
+        AudioManager.restartMusic(soundName.archeryBgm);
+      } else AudioManager.playMusic(soundName.archeryBgm);
     }
+    if (!state.active) return;
     if (state.exited) {
       adc.cancelFeedEntryInterstitial();
       this.feedInterstitialScheduled = false;
-      this.feedAudioForeground = false;
       this.feedAudioGestureRecovered = false;
-      AudioManager.pauseBgmForVideo();
       return;
     }
     if (!state.entered) return;
@@ -764,12 +765,6 @@ export class archeryGameScene extends Component {
         const current = FeedAcquisitionService.getState();
         return !!this.node?.isValid && current.active && current.entered && !current.exited;
       });
-    }
-    if (!this.feedAudioForeground) {
-      this.feedAudioForeground = true;
-      AudioManager.restartMusic(soundName.archeryBgm);
-    } else {
-      AudioManager.playMusic(soundName.archeryBgm);
     }
   };
 
@@ -840,9 +835,7 @@ export class archeryGameScene extends Component {
 
   private onGameShow = (): void => {
     this.appHidden = false;
-    if (!this.feedMode) return;
-    const state = FeedAcquisitionService.getState();
-    if (state.exited) return;
+    if (!this.feedMode || this.leaving || this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
     this.feedAudioForeground = true;
     AudioManager.restartMusic(soundName.archeryBgm);
   };
