@@ -18,12 +18,23 @@ const required = [
 ];
 
 for (const file of required) {
-  assert(fs.existsSync(path.join(root, file)), `missing ${file}`);
-  assert(fs.existsSync(path.join(root, `${file}.meta`)), `missing meta for ${file}`);
+  const assetPath = path.join(root, file);
+  assert(fs.existsSync(assetPath), `missing ${file}`);
+  assert(fs.existsSync(`${assetPath}.meta`), `missing meta for ${file}`);
+  assert.equal(
+    fs.statSync(assetPath).mode & 0o111,
+    0,
+    `${file} must not be marked executable`,
+  );
 }
 assert(fs.existsSync('assets/res/whiteGooseFeed.meta'));
 assert(fs.existsSync('assets/res/newMain/preview_white_goose.png'));
 assert(fs.existsSync('assets/res/newMain/preview_white_goose.png.meta'));
+assert.equal(
+  fs.statSync('assets/res/newMain/preview_white_goose.png').mode & 0o111,
+  0,
+  'white goose lobby preview must not be marked executable',
+);
 
 for (const forbidden of [
   '+ 80.png', '套大鹅简介.png', '开心套大鹅.png',
@@ -56,6 +67,8 @@ assert.equal(gooseAtlas.importer, '*');
 assert.equal(handAtlas.importer, '*');
 assert.equal(gooseSkeleton.importer, 'spine-data');
 assert.equal(handSkeleton.importer, 'spine-data');
+assert.equal(gooseSkeleton.ver, '1.2.6');
+assert.equal(handSkeleton.ver, '1.2.6');
 assert.equal(gooseSkeleton.userData.atlasUuid, gooseAtlas.uuid);
 assert.equal(handSkeleton.userData.atlasUuid, handAtlas.uuid);
 

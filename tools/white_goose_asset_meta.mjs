@@ -95,7 +95,7 @@ function textureMeta(name, width, height, { spriteFrame = true, alpha = true } =
     importer: 'image',
     imported: true,
     uuid,
-    files: spriteFrame ? ['.json', extension] : ['.json', extension],
+    files: extension === '.jpg' ? [extension, '.json'] : ['.json', extension],
     subMetas,
     userData: {
       type: spriteFrame ? 'sprite-frame' : 'texture',
@@ -136,7 +136,9 @@ function atlasMeta(name) {
 
 function spineMeta(name, atlasName) {
   return {
-    ver: '1.2.7',
+    // Creator 3.8.5 ships spine-data importer 1.2.6. A newer value makes the
+    // editor downgrade the meta and emit a one-time importer-version warning.
+    ver: '1.2.6',
     importer: 'spine-data',
     imported: true,
     uuid: assetUuid(name),
