@@ -1,0 +1,134 @@
+{
+  "sourceDir": "/tmp/food-delivery-art-src",
+  "outputDir": "assets/res/foodDeliveryFeed",
+  "totalBytes": 372443,
+  "totalRgbaBytes": 5754480,
+  "assets": {
+    "background.jpg": {
+      "bytes": 47060,
+      "width": 750,
+      "height": 1624,
+      "format": "jpeg",
+      "rgbaBytes": 4872000
+    },
+    "courier.png": {
+      "bytes": 43025,
+      "width": 168,
+      "height": 176,
+      "format": "png",
+      "rgbaBytes": 118272
+    },
+    "arm.png": {
+      "bytes": 7231,
+      "width": 100,
+      "height": 44,
+      "format": "png",
+      "rgbaBytes": 17600
+    },
+    "guard.png": {
+      "bytes": 41871,
+      "width": 172,
+      "height": 192,
+      "format": "png",
+      "rgbaBytes": 132096
+    },
+    "building.png": {
+      "bytes": 99281,
+      "width": 144,
+      "height": 523,
+      "format": "png",
+      "rgbaBytes": 301248
+    },
+    "orange-button.png": {
+      "bytes": 28759,
+      "width": 280,
+      "height": 73,
+      "format": "png",
+      "rgbaBytes": 81760
+    },
+    "food-lime.png": {
+      "bytes": 14700,
+      "width": 70,
+      "height": 88,
+      "format": "png",
+      "rgbaBytes": 24640
+    },
+    "food-icecream.png": {
+      "bytes": 11370,
+      "width": 63,
+      "height": 88,
+      "format": "png",
+      "rgbaBytes": 22176
+    },
+    "food-cake.png": {
+      "bytes": 14101,
+      "width": 80,
+      "height": 79,
+      "format": "png",
+      "rgbaBytes": 25280
+    },
+    "food-burger.png": {
+      "bytes": 15152,
+      "width": 80,
+      "height": 73,
+      "format": "png",
+      "rgbaBytes": 23360
+    },
+    "food-cola.png": {
+      "bytes": 12924,
+      "width": 69,
+      "height": 88,
+      "format": "png",
+      "rgbaBytes": 24288
+    },
+    "order.png": {
+      "bytes": 7026,
+      "width": 112,
+      "height": 79,
+      "format": "png",
+      "rgbaBytes": 35392
+    },
+    "star-off.png": {
+      "bytes": 4581,
+      "width": 64,
+      "height": 61,
+      "format": "png",
+      "rgbaBytes": 15616
+    },
+    "star-on.png": {
+      "bytes": 5414,
+      "width": 64,
+      "height": 61,
+      "format": "png",
+      "rgbaBytes": 15616
+    },
+    "check.png": {
+      "bytes": 5467,
+      "width": 64,
+      "height": 57,
+      "format": "png",
+      "rgbaBytes": 14592
+    },
+    "back.png": {
+      "bytes": 14227,
+      "width": 88,
+      "height": 86,
+      "format": "png",
+      "rgbaBytes": 30272
+    },
+    "dot.png": {
+      "bytes": 162,
+      "width": 8,
+      "height": 8,
+      "format": "png",
+      "rgbaBytes": 256
+    },
+    "white.png": {
+      "bytes": 92,
+      "width": 2,
+      "height": 2,
+      "format": "png",
+      "rgbaBytes": 16
+    }
+  }
+}
