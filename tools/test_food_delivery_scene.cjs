@@ -12,6 +12,8 @@ async function main() {
     buildFoodDeliveryScene,
     appendFoodDeliveryCard,
     SCRIPT_TYPE,
+    SCRIPT_UUID,
+    SCENE_UUID,
   } = await import('./food_delivery_authoring.mjs');
 
   assert.equal(typeof assetUuid, 'function');
@@ -119,6 +121,18 @@ async function main() {
   }
 
   assertTargetsReachable(scene, controller);
+
+  const scenePath = 'assets/gamescene/FoodDeliveryFeedGameScene.scene';
+  assert(fs.existsSync(scenePath), `${scenePath} is missing`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(scenePath, 'utf8')), scene, 'disk scene must match the authoring result');
+  const sceneMeta = JSON.parse(fs.readFileSync(`${scenePath}.meta`, 'utf8'));
+  assert.equal(sceneMeta.uuid, SCENE_UUID);
+  const scriptMeta = JSON.parse(fs.readFileSync('assets/scripts/foodDeliveryFeedGameScene.ts.meta', 'utf8'));
+  assert.equal(scriptMeta.uuid, SCRIPT_UUID);
+  const controllerSource = fs.readFileSync('assets/scripts/foodDeliveryFeedGameScene.ts', 'utf8');
+  assert(!/new\s+Node\s*\(/.test(controllerSource), 'controller must not construct fixed UI nodes');
+  assert(!/spriteFrame\s*=/.test(controllerSource), 'controller must not overwrite editor SpriteFrames');
+  assert(!/\.string\s*=/.test(controllerSource), 'controller must not overwrite editor label text');
 
   const untouched = [];
   assert.equal(appendFoodDeliveryCard(untouched), -1, 'homepage append is intentionally deferred to Task 4');
