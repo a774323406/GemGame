@@ -11,9 +11,9 @@
 ## 构建证据
 
 - Cocos Creator：3.8.5
-- 构建目录：`/tmp/gem-food-delivery-build.GKGFBj/web-mobile`
-- 构建日志：`.superpowers/sdd/2026-09-21-food-delivery-feed/task-5-build-review-fixes.log`
-- 日志结果：`build success in 6026!`
+- 构建目录：`/tmp/gem-food-delivery-build-result.obEBoZ/web-mobile`
+- 构建日志：`/tmp/food-delivery-build-result.log`
+- 日志结果：`build success in 10562!`
 - 命令进程退出码：36。Creator CLI 在成功写出完整产物后仍返回 36；本报告不把退出码隐藏为 0，而是以日志成功标记、产物存在、场景注册和浏览器实跑共同确认构建可用。
 - `gamescene/config.json` 包含：
   - 场景名 `FoodDeliveryFeedGameScene`
@@ -28,8 +28,8 @@
 
 ```bash
 node tools/preview_food_delivery_feed.cjs \
-  http://127.0.0.1:8140/ \
-  /tmp/gem-food-delivery-shots-review-fixes
+  http://127.0.0.1:8142/ \
+  /tmp/gem-food-delivery-shots-result
 ```
 
 结果：退出码 0，`errors: []`，`blockedRequests: []`。测试期间拦截真实外部请求，没有发送抖音打点或广告请求。
@@ -38,7 +38,7 @@ node tools/preview_food_delivery_feed.cjs \
 
 - 从 `NewMainScene` 的序列化 `FoodDeliveryCard` 进入，不直接调用场景方法跳转。
 - 使用 CDP `touchStart/touchEnd` 完成五次真实碰撞，分数 1→5，第五单进入 `won`。
-- 成功页、下一轮、失败页、失败后重试、返回主页、再次进入均通过；成功与失败内容组互斥，失败页不再显示成功文案或亮星。
+- 成功页、下一轮、失败页、失败后重试、返回主页、再次进入均通过；结算页为全屏蓝绿色沉浸式布局，成功与失败内容组及第二个操作按钮互斥。
 - 检查 750×1624、750×1334、750×1800 三种视口。
 - 750×1334 下玩法层缩放为 `1334 / 1624 = 0.821428...`，标题底部为 158px，五星顶部为约 173.32px，保留约 15.32px 间距。
 - 三种视口中背景按原始宽高比等比覆盖且无黑边；750×1800 的背景缩放为 `1800 / 1624 = 1.108374...`。五个订单、骑手、保安和返回按钮均在可视范围内。
@@ -50,12 +50,12 @@ node tools/preview_food_delivery_feed.cjs \
 
 产物：
 
-- `/tmp/gem-food-delivery-shots-review-fixes/gameplay-750x1624.png`
-- `/tmp/gem-food-delivery-shots-review-fixes/gameplay-short.png`
-- `/tmp/gem-food-delivery-shots-review-fixes/gameplay-tall.png`
-- `/tmp/gem-food-delivery-shots-review-fixes/success.png`
-- `/tmp/gem-food-delivery-shots-review-fixes/failure.png`
-- `/tmp/gem-food-delivery-shots-review-fixes/food-delivery-browser-verification.json`
+- `/tmp/gem-food-delivery-shots-result/gameplay-750x1624.png`
+- `/tmp/gem-food-delivery-shots-result/gameplay-short.png`
+- `/tmp/gem-food-delivery-shots-result/gameplay-tall.png`
+- `/tmp/gem-food-delivery-shots-result/success.png`
+- `/tmp/gem-food-delivery-shots-result/failure.png`
+- `/tmp/gem-food-delivery-shots-result/food-delivery-browser-verification.json`
 
 ## 静态、规则与回归验证
 
@@ -84,7 +84,7 @@ git diff --check
 
 - 规则、场景、控制器和主页/推荐流接入通过。
 - 订单、勾选、保安和楼房的命中区跟随各自编辑器父节点；编辑器调整视觉位置后判定不会留在旧位置。
-- 骑手、手臂、保安、楼房的发布纹理尺寸与序列化显示尺寸一致，不再依赖非等比拉伸；待投食物与 `Muzzle` 使用同一局部位置。
+- 骑手、手臂、保安、楼房从源素材到发布纹理再到序列化显示尺寸均保持宽高比；主页骑手预览也保持等比；待投食物与 `Muzzle` 使用同一局部位置。
 - 广告事件 10 项、推荐流集成 15 项、重复插屏 12 项通过。
 - 复访关闭 5 项、气球 33 项、企鹅 7 项、推荐流音频 36 项通过。
 - 已下线玩法与旧主页仍保持删除状态，没有被本功能恢复。
@@ -94,8 +94,8 @@ git diff --check
 
 `assets/res/foodDeliveryFeed` 内 18 张发布图片统计：
 
-- 压缩文件总大小：436,431 bytes（426.20 KiB），低于 1 MiB 素材预算。
-- 预计 RGBA 解码纹理：5,983,296 bytes（5.71 MiB）。
+- 压缩文件总大小：490,608 bytes（479.11 KiB），低于 1 MiB 素材预算。
+- 预计 RGBA 解码纹理：6,186,944 bytes（5.90 MiB）。
 - `background.jpg`：750×1624，47,060 bytes；预计 RGBA 解码 4,872,000 bytes（约 4.65 MiB）。
 
 JPG 降低的是包体，不会降低同尺寸解码纹理内存；因此报告同时保留两种统计。

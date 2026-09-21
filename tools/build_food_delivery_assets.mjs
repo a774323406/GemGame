@@ -149,10 +149,10 @@ async function fitSprite(input, maxWidth, maxHeight) {
     .toBuffer();
 }
 
-async function exactSprite(input, width, height) {
+async function proportionalSprite(input, { width, height }) {
   const trimmed = await trimmedSprite(input);
   return sharp(trimmed)
-    .resize({ width, height, fit: 'fill' })
+    .resize({ width, height, fit: 'inside' })
     .png({ compressionLevel: 9, palette: false })
     .toBuffer();
 }
@@ -193,17 +193,17 @@ rendered['background.jpg'] = await sharp(backgroundInput)
   .jpeg({ quality: 85, mozjpeg: true })
   .toBuffer();
 
-for (const [output, source, width, height] of [
-  ['courier.png', sources.courier, 230, 154],
-  ['arm.png', sources.arm, 100, 66],
-  ['guard.png', sources.guard, 132, 184],
-  ['building.png', sources.building, 148, 900],
-  ['orange-button.png', sources.orangeButton, 280, 92],
+for (const [output, source, dimensions] of [
+  ['courier.png', sources.courier, { width: 230 }],
+  ['arm.png', sources.arm, { width: 100 }],
+  ['guard.png', sources.guard, { height: 184 }],
+  ['building.png', sources.building, { width: 210 }],
 ]) {
-  rendered[output] = output === 'orange-button.png'
-    ? await fitSprite(path.join(sourceDir, source), width, height)
-    : await exactSprite(path.join(sourceDir, source), width, height);
+  rendered[output] = await proportionalSprite(path.join(sourceDir, source), dimensions);
 }
+rendered['orange-button.png'] = await fitSprite(
+  path.join(sourceDir, sources.orangeButton), 280, 92,
+);
 
 const foodCells = [
   ['food-lime.png', 0, 0],

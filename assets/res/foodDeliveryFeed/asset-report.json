@@ -1,8 +1,8 @@
 {
   "sourceDir": "/tmp/food-delivery-art-src",
   "outputDir": "assets/res/foodDeliveryFeed",
-  "totalBytes": 436431,
-  "totalRgbaBytes": 5983296,
+  "totalBytes": 490608,
+  "totalRgbaBytes": 6186944,
   "assets": {
     "background.jpg": {
       "bytes": 47060,
@@ -12,32 +12,32 @@
       "rgbaBytes": 4872000
     },
     "courier.png": {
-      "bytes": 49227,
+      "bytes": 71016,
       "width": 230,
-      "height": 154,
+      "height": 241,
       "format": "png",
-      "rgbaBytes": 141680
+      "rgbaBytes": 221720
     },
     "arm.png": {
-      "bytes": 9849,
+      "bytes": 7231,
       "width": 100,
-      "height": 66,
+      "height": 44,
       "format": "png",
-      "rgbaBytes": 26400
+      "rgbaBytes": 17600
     },
     "guard.png": {
-      "bytes": 32773,
-      "width": 132,
+      "bytes": 38846,
+      "width": 165,
       "height": 184,
       "format": "png",
-      "rgbaBytes": 97152
+      "rgbaBytes": 121440
     },
     "building.png": {
-      "bytes": 163547,
-      "width": 148,
-      "height": 900,
+      "bytes": 192480,
+      "width": 210,
+      "height": 763,
       "format": "png",
-      "rgbaBytes": 532800
+      "rgbaBytes": 640920
     },
     "orange-button.png": {
       "bytes": 28759,

@@ -503,6 +503,10 @@ export class foodDeliveryFeedGameScene extends Component {
 
     private refreshButtons(): void {
         const enabled = !this.disposed && !this.leaving;
+        const showResult = !!this.round && this.resultOverlay.active;
+        this.homeButton.node.active = showResult;
+        this.retryButton.node.active = showResult && this.round.phase === 'failed';
+        this.nextButton.node.active = showResult && this.round.phase === 'won';
         this.backButton.interactable = enabled;
         this.homeButton.interactable = enabled;
         this.retryButton.interactable = enabled;

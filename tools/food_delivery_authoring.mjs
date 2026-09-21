@@ -56,12 +56,12 @@ function makeSceneRoot(author) {
 
 function actionButton(author, parent, name, caption, x, y, width = 250) {
   const node = author.sprite(name, parent, frameUuid('orange-button.png'), {
-    x, y, w: width, h: 82,
+    x, y, w: width, h: 92,
   });
   author.label('Caption', node, caption, {
     w: width - 24,
-    h: 58,
-    size: 31,
+    h: 62,
+    size: 34,
     color: rgba(255, 255, 255),
     outlineColor: rgba(117, 57, 20),
     outlineWidth: 3,
@@ -115,10 +115,10 @@ export function buildFoodDeliveryScene() {
   }));
 
   const building = author.sprite('Building', gameplay, frameUuid('building.png'), {
-    x: 309, y: 100, w: 148, h: 900,
+    x: 270, y: 31.5, w: 210, h: 763,
   });
   const wallHitArea = author.node('WallHitArea', building, {
-    x: 8.5, y: 125, w: 115, h: 1150,
+    x: 50, y: 68.5, w: 110, h: 900,
   });
   const orderSprites = [];
   const targets = [];
@@ -144,23 +144,23 @@ export function buildFoodDeliveryScene() {
   }
 
   const guard = author.sprite('Guard', gameplay, frameUuid('guard.png'), {
-    x: 142, y: -263, w: 132, h: 184,
+    x: 142, y: -263, w: 165, h: 184,
   });
   const guardHitArea = author.node('GuardHitArea', guard, {
-    x: -1, y: 1, w: 82, h: 156,
+    x: -1, y: 1, w: 104, h: 156,
   });
   const groundMarker = author.node('GroundMarker', gameplay, {
     x: 0, y: -350, w: 750, h: 1,
   });
 
   const courier = author.sprite('Courier', gameplay, frameUuid('courier.png'), {
-    x: -247, y: -268, w: 230, h: 154,
+    x: -247, y: -229.5, w: 230, h: 241,
   });
   const armPivot = author.node('ArmPivot', gameplay, {
-    x: -230, y: -245, w: 1, h: 1,
+    x: -218, y: -195, w: 1, h: 1,
   });
   author.sprite('ThrowingArm', armPivot, frameUuid('arm.png'), {
-    x: 43, w: 100, h: 66, ax: 0.1,
+    x: 43, w: 100, h: 44, ax: 0.1,
   });
   const muzzle = author.node('Muzzle', armPivot, { x: 40, y: 0, w: 1, h: 1 });
 
@@ -183,36 +183,43 @@ export function buildFoodDeliveryScene() {
   const resultOverlay = author.node('ResultOverlay', canvas, { w: 750, h: 1624, active: false });
   author.component(resultOverlay, 'cc.BlockInputEvents');
   const dim = author.sprite('ResultDim', resultOverlay, frameUuid('white.png'), {
-    w: 750, h: 1624, color: rgba(19, 31, 43, 190),
+    w: 750, h: 1624, color: rgba(3, 44, 75, 190),
   });
   author.widget(dim, 45);
   const panel = author.sprite('ResultPanel', resultOverlay, frameUuid('white.png'), {
-    y: 20, w: 600, h: 590, color: rgba(255, 250, 226, 255),
+    y: 0, w: 750, h: 1624, color: rgba(10, 105, 121, 170),
   });
-  const successTitle = author.label('SuccessTitle', panel, '投送成功', {
-    y: 204, w: 500, h: 84, size: 56,
-    color: rgba(55, 175, 76), outlineColor: rgba(54, 77, 38), outlineWidth: 4,
+  author.widget(panel, 45);
+  author.label('ResultGameTitle', panel, '外卖精准投送', {
+    y: 318, w: 540, h: 68, size: 45,
+    color: rgba(255, 220, 72), outlineColor: rgba(14, 57, 70), outlineWidth: 4,
   });
-  const failureTitle = author.label('FailureTitle', panel, '差点就成功了，重新试试吧', {
-    y: 204, w: 530, h: 92, size: 39, active: false,
-    color: rgba(231, 78, 71), outlineColor: rgba(99, 49, 31), outlineWidth: 3,
+  author.sprite('ResultDivider', panel, frameUuid('white.png'), {
+    y: 180, w: 360, h: 4, color: rgba(255, 226, 113, 210),
   });
-  const successContent = author.node('SuccessContent', panel, { w: 520, h: 180 });
-  author.label('ResultMessage', successContent, '五份外卖全部送达！', {
-    y: 105, w: 520, h: 64, size: 30,
-    color: rgba(96, 66, 39), outline: false,
+  const successTitle = author.label('SuccessTitle', panel, '挑战成功', {
+    y: 238, w: 500, h: 84, size: 56,
+    color: rgba(255, 255, 255), outlineColor: rgba(14, 57, 70), outlineWidth: 4,
   });
-  author.sprite('ResultStar', successContent, frameUuid('star-on.png'), {
-    y: 28, w: 92, h: 92,
+  const failureTitle = author.label('FailureTitle', panel, '挑战失败', {
+    y: 238, w: 500, h: 84, size: 56, active: false,
+    color: rgba(255, 255, 255), outlineColor: rgba(14, 57, 70), outlineWidth: 4,
   });
-  const failureContent = author.node('FailureContent', panel, { w: 520, h: 180, active: false });
-  author.label('FailureMessage', failureContent, '调整角度，再来一次！', {
-    y: 72, w: 520, h: 64, size: 30,
-    color: rgba(96, 66, 39), outline: false,
-  });
-  const retryButton = actionButton(author, panel, 'RetryButton', '再试一次', 0, -86, 330);
-  const homeButton = actionButton(author, panel, 'HomeButton', '返回首页', -145, -196, 270);
-  const nextButton = actionButton(author, panel, 'NextButton', '下一关', 145, -196, 270);
+  const successContent = author.node('SuccessContent', panel, { y: 60, w: 560, h: 180 });
+  author.label('SuccessMessage', successContent,
+    '五份外卖全部送达！\n本次送达：5份', {
+      w: 540, h: 130, size: 32, lineHeight: 44, wrap: true,
+      color: rgba(255, 255, 255), outlineColor: rgba(13, 70, 81), outlineWidth: 3,
+    });
+  const failureContent = author.node('FailureContent', panel, { y: 60, w: 560, h: 180, active: false });
+  author.label('FailureMessage', failureContent,
+    '外卖掉落了，再试一次吧\n本次送达：0份', {
+      w: 540, h: 130, size: 32, lineHeight: 44, wrap: true,
+      color: rgba(255, 255, 255), outlineColor: rgba(13, 70, 81), outlineWidth: 3,
+    });
+  const homeButton = actionButton(author, panel, 'HomeButton', '返回主页', 0, -205, 360);
+  const retryButton = actionButton(author, panel, 'RetryButton', '重新开始', 0, -325, 360);
+  const nextButton = actionButton(author, panel, 'NextButton', '下一轮', 0, -325, 360);
 
   author.component(canvas, SCRIPT_TYPE, {
     rotationSpeed: 480,
@@ -380,7 +387,7 @@ export function appendFoodDeliveryCard(objects) {
   const courier = cloneNodeSubtree(objects, sourceArtworkId, 'foodDeliveryCourier');
   configureSprite(objects, courier.rootId, {
     name: 'CourierPreview', parentId: artworkMaskId,
-    frame: frameUuid('courier.png'), x: -42, y: -30, width: 112, height: 75,
+    frame: frameUuid('courier.png'), x: -46, y: -16, width: 96, height: 101,
   });
   objects[artworkMaskId]._children.push(ref(courier.rootId));
 

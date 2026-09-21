@@ -442,6 +442,9 @@ function loadRules() {
   assert.equal(f.game.failureTitle.active, false);
   assert.equal(f.game.successContent.active, true);
   assert.equal(f.game.failureContent.active, false);
+  assert.equal(f.game.homeButton.node.active, true);
+  assert.equal(f.game.retryButton.node.active, false);
+  assert.equal(f.game.nextButton.node.active, true);
   f.game.resetRound(true);
   assert.deepEqual([...f.game.round.order], initialOrder);
   assert.equal(f.game.resultOverlay.active, false);
@@ -459,6 +462,9 @@ function loadRules() {
   assert.equal(f.game.resultOverlay.active, true);
   assert.equal(f.game.successContent.active, false, 'failure must hide success message and bright star');
   assert.equal(f.game.failureContent.active, true, 'failure must show only failure-specific content');
+  assert.equal(f.game.homeButton.node.active, true);
+  assert.equal(f.game.retryButton.node.active, true);
+  assert.equal(f.game.nextButton.node.active, false);
 }
 
 {

@@ -34,7 +34,8 @@ async function main() {
   for (const name of [
     'Background', 'SafeArea', 'GameplayRoot', 'Title', 'Courier', 'ArmPivot', 'Muzzle',
     'Guard', 'GuardHitArea', 'WallHitArea', 'GroundMarker', 'Building', 'ResultOverlay',
-    'SuccessContent', 'FailureContent', 'SuccessTitle', 'FailureTitle', 'FailureMessage',
+    'ResultGameTitle', 'SuccessContent', 'FailureContent', 'SuccessTitle', 'FailureTitle',
+    'SuccessMessage', 'FailureMessage',
     'BackButton', 'HomeButton', 'RetryButton', 'NextButton',
   ]) assert(byName(name), `${name} must be authored in the scene`);
 
@@ -48,6 +49,7 @@ async function main() {
   assert.equal(byName('ResultOverlay')._active, false);
   assert.equal(byName('SuccessContent')._active, true);
   assert.equal(byName('FailureContent')._active, false);
+  assert.equal(byName('ResultStar'), undefined, 'the redesigned result page must not reuse the old bright star card');
   assert.equal(component(byName('ResultOverlay'), 'cc.BlockInputEvents') !== undefined, true);
   for (const name of ['BackButton', 'HomeButton', 'RetryButton', 'NextButton']) {
     assert(component(byName(name), 'cc.Button'), `${name} needs a serialized Button`);
@@ -60,6 +62,25 @@ async function main() {
   assert.equal(backgroundSprite._spriteFrame.__uuid__, frameUuid('background.jpg'));
   assert.equal(component(byName('Background'), 'cc.Widget'), undefined,
     'background must keep its authored aspect ratio instead of stretching to Canvas');
+
+  assert.equal(component(byName('ResultGameTitle'), 'cc.Label')._string, '外卖精准投送');
+  assert.equal(component(byName('SuccessTitle'), 'cc.Label')._string, '挑战成功');
+  assert.equal(component(byName('FailureTitle'), 'cc.Label')._string, '挑战失败');
+  assert.match(component(byName('SuccessMessage'), 'cc.Label')._string, /本次送达：5份/);
+  assert.match(component(byName('FailureMessage'), 'cc.Label')._string, /本次送达：0份/);
+  const resultPanelSize = component(byName('ResultPanel'), 'cc.UITransform')._contentSize;
+  assert.deepEqual([resultPanelSize.width, resultPanelSize.height], [750, 1624],
+    'the result page should be full-screen instead of a centered rectangular popup');
+  assert(component(byName('ResultPanel'), 'cc.Widget'),
+    'the full-screen result background must continue covering short and tall screens');
+  const buttonPosition = (name) => byName(name)._lpos;
+  assert.equal(buttonPosition('HomeButton').x, 0);
+  assert.equal(buttonPosition('RetryButton').x, 0);
+  assert.equal(buttonPosition('NextButton').x, 0);
+  assert.equal(buttonPosition('RetryButton').y, buttonPosition('NextButton').y,
+    'retry and next should occupy the same second-row slot for their respective phases');
+  assert(buttonPosition('HomeButton').y > buttonPosition('RetryButton').y,
+    'result actions must be a vertical stack with home above the phase-specific action');
 
   for (let index = 0; index < 5; index += 1) {
     assert.equal(scene[byName(`TargetHitArea${index}`)._parent.__id__]._name, `Order${index}`,
@@ -139,9 +160,19 @@ async function main() {
       `${nodeName} must not be stretched vertically at runtime`);
   }
 
+  const proportionalSizes = {
+    'courier.png': [230, 241],
+    'arm.png': [100, 44],
+    'guard.png': [165, 184],
+    'building.png': [210, 763],
+  };
+  for (const [name, [width, height]] of Object.entries(proportionalSizes)) {
+    assert.equal(report.assets[name].width, width, `${name} must preserve its source aspect ratio`);
+    assert.equal(report.assets[name].height, height, `${name} must preserve its source aspect ratio`);
+  }
+
   const sizeLimits = {
-    'courier.png': [230, 154], 'arm.png': [100, 66], 'guard.png': [132, 184],
-    'building.png': [148, 900], 'food-lime.png': [80, 88], 'food-icecream.png': [80, 88],
+    ...proportionalSizes, 'food-lime.png': [80, 88], 'food-icecream.png': [80, 88],
     'food-cake.png': [80, 88], 'food-burger.png': [80, 88], 'food-cola.png': [80, 88],
     'order.png': [112, 112], 'star-off.png': [64, 64], 'star-on.png': [64, 64],
     'check.png': [64, 64], 'back.png': [88, 88], 'orange-button.png': [280, 92],
