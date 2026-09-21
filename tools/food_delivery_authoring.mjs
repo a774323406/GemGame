@@ -245,8 +245,176 @@ export function buildFoodDeliveryScene() {
   return objects;
 }
 
-// Task 4 owns the real homepage append. Leaving this explicit no-op prevents a
-// scene-generation command from overwriting the user's current NewMainScene.
-export function appendFoodDeliveryCard(_objects) {
-  return -1;
+function componentId(objects, nodeId, type) {
+  return objects[nodeId]._components
+    .map(item => item.__id__)
+    .find(id => objects[id]?.__type__ === type);
+}
+
+function directChildId(objects, parentId, name) {
+  return objects[parentId]._children
+    .map(item => item.__id__)
+    .find(id => objects[id]?._name === name);
+}
+
+function collectNodeSubtree(objects, rootId, result = []) {
+  result.push(rootId);
+  for (const component of objects[rootId]._components || []) result.push(component.__id__);
+  for (const child of objects[rootId]._children || []) {
+    collectNodeSubtree(objects, child.__id__, result);
+  }
+  return result;
+}
+
+function remapReferences(value, idMap) {
+  if (Array.isArray(value)) {
+    for (const item of value) remapReferences(item, idMap);
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  if (Number.isInteger(value.__id__) && idMap.has(value.__id__)) {
+    value.__id__ = idMap.get(value.__id__);
+  }
+  for (const item of Object.values(value)) remapReferences(item, idMap);
+}
+
+function cloneNodeSubtree(objects, rootId, idPrefix = 'foodDelivery') {
+  const sourceIds = collectNodeSubtree(objects, rootId);
+  const idMap = new Map(sourceIds.map((id, offset) => [id, objects.length + offset]));
+  for (const sourceId of sourceIds) {
+    const clone = structuredClone(objects[sourceId]);
+    remapReferences(clone, idMap);
+    if (typeof clone._id === 'string') {
+      clone._id = `${idPrefix}_${idMap.get(sourceId)}`;
+    }
+    objects.push(clone);
+  }
+  return { rootId: idMap.get(rootId), idMap };
+}
+
+function setSpriteFrame(objects, nodeId, uuid) {
+  const sprite = objects[componentId(objects, nodeId, 'cc.Sprite')];
+  sprite._spriteFrame = {
+    __uuid__: uuid,
+    __expectedType__: 'cc.SpriteFrame',
+  };
+}
+
+function configureSprite(objects, nodeId, { name, parentId, frame, x, y, width, height }) {
+  const node = objects[nodeId];
+  node._name = name;
+  node._parent = ref(parentId);
+  node._lpos = vec(x, y, 0);
+  node._children = [];
+  const transform = objects[componentId(objects, nodeId, 'cc.UITransform')];
+  transform._contentSize.width = width;
+  transform._contentSize.height = height;
+  setSpriteFrame(objects, nodeId, frame);
+}
+
+/**
+ * Precisely appends the serialized homepage entry without rebuilding or
+ * reordering any user-authored lobby objects.
+ */
+export function appendFoodDeliveryCard(objects) {
+  const canvasId = objects.findIndex(item => item?.__type__ === 'cc.Node' && item._name === 'Canvas');
+  const gameListId = directChildId(objects, canvasId, 'GameList');
+  const viewId = directChildId(objects, gameListId, 'View');
+  const contentId = directChildId(objects, viewId, 'Content');
+  if ([canvasId, gameListId, viewId, contentId].some(id => !Number.isInteger(id) || id < 0)) {
+    throw new Error('NewMainScene Canvas/GameList/View/Content hierarchy is incomplete');
+  }
+
+  const controller = objects.find(item =>
+    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.balloonWheelButton && item?.gameList);
+  if (!controller) throw new Error('NewMainScene controller is missing');
+
+  const content = objects[contentId];
+  const existingCardId = content._children
+    .map(item => item.__id__)
+    .find(id => objects[id]?._name === 'FoodDeliveryCard');
+  if (Number.isInteger(existingCardId)) {
+    const existingButtonId = componentId(objects, existingCardId, 'cc.Button');
+    controller.foodDeliveryButton = ref(existingButtonId);
+    return existingButtonId;
+  }
+
+  const sourceCardId = content._children
+    .map(item => item.__id__)
+    .find(id => objects[id]?._name === 'PuzzleGameCard');
+  if (!Number.isInteger(sourceCardId)) throw new Error('NewMainScene source card is missing');
+
+  const sourceArtworkMaskId = directChildId(objects, sourceCardId, 'ArtworkMask');
+  const sourceArtworkId = directChildId(objects, sourceArtworkMaskId, 'Artwork');
+  const captionDonorId = objects.findIndex(item =>
+    item?.__type__ === 'cc.Node' && item._name === 'Caption' &&
+    Number.isInteger(componentId(objects, objects.indexOf(item), 'cc.Label')));
+
+  const index = content._children.length;
+  const { rootId: cardId } = cloneNodeSubtree(objects, sourceCardId, 'foodDeliveryCard');
+  const card = objects[cardId];
+  card._name = 'FoodDeliveryCard';
+  card._parent = ref(contentId);
+  card._lpos = vec(index % 2 === 0 ? -139 : 139, -152 - Math.floor(index / 2) * 294, 0);
+  content._children.push(ref(cardId));
+
+  const buttonId = componentId(objects, cardId, 'cc.Button');
+  const button = objects[buttonId];
+  button.clickEvents = [];
+  button._clickEvents = [];
+
+  const artworkMaskId = directChildId(objects, cardId, 'ArtworkMask');
+  const artworkId = directChildId(objects, artworkMaskId, 'Artwork');
+  configureSprite(objects, artworkId, {
+    name: 'Artwork', parentId: artworkMaskId,
+    frame: frameUuid('background.jpg'), x: 0, y: 0, width: 202, height: 164,
+  });
+
+  const courier = cloneNodeSubtree(objects, sourceArtworkId, 'foodDeliveryCourier');
+  configureSprite(objects, courier.rootId, {
+    name: 'CourierPreview', parentId: artworkMaskId,
+    frame: frameUuid('courier.png'), x: -42, y: -30, width: 112, height: 75,
+  });
+  objects[artworkMaskId]._children.push(ref(courier.rootId));
+
+  const order = cloneNodeSubtree(objects, sourceArtworkId, 'foodDeliveryOrder');
+  configureSprite(objects, order.rootId, {
+    name: 'OrderPreview', parentId: artworkMaskId,
+    frame: frameUuid('order.png'), x: 63, y: 34, width: 58, height: 51,
+  });
+  objects[artworkMaskId]._children.push(ref(order.rootId));
+
+  const titlePlaqueId = directChildId(objects, cardId, 'TitlePlaque');
+  setSpriteFrame(objects, titlePlaqueId, 'e625bd7b-cbf1-4b43-9552-b13edb0bc4f4@f9941');
+  const gameName = cloneNodeSubtree(objects, captionDonorId, 'foodDeliveryTitle');
+  const gameNameNode = objects[gameName.rootId];
+  gameNameNode._name = 'GameName';
+  gameNameNode._parent = ref(titlePlaqueId);
+  gameNameNode._children = [];
+  gameNameNode._lpos = vec(0, 0, 0);
+  const titleTransform = objects[componentId(objects, gameName.rootId, 'cc.UITransform')];
+  titleTransform._contentSize.width = 204;
+  titleTransform._contentSize.height = 42;
+  const titleLabel = objects[componentId(objects, gameName.rootId, 'cc.Label')];
+  titleLabel._string = '外卖精准投送';
+  titleLabel._fontSize = 27;
+  titleLabel._lineHeight = 42;
+  titleLabel._horizontalAlign = 1;
+  titleLabel._verticalAlign = 1;
+  titleLabel._color = rgba(255, 251, 241);
+  titleLabel._enableOutline = true;
+  titleLabel._outlineColor = rgba(105, 55, 28);
+  titleLabel._outlineWidth = 4;
+  const titleOutlineId = componentId(objects, gameName.rootId, 'cc.LabelOutline');
+  if (Number.isInteger(titleOutlineId)) {
+    objects[titleOutlineId]._color = rgba(105, 55, 28);
+    objects[titleOutlineId]._width = 4;
+  }
+  objects[titlePlaqueId]._children.push(ref(gameName.rootId));
+
+  const contentTransform = objects[componentId(objects, contentId, 'cc.UITransform')];
+  const rowCount = Math.ceil((index + 1) / 2);
+  contentTransform._contentSize.height = 18 + rowCount * 268 + (rowCount - 1) * 26 + 14;
+  controller.foodDeliveryButton = ref(buttonId);
+  return buttonId;
 }
