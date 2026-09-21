@@ -42,6 +42,7 @@ const DESIGN_HEIGHT = 1624;
 const GOOSE_WALK_SPEED = 150;
 const GOOSE_LEFT_EDGE = -310;
 const GOOSE_RIGHT_EDGE = 310;
+const CATCH_ANIMATION_FALLBACK_SECONDS = 2.8;
 const RING_SKINS = ["lan", "huang", "hong"] as const;
 const GOOSE_CALLS = [
   soundName.whiteGooseCall1,
@@ -522,7 +523,7 @@ export class whiteGooseFeedGameScene extends Component {
       goose.skeleton.setCompleteListener((entry) => {
         if ((entry?.animation?.name ?? "") === animation) finish();
       });
-      this.scheduleOnce(finish, 1.15);
+      this.scheduleOnce(finish, CATCH_ANIMATION_FALLBACK_SECONDS);
     } catch (error) {
       console.warn("[whiteGooseFeedGameScene] 大鹅套中动画不可用", error);
       finish();

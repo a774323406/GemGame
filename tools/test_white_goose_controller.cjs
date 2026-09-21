@@ -78,8 +78,18 @@ class Node {
 
 class Component {
   constructor() { this.node = new Node('Controller'); this.scheduled = []; }
-  scheduleOnce(fn) { this.scheduled.push(fn); }
+  scheduleOnce(fn, delay = 0) { this.scheduled.push({ fn, delay }); }
   unscheduleAllCallbacks() { this.scheduled = []; }
+}
+
+function maxAnimationTime(value) {
+  if (Array.isArray(value)) return value.reduce((max, item) => Math.max(max, maxAnimationTime(item)), 0);
+  if (!value || typeof value !== 'object') return 0;
+  const ownTime = typeof value.time === 'number' ? value.time : 0;
+  return Object.values(value).reduce(
+    (max, item) => Math.max(max, maxAnimationTime(item)),
+    ownTime,
+  );
 }
 
 function createFixture() {
@@ -260,6 +270,20 @@ function makePlayableController(fixture) {
   assert.equal(controller.handSkeleton.complete, null);
   assert.equal(gooseSkeleton.complete, null);
   assert(fixture.tweenTargets.includes(controller.sceneThrowingHand));
+}
+
+{
+  const fixture = createFixture();
+  const controller = makePlayableController(fixture);
+  const goose = controller.gooseStates[0];
+  const skeletonData = JSON.parse(fs.readFileSync('assets/res/whiteGooseFeed/taodae.json', 'utf8'));
+  const catchAnimationDuration = maxAnimationTime(skeletonData.animations.s2_tao);
+  controller.playCaughtAnimation(goose, 0, controller.roundSerial);
+  const fallback = controller.scheduled.at(-1);
+  assert(
+    fallback.delay >= catchAnimationDuration,
+    `catch fallback ${fallback.delay}s must not hide the goose before its ${catchAnimationDuration}s animation ends`,
+  );
 }
 
 console.log('White goose controller tests passed');

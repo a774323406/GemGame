@@ -134,7 +134,7 @@ export function buildWhiteGooseScene() {
   author.widget(canvas, 45);
 
   const background = author.sprite('Background', canvas, frameUuid('ditu.jpg'), {
-    w: 750, h: 1750,
+    w: 1800 * (720 / 1680), h: 1800,
   });
   const fieldTouchArea = author.node('FieldTouchArea', canvas, { y: -55, w: 750, h: 1330 });
   const gameplay = author.node('GameplayRoot', canvas, { w: 750, h: 1624 });

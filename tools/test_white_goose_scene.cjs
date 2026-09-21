@@ -47,10 +47,10 @@ assert(controller, 'whiteGooseFeedGameScene controller is missing');
 const background = nodeByName('Background');
 assert(background, 'Background is missing');
 const backgroundSize = component(background.id, 'cc.UITransform')._contentSize;
-assert.equal(backgroundSize.width / backgroundSize.height, 720 / 1680,
+assert(Math.abs((backgroundSize.width / backgroundSize.height) - (720 / 1680)) < 1e-9,
   'background must keep the source aspect ratio');
-assert(backgroundSize.width >= 750 || backgroundSize.height >= 1624,
-  'background must cover the design canvas');
+assert(backgroundSize.width >= 750 && backgroundSize.height >= 1800,
+  'background must cover 750x1800 tall screens without stretching');
 
 const gooseSlots = nodeByName('GooseSlots');
 assert(gooseSlots, 'GooseSlots is missing');
