@@ -69,6 +69,11 @@ async function sceneLayout(page) {
       };
     };
     const backgroundTransform = game.background.getComponent(cc.UITransform);
+    const backgroundBounds = bounds(game.background);
+    if (backgroundBounds.left > 0 || backgroundBounds.right < viewport.width ||
+        backgroundBounds.top > 0 || backgroundBounds.bottom < viewport.height) {
+      throw new Error(`background does not cover viewport: ${JSON.stringify(backgroundBounds)}`);
+    }
     const fixed = [game.backButton.node, game.courier, game.guard, ...game.orderSprites].map(bounds);
     const title = bounds(canvas.getChildByName('SafeArea').getChildByName('Title'));
     const starRow = Array.from({ length: 5 }, (_, index) =>
@@ -86,7 +91,12 @@ async function sceneLayout(page) {
     return {
       viewport,
       visible: { width: cc.view.getVisibleSize().width, height: cc.view.getVisibleSize().height },
-      background: { width: backgroundTransform.width, height: backgroundTransform.height },
+      background: {
+        width: backgroundTransform.width,
+        height: backgroundTransform.height,
+        scale: { x: game.background.scale.x, y: game.background.scale.y },
+        bounds: backgroundBounds,
+      },
       gameplayScale: { x: game.gameplayRoot.scale.x, y: game.gameplayRoot.scale.y },
       title,
       starRow,
@@ -255,10 +265,13 @@ async function findHitAngle(page) {
         .getComponent('foodDeliveryFeedGameScene');
       return { phase: game.round.phase, score: game.round.score,
         successTitle: game.successTitle.activeInHierarchy,
+        successContent: game.successContent.activeInHierarchy,
+        failureContent: game.failureContent.activeInHierarchy,
         nextButton: game.nextButton.node.activeInHierarchy };
     });
     assert.deepEqual(report.normalEntry.success,
-      { phase: 'won', score: 5, successTitle: true, nextButton: true });
+      { phase: 'won', score: 5, successTitle: true,
+        successContent: true, failureContent: false, nextButton: true });
 
     report.normalEntry.nextRound = await page.evaluate(() => {
       const game = cc.director.getScene().getChildByName('Canvas')
@@ -282,13 +295,16 @@ async function findHitAngle(page) {
         .getComponent('foodDeliveryFeedGameScene');
       const order = [...game.round.order];
       const failedPhase = game.round.phase;
+      const successContent = game.successContent.activeInHierarchy;
+      const failureContent = game.failureContent.activeInHierarchy;
       game.retryButton.node.emit(cc.Button.EventType.CLICK);
       return { failedPhase, retryPhase: game.round.phase, score: game.round.score,
         sameOrder: JSON.stringify(order) === JSON.stringify(game.round.order),
-        overlay: game.resultOverlay.active };
+        successContent, failureContent, overlay: game.resultOverlay.active };
     });
     assert.deepEqual(report.normalEntry.failure,
-      { failedPhase: 'failed', retryPhase: 'aiming', score: 0, sameOrder: true, overlay: false });
+      { failedPhase: 'failed', retryPhase: 'aiming', score: 0, sameOrder: true,
+        successContent: false, failureContent: true, overlay: false });
     await page.evaluate(() => cc.director.getScene().getChildByName('Canvas')
       .getComponent('foodDeliveryFeedGameScene').backButton.node.emit(cc.Button.EventType.CLICK));
     await page.waitForFunction(() => cc.director.getScene()?.name === 'NewMainScene');

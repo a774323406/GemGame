@@ -149,6 +149,14 @@ async function fitSprite(input, maxWidth, maxHeight) {
     .toBuffer();
 }
 
+async function exactSprite(input, width, height) {
+  const trimmed = await trimmedSprite(input);
+  return sharp(trimmed)
+    .resize({ width, height, fit: 'fill' })
+    .png({ compressionLevel: 9, palette: false })
+    .toBuffer();
+}
+
 async function cropPack(input, columns, rows, column, row) {
   const metadata = await checkedMetadata(input);
   const left = Math.floor(metadata.width * column / columns);
@@ -186,13 +194,15 @@ rendered['background.jpg'] = await sharp(backgroundInput)
   .toBuffer();
 
 for (const [output, source, width, height] of [
-  ['courier.png', sources.courier, 192, 176],
-  ['arm.png', sources.arm, 100, 96],
-  ['guard.png', sources.guard, 176, 192],
-  ['building.png', sources.building, 144, 900],
+  ['courier.png', sources.courier, 230, 154],
+  ['arm.png', sources.arm, 100, 66],
+  ['guard.png', sources.guard, 132, 184],
+  ['building.png', sources.building, 148, 900],
   ['orange-button.png', sources.orangeButton, 280, 92],
 ]) {
-  rendered[output] = await fitSprite(path.join(sourceDir, source), width, height);
+  rendered[output] = output === 'orange-button.png'
+    ? await fitSprite(path.join(sourceDir, source), width, height)
+    : await exactSprite(path.join(sourceDir, source), width, height);
 }
 
 const foodCells = [

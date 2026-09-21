@@ -34,7 +34,8 @@ async function main() {
   for (const name of [
     'Background', 'SafeArea', 'GameplayRoot', 'Title', 'Courier', 'ArmPivot', 'Muzzle',
     'Guard', 'GuardHitArea', 'WallHitArea', 'GroundMarker', 'Building', 'ResultOverlay',
-    'SuccessTitle', 'FailureTitle', 'BackButton', 'HomeButton', 'RetryButton', 'NextButton',
+    'SuccessContent', 'FailureContent', 'SuccessTitle', 'FailureTitle', 'FailureMessage',
+    'BackButton', 'HomeButton', 'RetryButton', 'NextButton',
   ]) assert(byName(name), `${name} must be authored in the scene`);
 
   for (let index = 0; index < 5; index += 1) {
@@ -45,6 +46,8 @@ async function main() {
   for (let index = 0; index < 12; index += 1) assert(byName(`AimDot${index}`));
 
   assert.equal(byName('ResultOverlay')._active, false);
+  assert.equal(byName('SuccessContent')._active, true);
+  assert.equal(byName('FailureContent')._active, false);
   assert.equal(component(byName('ResultOverlay'), 'cc.BlockInputEvents') !== undefined, true);
   for (const name of ['BackButton', 'HomeButton', 'RetryButton', 'NextButton']) {
     assert(component(byName(name), 'cc.Button'), `${name} needs a serialized Button`);
@@ -55,6 +58,23 @@ async function main() {
 
   const backgroundSprite = component(byName('Background'), 'cc.Sprite');
   assert.equal(backgroundSprite._spriteFrame.__uuid__, frameUuid('background.jpg'));
+  assert.equal(component(byName('Background'), 'cc.Widget'), undefined,
+    'background must keep its authored aspect ratio instead of stretching to Canvas');
+
+  for (let index = 0; index < 5; index += 1) {
+    assert.equal(scene[byName(`TargetHitArea${index}`)._parent.__id__]._name, `Order${index}`,
+      'moving an order in the editor must move its hit area');
+    assert.equal(scene[byName(`Check${index}`)._parent.__id__]._name, `Order${index}`,
+      'moving an order in the editor must move its delivered check');
+  }
+  assert.equal(scene[byName('GuardHitArea')._parent.__id__]._name, 'Guard',
+    'moving the guard in the editor must move its hit area');
+  assert.equal(scene[byName('WallHitArea')._parent.__id__]._name, 'Building',
+    'moving the building in the editor must move its wall hit area');
+  assert.equal(byName('PendingFood0')._parent.__id__, nodeId('ArmPivot'));
+  assert.equal(byName('PendingFood0')._lpos.x, byName('Muzzle')._lpos.x,
+    'held food and projectile origin must share the same hand position');
+  assert.equal(byName('PendingFood0')._lpos.y, byName('Muzzle')._lpos.y);
 
   const controller = scene.find((object) => object.__type__ === SCRIPT_TYPE);
   assert(controller, 'serialized controller component must exist');
@@ -106,9 +126,22 @@ async function main() {
   assert.equal(backgroundMetadata.width, 750);
   assert.equal(backgroundMetadata.height, 1624);
 
+  for (const [assetName, nodeName] of [
+    ['courier.png', 'Courier'],
+    ['arm.png', 'ThrowingArm'],
+    ['guard.png', 'Guard'],
+    ['building.png', 'Building'],
+  ]) {
+    const transform = component(byName(nodeName), 'cc.UITransform')._contentSize;
+    assert.equal(report.assets[assetName].width, transform.width,
+      `${nodeName} must not be stretched horizontally at runtime`);
+    assert.equal(report.assets[assetName].height, transform.height,
+      `${nodeName} must not be stretched vertically at runtime`);
+  }
+
   const sizeLimits = {
-    'courier.png': [192, 176], 'arm.png': [100, 96], 'guard.png': [176, 192],
-    'building.png': [144, 900], 'food-lime.png': [80, 88], 'food-icecream.png': [80, 88],
+    'courier.png': [230, 154], 'arm.png': [100, 66], 'guard.png': [132, 184],
+    'building.png': [148, 900], 'food-lime.png': [80, 88], 'food-icecream.png': [80, 88],
     'food-cake.png': [80, 88], 'food-burger.png': [80, 88], 'food-cola.png': [80, 88],
     'order.png': [112, 112], 'star-off.png': [64, 64], 'star-on.png': [64, 64],
     'check.png': [64, 64], 'back.png': [88, 88], 'orange-button.png': [280, 92],
@@ -154,12 +187,27 @@ function assertTargetsReachable(scene, controller) {
   const size = (value) => value._components
     .map((entry) => scene[entry.__id__])
     .find((entry) => entry.__type__ === 'cc.UITransform')._contentSize;
+  const gameplayId = nodeId('GameplayRoot');
+  const positionInGameplay = (value) => {
+    let x = value._lpos.x;
+    let y = value._lpos.y;
+    let parentId = value._parent?.__id__;
+    while (Number.isInteger(parentId) && parentId !== gameplayId) {
+      const parent = scene[parentId];
+      if (parent.__type__ !== 'cc.Node') break;
+      x += parent._lpos.x;
+      y += parent._lpos.y;
+      parentId = parent._parent?.__id__;
+    }
+    return { x, y };
+  };
   const rect = (name) => {
     const value = node(name);
     const dimensions = size(value);
+    const position = name === 'GameplayRoot' ? value._lpos : positionInGameplay(value);
     return {
-      x: value._lpos.x - dimensions.width / 2,
-      y: value._lpos.y - dimensions.height / 2,
+      x: position.x - dimensions.width / 2,
+      y: position.y - dimensions.height / 2,
       width: dimensions.width,
       height: dimensions.height,
     };
@@ -178,9 +226,7 @@ function assertTargetsReachable(scene, controller) {
     radius: controller.radius,
     maxFlightSeconds: controller.maxFlightSeconds,
   };
-  const arm = node('ArmPivot')._lpos;
-  const muzzle = node('Muzzle')._lpos;
-  const origin = { x: arm.x + muzzle.x, y: arm.y + muzzle.y };
+  const origin = positionInGameplay(node('Muzzle'));
   for (const food of kinds) {
     let reachable = false;
     for (let angle = 0; angle <= 180 && !reachable; angle += 0.25) {

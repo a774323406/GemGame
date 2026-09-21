@@ -4,16 +4,16 @@
 
 ## 结论
 
-本地首版已经完成并通过规则、场景、控制器、主页接入、推荐流生命周期、广告回归、TypeScript、Cocos web-mobile 构建和真实浏览器触摸验收。主页序列化卡片可以进入 `FoodDeliveryFeedGameScene`；五份订单可以依次完成并通关；失败、重试、下一轮、返回主页和再次进入均通过。
+本地首版已经完成并通过规则、场景、控制器、主页接入、推荐流生命周期、广告回归、TypeScript、Cocos web-mobile 构建和真实浏览器触摸验收。主页序列化卡片可以进入 `FoodDeliveryFeedGameScene`；五份订单可以依次完成并通关；失败、重试、下一轮、返回主页和再次进入均通过。最终审查发现的高 DPR 原生触摸坐标、编辑器视觉与命中区联动、返回主页失败后的推荐流生命周期、失败结算内容、核心素材比例和待投食物发射连续性问题，已增加回归覆盖并修复。
 
 这不是抖音真机发布结论：`FEED_FOOD_DELIVERY_CONTENT_ID` 仍为空字符串，尚未配置真实推荐流 ID，也没有在抖音真机验证预览切入、触摸、后台恢复和插屏关闭恢复。
 
 ## 构建证据
 
 - Cocos Creator：3.8.5
-- 构建目录：`/tmp/gem-food-delivery-build.2wUDXa/web-mobile`
-- 构建日志：`.superpowers/sdd/2026-09-21-food-delivery-feed/task-5-build-resize.log`
-- 日志结果：`build success in 6733!`
+- 构建目录：`/tmp/gem-food-delivery-build.GKGFBj/web-mobile`
+- 构建日志：`.superpowers/sdd/2026-09-21-food-delivery-feed/task-5-build-review-fixes.log`
+- 日志结果：`build success in 6026!`
 - 命令进程退出码：36。Creator CLI 在成功写出完整产物后仍返回 36；本报告不把退出码隐藏为 0，而是以日志成功标记、产物存在、场景注册和浏览器实跑共同确认构建可用。
 - `gamescene/config.json` 包含：
   - 场景名 `FoodDeliveryFeedGameScene`
@@ -28,8 +28,8 @@
 
 ```bash
 node tools/preview_food_delivery_feed.cjs \
-  http://127.0.0.1:8139/ \
-  /tmp/gem-food-delivery-shots-final
+  http://127.0.0.1:8140/ \
+  /tmp/gem-food-delivery-shots-review-fixes
 ```
 
 结果：退出码 0，`errors: []`，`blockedRequests: []`。测试期间拦截真实外部请求，没有发送抖音打点或广告请求。
@@ -38,22 +38,24 @@ node tools/preview_food_delivery_feed.cjs \
 
 - 从 `NewMainScene` 的序列化 `FoodDeliveryCard` 进入，不直接调用场景方法跳转。
 - 使用 CDP `touchStart/touchEnd` 完成五次真实碰撞，分数 1→5，第五单进入 `won`。
-- 成功页、下一轮、失败页、失败后重试、返回主页、再次进入均通过。
+- 成功页、下一轮、失败页、失败后重试、返回主页、再次进入均通过；成功与失败内容组互斥，失败页不再显示成功文案或亮星。
 - 检查 750×1624、750×1334、750×1800 三种视口。
 - 750×1334 下玩法层缩放为 `1334 / 1624 = 0.821428...`，标题底部为 158px，五星顶部为约 173.32px，保留约 15.32px 间距。
-- 三种视口中背景覆盖完整，五个订单、骑手、保安和返回按钮均在可视范围内。
+- 三种视口中背景按原始宽高比等比覆盖且无黑边；750×1800 的背景缩放为 `1800 / 1624 = 1.108374...`。五个订单、骑手、保安和返回按钮均在可视范围内。
 - 推荐流预览只旋转手臂，不投掷、不计分、不请求插屏；正式进入后首次触摸只发射一次。
 - `feedExit` 后物理冻结；hide/show、销毁和排队中的晚到原生/Cocos 触摸均通过。
+- 高 DPR 原生触摸与 Cocos 触摸统一到引擎屏幕坐标，返回按钮不会穿透成投掷。
+- 返回主页加载失败时不会提前完成 Feed，会恢复生命周期监听、音频和广告资格。
 - 销毁后原生触摸监听数量为 0。
 
 产物：
 
-- `/tmp/gem-food-delivery-shots-final/gameplay-750x1624.png`
-- `/tmp/gem-food-delivery-shots-final/gameplay-short.png`
-- `/tmp/gem-food-delivery-shots-final/gameplay-tall.png`
-- `/tmp/gem-food-delivery-shots-final/success.png`
-- `/tmp/gem-food-delivery-shots-final/failure.png`
-- `/tmp/gem-food-delivery-shots-final/food-delivery-browser-verification.json`
+- `/tmp/gem-food-delivery-shots-review-fixes/gameplay-750x1624.png`
+- `/tmp/gem-food-delivery-shots-review-fixes/gameplay-short.png`
+- `/tmp/gem-food-delivery-shots-review-fixes/gameplay-tall.png`
+- `/tmp/gem-food-delivery-shots-review-fixes/success.png`
+- `/tmp/gem-food-delivery-shots-review-fixes/failure.png`
+- `/tmp/gem-food-delivery-shots-review-fixes/food-delivery-browser-verification.json`
 
 ## 静态、规则与回归验证
 
@@ -81,6 +83,8 @@ git diff --check
 重点结果：
 
 - 规则、场景、控制器和主页/推荐流接入通过。
+- 订单、勾选、保安和楼房的命中区跟随各自编辑器父节点；编辑器调整视觉位置后判定不会留在旧位置。
+- 骑手、手臂、保安、楼房的发布纹理尺寸与序列化显示尺寸一致，不再依赖非等比拉伸；待投食物与 `Muzzle` 使用同一局部位置。
 - 广告事件 10 项、推荐流集成 15 项、重复插屏 12 项通过。
 - 复访关闭 5 项、气球 33 项、企鹅 7 项、推荐流音频 36 项通过。
 - 已下线玩法与旧主页仍保持删除状态，没有被本功能恢复。
@@ -90,8 +94,8 @@ git diff --check
 
 `assets/res/foodDeliveryFeed` 内 18 张发布图片统计：
 
-- 压缩文件总大小：372,443 bytes（363.71 KiB）。
-- 预计 RGBA 解码纹理：5,754,480 bytes（5.49 MiB）。
+- 压缩文件总大小：436,431 bytes（426.20 KiB），低于 1 MiB 素材预算。
+- 预计 RGBA 解码纹理：5,983,296 bytes（5.71 MiB）。
 - `background.jpg`：750×1624，47,060 bytes；预计 RGBA 解码 4,872,000 bytes（约 4.65 MiB）。
 
 JPG 降低的是包体，不会降低同尺寸解码纹理内存；因此报告同时保留两种统计。
@@ -101,4 +105,3 @@ JPG 降低的是包体，不会降低同尺寸解码纹理内存；因此报告�
 1. 用户提供真实 `FEED_FOOD_DELIVERY_CONTENT_ID` 后填写配置，并验证未知 ID 兜底没有变化。
 2. 重新打抖音包，在真实推荐流卡片检查预览稳定渲染、正式进入首触、退出/后台恢复。
 3. 真机检查插屏关闭后音频和触摸恢复；本地只验证了平台桩和浏览器触摸，不能替代真机。
-

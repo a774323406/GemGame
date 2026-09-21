@@ -91,7 +91,6 @@ export function buildFoodDeliveryScene() {
   const background = author.sprite('Background', canvas, frameUuid('background.jpg'), {
     w: 750, h: 1624,
   });
-  author.widget(background, 45);
 
   // Safe-area anchored editor nodes. The runtime may inset SafeArea as one unit,
   // but never rewrites the authored child spacing or style.
@@ -118,8 +117,8 @@ export function buildFoodDeliveryScene() {
   const building = author.sprite('Building', gameplay, frameUuid('building.png'), {
     x: 309, y: 100, w: 148, h: 900,
   });
-  const wallHitArea = author.node('WallHitArea', gameplay, {
-    x: 317.5, y: 225, w: 115, h: 1150,
+  const wallHitArea = author.node('WallHitArea', building, {
+    x: 8.5, y: 125, w: 115, h: 1150,
   });
   const orderSprites = [];
   const targets = [];
@@ -133,11 +132,11 @@ export function buildFoodDeliveryScene() {
     author.sprite(`OrderFood${index}`, order, frameUuid(`food-${foods[index]}.png`), {
       x: -3, w: 62, h: 66,
     });
-    const target = author.node(`TargetHitArea${index}`, gameplay, {
-      x: 189, y, w: 72, h: 68,
+    const target = author.node(`TargetHitArea${index}`, order, {
+      w: 72, h: 68,
     });
-    const check = author.sprite(`Check${index}`, gameplay, frameUuid('check.png'), {
-      x: 238, y, w: 62, h: 62, active: false,
+    const check = author.sprite(`Check${index}`, order, frameUuid('check.png'), {
+      x: 49, w: 62, h: 62, active: false,
     });
     orderSprites.push(order);
     targets.push(target);
@@ -147,8 +146,8 @@ export function buildFoodDeliveryScene() {
   const guard = author.sprite('Guard', gameplay, frameUuid('guard.png'), {
     x: 142, y: -263, w: 132, h: 184,
   });
-  const guardHitArea = author.node('GuardHitArea', gameplay, {
-    x: 141, y: -262, w: 82, h: 156,
+  const guardHitArea = author.node('GuardHitArea', guard, {
+    x: -1, y: 1, w: 82, h: 156,
   });
   const groundMarker = author.node('GroundMarker', gameplay, {
     x: 0, y: -350, w: 750, h: 1,
@@ -169,7 +168,7 @@ export function buildFoodDeliveryScene() {
     x: 72 + index * 24, w: 8, h: 8,
   }));
   const pendingFoods = foods.map((food, index) => author.sprite(`PendingFood${index}`, armPivot, frameUuid(`food-${food}.png`), {
-    x: 82, w: 58, h: 62, active: index === 0,
+    x: 40, w: 58, h: 62, active: index === 0,
   }));
   const flyingFoods = foods.map((food, index) => author.sprite(`FlyingFood${index}`, gameplay, frameUuid(`food-${food}.png`), {
     x: -190, y: -245, w: 58, h: 62, active: false,
@@ -198,12 +197,18 @@ export function buildFoodDeliveryScene() {
     y: 204, w: 530, h: 92, size: 39, active: false,
     color: rgba(231, 78, 71), outlineColor: rgba(99, 49, 31), outlineWidth: 3,
   });
-  author.label('ResultMessage', panel, '五份外卖全部送达！', {
+  const successContent = author.node('SuccessContent', panel, { w: 520, h: 180 });
+  author.label('ResultMessage', successContent, '五份外卖全部送达！', {
     y: 105, w: 520, h: 64, size: 30,
     color: rgba(96, 66, 39), outline: false,
   });
-  author.sprite('ResultStar', panel, frameUuid('star-on.png'), {
+  author.sprite('ResultStar', successContent, frameUuid('star-on.png'), {
     y: 28, w: 92, h: 92,
+  });
+  const failureContent = author.node('FailureContent', panel, { w: 520, h: 180, active: false });
+  author.label('FailureMessage', failureContent, '调整角度，再来一次！', {
+    y: 72, w: 520, h: 64, size: 30,
+    color: rgba(96, 66, 39), outline: false,
   });
   const retryButton = actionButton(author, panel, 'RetryButton', '再试一次', 0, -86, 330);
   const homeButton = actionButton(author, panel, 'HomeButton', '返回首页', -145, -196, 270);
@@ -225,6 +230,8 @@ export function buildFoodDeliveryScene() {
     wallHitArea: ref(wallHitArea),
     groundMarker: ref(groundMarker),
     resultOverlay: ref(resultOverlay),
+    successContent: ref(successContent),
+    failureContent: ref(failureContent),
     successTitle: ref(successTitle.node),
     failureTitle: ref(failureTitle.node),
     targets: targets.map(ref),

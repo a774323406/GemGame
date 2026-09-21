@@ -69,6 +69,8 @@ export class foodDeliveryFeedGameScene extends Component {
     @property(Node) public wallHitArea: Node = null;
     @property(Node) public groundMarker: Node = null;
     @property(Node) public resultOverlay: Node = null;
+    @property(Node) public successContent: Node = null;
+    @property(Node) public failureContent: Node = null;
     @property(Node) public successTitle: Node = null;
     @property(Node) public failureTitle: Node = null;
 
@@ -101,6 +103,7 @@ export class foodDeliveryFeedGameScene extends Component {
     private deliveredDelay = 0;
     private resultDelay = 0;
     private authoredArmAngle = 0;
+    private authoredBackgroundScale = new Vec3(1, 1, 1);
     private authoredGameplayScale = new Vec3(1, 1, 1);
     private orderScales: Vec3[] = [];
     private bindings: Array<[Button, () => void]> = [];
@@ -111,6 +114,7 @@ export class foodDeliveryFeedGameScene extends Component {
         view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
         this.validateBindings();
         this.authoredArmAngle = this.armPivot.angle;
+        this.authoredBackgroundScale.set(this.background.scale);
         this.authoredGameplayScale.set(this.gameplayRoot.scale);
         this.orderScales = this.orderSprites.map((node) => node.scale.clone());
         this.fitGameplayRoot();
@@ -288,6 +292,8 @@ export class foodDeliveryFeedGameScene extends Component {
         this.resultDelay = 0;
         this.armPivot.angle = this.authoredArmAngle;
         this.resultOverlay.active = false;
+        this.successContent.active = false;
+        this.failureContent.active = false;
         this.successTitle.active = false;
         this.failureTitle.active = false;
         this.orderSprites.forEach((node, index) => node.setScale(this.orderScales[index]));
@@ -321,13 +327,16 @@ export class foodDeliveryFeedGameScene extends Component {
         });
         this.successTitle.active = this.round.phase === 'won';
         this.failureTitle.active = this.round.phase === 'failed';
+        this.successContent.active = this.round.phase === 'won';
+        this.failureContent.active = this.round.phase === 'failed';
     }
 
     public validateBindings(): void {
         const required = [
             'background', 'gameplayRoot', 'courier', 'armPivot', 'muzzle', 'guard',
-            'guardHitArea', 'wallHitArea', 'groundMarker', 'resultOverlay', 'successTitle',
-            'failureTitle', 'backButton', 'homeButton', 'retryButton', 'nextButton',
+            'guardHitArea', 'wallHitArea', 'groundMarker', 'resultOverlay', 'successContent',
+            'failureContent', 'successTitle', 'failureTitle', 'backButton', 'homeButton',
+            'retryButton', 'nextButton',
         ];
         const missing = required.filter((key) => !this[key]);
         for (const [key, expected] of [
@@ -346,6 +355,12 @@ export class foodDeliveryFeedGameScene extends Component {
 
     private fitGameplayRoot(): void {
         const visible = view.getVisibleSize();
+        const backgroundScale = Math.max(visible.width / DESIGN_WIDTH, visible.height / DESIGN_HEIGHT);
+        this.background.setScale(
+            this.authoredBackgroundScale.x * backgroundScale,
+            this.authoredBackgroundScale.y * backgroundScale,
+            this.authoredBackgroundScale.z,
+        );
         const scale = Math.min(1, visible.width / DESIGN_WIDTH, visible.height / DESIGN_HEIGHT);
         this.gameplayRoot.setScale(
             this.authoredGameplayScale.x * scale,
@@ -410,6 +425,8 @@ export class foodDeliveryFeedGameScene extends Component {
         this.resultOverlay.active = true;
         this.successTitle.active = this.round.phase === 'won';
         this.failureTitle.active = this.round.phase === 'failed';
+        this.successContent.active = this.round.phase === 'won';
+        this.failureContent.active = this.round.phase === 'failed';
         this.refreshButtons();
     }
 
@@ -432,14 +449,17 @@ export class foodDeliveryFeedGameScene extends Component {
         const touch = event?.touches?.[0] ?? event?.changedTouches?.[0];
         if (!touch || !Number.isFinite(touch.clientX) || !Number.isFinite(touch.clientY)) return true;
         let height = view.getVisibleSize().height;
+        let pixelRatio = 1;
         try {
             const info = this.nativeTouchApi?.getSystemInfoSync?.();
+            const reportedPixelRatio = Number(info?.pixelRatio);
+            if (reportedPixelRatio > 0) pixelRatio = reportedPixelRatio;
             const reported = Number(info?.windowHeight ?? info?.screenHeight);
-            if (reported > 0) height = reported;
+            if (reported > 0) height = reported * pixelRatio;
         } catch {
             // Keep the Cocos visible height.
         }
-        const point = new Vec2(touch.clientX, height - touch.clientY);
+        const point = new Vec2(touch.clientX * pixelRatio, height - touch.clientY * pixelRatio);
         return this.bindings.some(([button]) => {
             const node = button?.node;
             return !!node?.isValid && node.activeInHierarchy && !!node.getComponent(UITransform)?.hitTest(point, 0);
@@ -513,14 +533,18 @@ export class foodDeliveryFeedGameScene extends Component {
         if (this.disposed || this.leaving) return;
         this.leaving = true;
         this.refreshButtons();
-        this.finishFeed();
+        adc.cancelFeedEntryInterstitial();
+        this.interstitialScheduled = false;
         AudioManager.playDefaultBgm();
         try {
             await GameSceneBundle.loadScene(GameSceneName.Main);
+            this.finishFeed();
         } catch (error) {
             if (this.disposed || !this.node?.isValid) return;
             this.leaving = false;
-            this.ensureAudio(true);
+            const state = FeedAcquisitionService.getState();
+            if (this.feedMode) this.onFeedState(state);
+            if (!this.feedAudioForeground) this.ensureAudio(true);
             this.refreshButtons();
             console.error('[foodDeliveryFeedGameScene] 返回主页失败', error);
         }

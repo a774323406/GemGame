@@ -108,7 +108,7 @@ class Component {
   unscheduleAllCallbacks() {}
 }
 
-function fixture({ state: stateOverride = {} } = {}) {
+function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
   let now = 1000;
   let state = {
     active: true, mode: 'acquisition', entered: false, exited: false,
@@ -124,6 +124,7 @@ function fixture({ state: stateOverride = {} } = {}) {
   const gameEvents = new Emitter();
   const viewEvents = new Emitter();
   let visibleSize = { width: 750, height: 1624 };
+  let systemInfo = { windowWidth: 750, windowHeight: 1624, pixelRatio: 1 };
   const nativeHandlers = {};
   Object.assign(viewEvents, {
     setDesignResolutionSize(width, height, policy) { this.design = { width, height, policy }; },
@@ -165,11 +166,16 @@ function fixture({ state: stateOverride = {} } = {}) {
   const soundName = {
     getUserBgm: 'getUserBgm', archeryShoot: 'archeryShoot', up: 'up', fail: 'fail', buttonClick: 'buttonClick',
   };
-  const sceneBundle = { loadScene: async (name) => { loads.push(name); } };
+  const sceneBundle = {
+    loadScene: async (name) => {
+      loads.push(name);
+      if (loadSceneError) throw loadSceneError;
+    },
+  };
   const tt = {
     onTouchStart(callback) { nativeHandlers.start = callback; },
     offTouchStart(callback) { if (nativeHandlers.start === callback) delete nativeHandlers.start; },
-    getSystemInfoSync() { return { windowWidth: 750, windowHeight: 1624 }; },
+    getSystemInfoSync() { return { ...systemInfo }; },
   };
   const cache = {};
   function load(file) {
@@ -230,6 +236,10 @@ function fixture({ state: stateOverride = {} } = {}) {
   const aimDots = Array.from({ length: 12 }, (_, index) => spriteNode(`AimDot${index}`, armPivot, 72 + index * 24, 0, 8, 8));
   const resultOverlay = new Node('ResultOverlay', canvas, 0, 0, 750, 1624);
   resultOverlay.active = false;
+  const successContent = new Node('SuccessContent', resultOverlay, 0, 0, 520, 180);
+  const failureContent = new Node('FailureContent', resultOverlay, 0, 0, 520, 180);
+  successContent.active = false;
+  failureContent.active = false;
   const successTitle = new Node('SuccessTitle', resultOverlay, 0, 0, 500, 84);
   const failureTitle = new Node('FailureTitle', resultOverlay, 0, 0, 530, 92);
   function button(name, x, y, width = 250, height = 82, parent = canvas) {
@@ -245,7 +255,8 @@ function fixture({ state: stateOverride = {} } = {}) {
   const controller = new GameClass();
   Object.assign(controller, {
     node: canvas, background, gameplayRoot: gameplay, courier, armPivot, muzzle, guard,
-    guardHitArea, wallHitArea, groundMarker, resultOverlay, successTitle, failureTitle,
+    guardHitArea, wallHitArea, groundMarker, resultOverlay, successContent, failureContent,
+    successTitle, failureTitle,
     targets, orderSprites, checks, stars, pendingFoods, flyingFoods, aimDots,
     backButton, homeButton, retryButton, nextButton,
     rotationSpeed: 480, speed: 1750, gravity: 1600, radius: 8, maxFlightSeconds: 4,
@@ -265,6 +276,7 @@ function fixture({ state: stateOverride = {} } = {}) {
       visibleSize = { width, height };
       viewEvents.emit('canvas-resize');
     },
+    setSystemInfo(value) { systemInfo = { ...systemInfo, ...value }; },
     clock: { now: () => now, set: (value) => { now = value; }, advance: (value) => { now += value; } },
     emitFeed(value) { state = { ...state, ...value }; feedListener?.({ ...state }); },
   };
@@ -316,10 +328,28 @@ function loadRules() {
 {
   const f = fixture({ state: { active: false, entered: true } });
   f.game.onLoad(); f.game.start();
+  f.setSystemInfo({ windowWidth: 375, windowHeight: 812, pixelRatio: 2 });
+  f.nativeHandlers.start({ touches: [{ clientX: 28, clientY: 24 }] });
+  f.game.onTouchStart(touch(56, 1576));
+  assert.equal(f.game.round.phase, 'aiming',
+    'DPR-scaled native and Cocos touches on BackButton must never pass through to a throw');
+  f.game.onDestroy();
+}
+
+{
+  const f = fixture({ state: { active: false, entered: true } });
+  f.game.onLoad(); f.game.start();
   f.resize(750, 1334);
   assert(Math.abs(f.game.gameplayRoot.scale.x - 1334 / 1624) < 1e-9,
     'short-screen resize must scale gameplay below the safe-area title');
   assert.equal(f.game.gameplayRoot.scale.y, f.game.gameplayRoot.scale.x);
+  assert.equal(f.game.background.scale.x, 1,
+    'short screens should crop the background without distorting it');
+  assert.equal(f.game.background.scale.y, 1);
+  f.resize(750, 1800);
+  assert(Math.abs(f.game.background.scale.x - 1800 / 1624) < 1e-9,
+    'tall screens should uniformly cover the viewport');
+  assert.equal(f.game.background.scale.y, f.game.background.scale.x);
   f.game.onDestroy();
   assert.equal(f.cc.view.listeners.filter((entry) => entry.type === 'canvas-resize').length, 0,
     'destroy must remove the canvas resize listener');
@@ -410,11 +440,25 @@ function loadRules() {
   assert.equal(f.game.resultOverlay.active, true);
   assert.equal(f.game.successTitle.active, true);
   assert.equal(f.game.failureTitle.active, false);
+  assert.equal(f.game.successContent.active, true);
+  assert.equal(f.game.failureContent.active, false);
   f.game.resetRound(true);
   assert.deepEqual([...f.game.round.order], initialOrder);
   assert.equal(f.game.resultOverlay.active, false);
   assert(f.game.checks.every((node) => !node.active));
   assert(f.game.stars.every((node) => !node.active));
+}
+
+{
+  const f = fixture({ state: { active: false, entered: true } });
+  f.game.onLoad(); f.game.start();
+  f.game.round.shoot(-90, { x: -190, y: -245 });
+  for (let frame = 0; frame < 300 && f.game.round.phase === 'flying'; frame += 1) f.game.update(1 / 60);
+  f.game.update(0.1); f.game.update(0.1); f.game.update(0.1);
+  assert.equal(f.game.round.phase, 'failed');
+  assert.equal(f.game.resultOverlay.active, true);
+  assert.equal(f.game.successContent.active, false, 'failure must hide success message and bright star');
+  assert.equal(f.game.failureContent.active, true, 'failure must show only failure-specific content');
 }
 
 {
@@ -439,4 +483,21 @@ function loadRules() {
   assert.doesNotThrow(() => f.game.onTouchStart(touch(375, 724)));
 }
 
-console.log('Food delivery controller tests passed');
+(async () => {
+  const f = fixture({
+    state: { active: true, entered: true },
+    loadSceneError: new Error('scene load failed'),
+  });
+  f.game.onLoad(); f.game.start();
+  await f.game.returnHome();
+  assert.equal(f.game.leaving, false);
+  assert.equal(f.game.feedFinished, false, 'failed navigation must not complete the live feed session');
+  assert.equal(f.feed.getState().active, true);
+  f.emitFeed({ entered: false, exited: true });
+  assert.equal(f.game.feedExited, true, 'failed navigation must retain the feed lifecycle listener');
+  f.game.onDestroy();
+  console.log('Food delivery controller tests passed');
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
