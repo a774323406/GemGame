@@ -18,13 +18,13 @@ import {
 import {
   FEED_ARCHERY_CONTENT_ID,
   FEED_BALLOON_WHEEL_CONTENT_ID,
+  FEED_FOOD_DELIVERY_CONTENT_ID,
   FEED_JUGGLE_CONTENT_ID,
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
-  FEED_MILK_TEA_CONTENT_ID,
   FEED_NAIL_HAMMER_CONTENT_ID,
-  FEED_PEN_REFILL_CONTENT_ID,
   FEED_PENGUIN_STACK_CONTENT_ID,
   FEED_SHOOTING_CONTENT_ID,
+  FEED_WHITE_GOOSE_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { adc } from "./framework/Platform/ADController";
@@ -208,20 +208,6 @@ export class loadScene extends Component {
       };
     }
 
-    if (FEED_MILK_TEA_CONTENT_ID && contentId === FEED_MILK_TEA_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.MilkTeaFeedGame,
-        reason: `推荐流投吸管奶茶方案（${contentId}）`,
-      };
-    }
-
-    if (FEED_PEN_REFILL_CONTENT_ID && contentId === FEED_PEN_REFILL_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.PenRefillFeedGame,
-        reason: `推荐流插入笔芯方案（${contentId}）`,
-      };
-    }
-
     if (FEED_BALLOON_WHEEL_CONTENT_ID && contentId === FEED_BALLOON_WHEEL_CONTENT_ID) {
       return {
         sceneName: GameSceneName.BalloonWheelFeedGame,
@@ -247,6 +233,23 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.ShootingGlassBottles,
         reason: `推荐流打瓶子方案（${contentId}）`,
+      };
+    }
+
+    if (
+      FEED_FOOD_DELIVERY_CONTENT_ID &&
+      contentId === FEED_FOOD_DELIVERY_CONTENT_ID
+    ) {
+      return {
+        sceneName: GameSceneName.FoodDeliveryFeedGame,
+        reason: "外卖精准投送获客玩法",
+      };
+    }
+
+    if (FEED_WHITE_GOOSE_CONTENT_ID && contentId === FEED_WHITE_GOOSE_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.WhiteGooseFeedGame,
+        reason: `推荐流套大鹅方案（${contentId}）`,
       };
     }
 

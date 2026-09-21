@@ -142,8 +142,9 @@ async function main() {
   const test = (name, fn) => tests.push([name, fn]);
   test('all eight result overlays/dims stretch to Canvas and block input', async () => {
     const { fitFeedResultOverlay, appendSceneGlobals } = await import('./feed_result_layout.mjs');
-    const names = ['ArcheryGameScene', 'BalloonWheelFeedGameScene', 'JuggleBallGameScene', 'MilkTeaFeedGameScene',
-      'NailHammerFeedGameScene', 'PenRefillFeedGameScene', 'PenguinStackFeedGameScene', 'ShootingGlassBottlesGame'];
+    const names = ['ArcheryGameScene', 'BalloonWheelFeedGameScene', 'JuggleBallGameScene',
+      'FoodDeliveryFeedGameScene', 'NailHammerFeedGameScene', 'PenguinStackFeedGameScene',
+      'ShootingGlassBottlesGame', 'WhiteGooseFeedGameScene'];
     for (const name of names) {
       const data = JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`, 'utf8'));
       const component = (node, type) => node._components.map(ref => data[ref.__id__]).find(x => x.__type__ === type);
@@ -179,18 +180,18 @@ async function main() {
     const f = fixture();
     const config = f.load('framework/Platform/FeedRevisitConfig.ts');
     assert.equal(config.FEED_BALLOON_WHEEL_CONTENT_ID, 'CONTENT14816266754');
+    assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'xxx');
     const loader = new (f.load('loadScene.ts').loadScene)();
     const juggle = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)(); juggle.feedMode = true;
     const cases = [
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
       ['CONTENT14868790274', 'NailHammerFeedGameScene'],
-      ['CONTENT14615823362', 'PenRefillFeedGameScene'],
-      ['CONTENT14484635394', 'MilkTeaFeedGameScene'],
       ['CONTENT14389077506', 'ArcheryGameScene'],
       ['CONTENT14389313538', 'ShootingGlassBottlesGame'],
       ['CONTENT14816266754', 'BalloonWheelFeedGameScene'],
       ['CONTENT14860954626', 'PenguinStackFeedGameScene'],
+      ['xxx', 'WhiteGooseFeedGameScene'],
     ];
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene);

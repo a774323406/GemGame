@@ -18,16 +18,15 @@ import { GlobalTool } from "./GlobalTool";
 /** 以当前玩法归因，避免从推荐流返回主页后仍沿用启动时的 Content_ID。 */
 const AD_FEED_TYPES: Readonly<Record<string, string>> = {
   NewMainScene: "玩法大厅",
-  MainScene: "拼豆排序",
   GameScene: "拼豆排序",
   ShootingGlassBottlesGame: "打瓶子",
   ArcheryGameScene: "射箭",
   JuggleBallGameScene: "乒乓球第一关",
-  MilkTeaFeedGameScene: "奶茶",
-  PenRefillFeedGameScene: "插入笔芯",
   NailHammerFeedGameScene: "砸钉子",
   BalloonWheelFeedGameScene: "旋转打气球",
   PenguinStackFeedGameScene: "企鹅叠叠乐",
+  FoodDeliveryFeedGameScene: "外卖精准投送",
+  WhiteGooseFeedGameScene: "套大鹅",
 };
 
 export class SdkUtils {
