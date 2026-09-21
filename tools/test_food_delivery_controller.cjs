@@ -122,16 +122,19 @@ function fixture({ state: stateOverride = {} } = {}) {
   const readyReports = [];
   const input = new Emitter();
   const gameEvents = new Emitter();
+  const viewEvents = new Emitter();
+  let visibleSize = { width: 750, height: 1624 };
   const nativeHandlers = {};
+  Object.assign(viewEvents, {
+    setDesignResolutionSize(width, height, policy) { this.design = { width, height, policy }; },
+    getVisibleSize() { return { ...visibleSize }; },
+  });
   const cc = {
     _decorator: { ccclass: () => (type) => type, property: () => () => {} },
     Button, Component, EventTouch: class {}, Game: { EVENT_HIDE: 'hide', EVENT_SHOW: 'show' },
     Node, ResolutionPolicy: { FIXED_WIDTH: 1 }, UITransform, Vec2, Vec3,
     input, Input: { EventType: { TOUCH_START: 'touch-start' } }, game: gameEvents,
-    view: {
-      setDesignResolutionSize(width, height, policy) { this.design = { width, height, policy }; },
-      getVisibleSize() { return { width: 750, height: 1624 }; },
-    },
+    view: viewEvents,
   };
   const feed = {
     init() {}, getState: () => ({ ...state }), isActive: () => state.active,
@@ -258,6 +261,10 @@ function fixture({ state: stateOverride = {} } = {}) {
     gameEvents,
     nativeHandlers,
     cc,
+    resize(width, height) {
+      visibleSize = { width, height };
+      viewEvents.emit('canvas-resize');
+    },
     clock: { now: () => now, set: (value) => { now = value; }, advance: (value) => { now += value; } },
     emitFeed(value) { state = { ...state, ...value }; feedListener?.({ ...state }); },
   };
@@ -304,6 +311,18 @@ function loadRules() {
   }).outputText;
   vm.runInNewContext(code, { exports: output, module: { exports: output }, Math, Set, Error });
   return output;
+}
+
+{
+  const f = fixture({ state: { active: false, entered: true } });
+  f.game.onLoad(); f.game.start();
+  f.resize(750, 1334);
+  assert(Math.abs(f.game.gameplayRoot.scale.x - 1334 / 1624) < 1e-9,
+    'short-screen resize must scale gameplay below the safe-area title');
+  assert.equal(f.game.gameplayRoot.scale.y, f.game.gameplayRoot.scale.x);
+  f.game.onDestroy();
+  assert.equal(f.cc.view.listeners.filter((entry) => entry.type === 'canvas-resize').length, 0,
+    'destroy must remove the canvas resize listener');
 }
 
 {
@@ -406,6 +425,18 @@ function loadRules() {
   assert.doesNotThrow(() => f.game.onDestroy());
   assert.equal(f.nativeHandlers.start, undefined);
   assert.equal(f.feed.completed, 1);
+}
+
+{
+  const f = fixture({ state: { active: true, entered: true } });
+  f.game.onLoad(); f.game.start();
+  const lateNativeTouch = f.nativeHandlers.start;
+  f.game.onDestroy();
+  // Creator clears serialized fields after onDestroy; an already queued native
+  // or engine callback must stop before attempting button hit testing.
+  f.game.bindings = null;
+  assert.doesNotThrow(() => lateNativeTouch({ touches: [{ clientX: 375, clientY: 900 }] }));
+  assert.doesNotThrow(() => f.game.onTouchStart(touch(375, 724)));
 }
 
 console.log('Food delivery controller tests passed');

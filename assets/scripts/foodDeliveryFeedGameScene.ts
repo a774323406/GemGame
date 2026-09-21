@@ -114,6 +114,7 @@ export class foodDeliveryFeedGameScene extends Component {
         this.authoredGameplayScale.set(this.gameplayRoot.scale);
         this.orderScales = this.orderSprites.map((node) => node.scale.clone());
         this.fitGameplayRoot();
+        view.on('canvas-resize', this.fitGameplayRoot, this);
 
         this.round = new FoodDeliveryRound(this.buildWorld(), {
             speed: this.speed,
@@ -191,6 +192,7 @@ export class foodDeliveryFeedGameScene extends Component {
         input.off(Input.EventType.TOUCH_START, this.onTouchStart, this);
         game.off(Game.EVENT_HIDE, this.onHide, this);
         game.off(Game.EVENT_SHOW, this.onShow, this);
+        view.off('canvas-resize', this.fitGameplayRoot, this);
         for (const [button, callback] of this.bindings) {
             const node = button?.node;
             if (node?.isValid) node.off(Button.EventType.CLICK, callback, this);
@@ -201,10 +203,12 @@ export class foodDeliveryFeedGameScene extends Component {
     }
 
     public onTouchStart = (event: EventTouch): void => {
+        if (this.disposed || this.leaving) return;
         this.tryThrow(this.isButtonTouch(event), Date.now());
     };
 
     public onNativeTouchStart = (event: NativeTouchEvent): void => {
+        if (this.disposed || this.leaving) return;
         this.tryThrow(this.isNativeButtonTouch(event), Date.now());
     };
 

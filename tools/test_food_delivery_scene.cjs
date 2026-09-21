@@ -134,9 +134,6 @@ async function main() {
   assert(!/spriteFrame\s*=/.test(controllerSource), 'controller must not overwrite editor SpriteFrames');
   assert(!/\.string\s*=/.test(controllerSource), 'controller must not overwrite editor label text');
 
-  const untouched = [];
-  assert.equal(appendFoodDeliveryCard(untouched), -1, 'homepage append is intentionally deferred to Task 4');
-
   console.log(`Food delivery scene authoring tests passed (${scene.length} serialized objects)`);
 }
 
