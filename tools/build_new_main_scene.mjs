@@ -10,6 +10,8 @@ import {
   vec,
 } from './penguin_scene_authoring.mjs';
 import { appendSceneGlobals } from './feed_result_layout.mjs';
+import { appendFoodDeliveryCard } from './food_delivery_authoring.mjs';
+import { appendWhiteGooseCard } from './white_goose_main_card.mjs';
 
 const SCENE_NAME = 'NewMainScene';
 const SCENE_UUID = 'e2f66be5-60ce-4ebc-90a4-d99841dd2b9a';
@@ -24,16 +26,12 @@ const NEW_MAIN_ASSETS = [
   { name: 'preview_penguin.jpg', uuid: '9ded1a28-be90-404f-84e3-7060e6f70b6a', width: 246, height: 198, alpha: false },
   { name: 'preview_shooting.jpg', uuid: '0026ad32-f309-4aee-89cb-c8c0fdc0a8a5', width: 246, height: 198, alpha: false },
   { name: 'preview_archery.jpg', uuid: '3a4af03d-e8e9-41c0-9257-19109c84d816', width: 246, height: 198, alpha: false },
-  { name: 'preview_milk_tea.jpg', uuid: '80df4bdf-3dea-4aed-ac7c-8d2dba6f722f', width: 246, height: 198, alpha: false },
-  { name: 'preview_pen.jpg', uuid: 'ddb992ca-57a3-45a5-8fac-3e5b8ab98af3', width: 246, height: 198, alpha: false },
   { name: 'preview_nail.jpg', uuid: '45b97611-636d-4e3e-886b-8530aa02a17a', width: 246, height: 198, alpha: false },
   { name: 'title_puzzle.jpg', uuid: '4d694c49-116b-4d23-a8ef-75cfb0c2a3e9', width: 268, height: 57, alpha: false },
   { name: 'title_penguin.jpg', uuid: 'a9b70d4b-74b0-491d-9570-f94539bc5110', width: 268, height: 57, alpha: false },
   { name: 'title_shooting.jpg', uuid: 'ac2d12f2-8c40-4fa0-8795-8e810a4939c8', width: 268, height: 57, alpha: false },
   { name: 'title_archery.jpg', uuid: '6c7a110b-ce40-473b-a49d-0b60aa513b42', width: 268, height: 57, alpha: false },
-  { name: 'title_milk_tea.jpg', uuid: 'd2d4b25d-bf0d-404a-b774-904e07594c18', width: 268, height: 57, alpha: false },
   { name: 'title_balloon.jpg', uuid: '3f6c3128-e02f-4191-8287-56f514f718e8', width: 268, height: 57, alpha: false },
-  { name: 'title_pen.jpg', uuid: 'db26a59c-bb59-462d-8ac7-8e7e9894f419', width: 274, height: 64, alpha: false },
   { name: 'title_nail.jpg', uuid: '1087d369-3c94-43ad-bae5-8579307f178e', width: 290, height: 64, alpha: false },
   { name: 'preview_border.png', uuid: '75720185-3cba-42e9-bfa6-155295a8045a', width: 10, height: 10, alpha: true },
 ];
@@ -61,16 +59,12 @@ const art = {
   previewPenguin: newMainFrame('preview_penguin.jpg'),
   previewShooting: newMainFrame('preview_shooting.jpg'),
   previewArchery: newMainFrame('preview_archery.jpg'),
-  previewMilkTea: newMainFrame('preview_milk_tea.jpg'),
-  previewPen: newMainFrame('preview_pen.jpg'),
   previewNail: newMainFrame('preview_nail.jpg'),
   titlePuzzle: newMainFrame('title_puzzle.jpg'),
   titlePenguin: newMainFrame('title_penguin.jpg'),
   titleShooting: newMainFrame('title_shooting.jpg'),
   titleArchery: newMainFrame('title_archery.jpg'),
-  titleMilkTea: newMainFrame('title_milk_tea.jpg'),
   titleBalloon: newMainFrame('title_balloon.jpg'),
-  titlePen: newMainFrame('title_pen.jpg'),
   titleNail: newMainFrame('title_nail.jpg'),
   previewBorder: newMainFrame('preview_border.png'),
   setting: existingFrame('assets/res/texture/设置按钮-最小.png'),
@@ -83,7 +77,7 @@ const art = {
 };
 
 const sourceScene = JSON.parse(
-  fs.readFileSync('assets/gamescene/PenRefillFeedGameScene.scene', 'utf8'),
+  fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'),
 );
 const a = new SceneAuthor([], 'newMain');
 const objects = a.objects;
@@ -265,7 +259,7 @@ const background = a.sprite('LobbyBackground', canvas, art.lobby, {
 // Serialized as Sprite Size Mode = TRIMMED. The top-center Widget only crops
 // the 750x1624 artwork on shorter screens; it never stretches the bitmap.
 componentOf(background, 'cc.Sprite')._sizeMode = 1;
-a.widget(background, 17, { _top: 0 });
+a.widget(background, 18, { _top: 0 });
 
 const settingNode = a.sprite('SettingButton', canvas, art.setting, {
   x: -311,
@@ -375,7 +369,7 @@ a.component(view, 'cc.Mask', {
 const content = a.node('Content', view, {
   y: 495.165,
   w: 556,
-  h: 1182,
+  h: 888,
   ax: 0.5,
   ay: 1,
 });
@@ -422,18 +416,6 @@ cards.push(addCard({
   title: '牛来神箭',
   titleArt: art.titleArchery,
   preview: mask => fullArtwork(mask, art.previewArchery),
-}));
-cards.push(addCard({
-  nodeName: 'MilkTeaCard',
-  title: '插吸管',
-  titleArt: art.titleMilkTea,
-  preview: mask => fullArtwork(mask, art.previewMilkTea),
-}));
-cards.push(addCard({
-  nodeName: 'PenRefillCard',
-  title: '笔芯挑战',
-  titleArt: art.titlePen,
-  preview: mask => fullArtwork(mask, art.previewPen),
 }));
 cards.push(addCard({
   nodeName: 'NailHammerCard',
@@ -500,10 +482,8 @@ a.component(canvas, compressUuid(SCRIPT_UUID), {
   penguinButton: ref(cards[1].button),
   shootingButton: ref(cards[2].button),
   archeryButton: ref(cards[3].button),
-  milkTeaButton: ref(cards[4].button),
-  penRefillButton: ref(cards[5].button),
-  nailHammerButton: ref(cards[6].button),
-  balloonWheelButton: ref(cards[7].button),
+  nailHammerButton: ref(cards[4].button),
+  balloonWheelButton: ref(cards[5].button),
 });
 
 objects[1]._globals = ref(appendSceneGlobals(sourceScene, objects));
@@ -608,9 +588,17 @@ function writeJson(file, value) {
 if (process.argv.includes('--write')) {
   const replace = process.argv.includes('--replace-scene');
   if (fs.existsSync(SCENE_FILE) && !replace) {
-    throw new Error(`${SCENE_FILE} already exists; pass --replace-scene to regenerate it.`);
+    throw new Error(`${SCENE_FILE} already exists; pass --replace-scene to update it.`);
   }
-  writeJson(SCENE_FILE, objects);
+  // NewMainScene contains editor-authored layout adjustments. When it already
+  // exists, update that serialized scene in place instead of regenerating its
+  // unrelated nodes from this fallback authoring template.
+  const outputObjects = fs.existsSync(SCENE_FILE)
+    ? JSON.parse(fs.readFileSync(SCENE_FILE, 'utf8'))
+    : objects;
+  appendFoodDeliveryCard(outputObjects);
+  appendWhiteGooseCard(outputObjects);
+  writeJson(SCENE_FILE, outputObjects);
   if (!fs.existsSync(`${SCENE_FILE}.meta`)) {
     writeJson(`${SCENE_FILE}.meta`, {
       ver: '1.1.50',
@@ -669,6 +657,8 @@ console.log(JSON.stringify({
   scene: SCENE_FILE,
   sceneUuid: SCENE_UUID,
   scriptType: compressUuid(SCRIPT_UUID),
-  objects: objects.length,
+  objects: process.argv.includes('--write')
+    ? JSON.parse(fs.readFileSync(SCENE_FILE, 'utf8')).length
+    : objects.length,
   wrote: process.argv.includes('--write'),
 }));

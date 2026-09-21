@@ -47,16 +47,16 @@ export class newMainScene extends Component {
   archeryButton: Button = null;
 
   @property(Button)
-  milkTeaButton: Button = null;
-
-  @property(Button)
-  penRefillButton: Button = null;
-
-  @property(Button)
   nailHammerButton: Button = null;
 
   @property(Button)
   balloonWheelButton: Button = null;
+
+  @property(Button)
+  foodDeliveryButton: Button = null;
+
+  @property(Button)
+  whiteGooseButton: Button = null;
 
   private navigating = false;
   private shareInFlight = false;
@@ -69,10 +69,10 @@ export class newMainScene extends Component {
     this.penguinButton?.node?.on(Button.EventType.CLICK, this.openPenguin, this);
     this.shootingButton?.node?.on(Button.EventType.CLICK, this.openShooting, this);
     this.archeryButton?.node?.on(Button.EventType.CLICK, this.openArchery, this);
-    this.milkTeaButton?.node?.on(Button.EventType.CLICK, this.openMilkTea, this);
-    this.penRefillButton?.node?.on(Button.EventType.CLICK, this.openPenRefill, this);
     this.nailHammerButton?.node?.on(Button.EventType.CLICK, this.openNailHammer, this);
     this.balloonWheelButton?.node?.on(Button.EventType.CLICK, this.openBalloonWheel, this);
+    this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
+    this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     SidebarRewardService.addListener(this.onSidebarStateChanged);
@@ -98,10 +98,10 @@ export class newMainScene extends Component {
     this.penguinButton?.node?.off(Button.EventType.CLICK, this.openPenguin, this);
     this.shootingButton?.node?.off(Button.EventType.CLICK, this.openShooting, this);
     this.archeryButton?.node?.off(Button.EventType.CLICK, this.openArchery, this);
-    this.milkTeaButton?.node?.off(Button.EventType.CLICK, this.openMilkTea, this);
-    this.penRefillButton?.node?.off(Button.EventType.CLICK, this.openPenRefill, this);
     this.nailHammerButton?.node?.off(Button.EventType.CLICK, this.openNailHammer, this);
     this.balloonWheelButton?.node?.off(Button.EventType.CLICK, this.openBalloonWheel, this);
+    this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
+    this.whiteGooseButton?.node?.off(Button.EventType.CLICK, this.openWhiteGoose, this);
   }
 
   private openSettings(): void {
@@ -116,10 +116,10 @@ export class newMainScene extends Component {
   private openPenguin(): void { void this.enterGame(GameSceneName.PenguinStackFeedGame); }
   private openShooting(): void { void this.enterGame(GameSceneName.ShootingGlassBottles); }
   private openArchery(): void { void this.enterGame(GameSceneName.ArcheryGame); }
-  private openMilkTea(): void { void this.enterGame(GameSceneName.MilkTeaFeedGame); }
-  private openPenRefill(): void { void this.enterGame(GameSceneName.PenRefillFeedGame); }
   private openNailHammer(): void { void this.enterGame(GameSceneName.NailHammerFeedGame); }
   private openBalloonWheel(): void { void this.enterGame(GameSceneName.BalloonWheelFeedGame); }
+  private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
+  private openWhiteGoose(): void { void this.enterGame(GameSceneName.WhiteGooseFeedGame); }
 
   private async enterGame(sceneName: GameSceneName): Promise<void> {
     if (this.navigating || GameSceneBundle.isLoadingScene) return;
@@ -150,10 +150,10 @@ export class newMainScene extends Component {
       this.penguinButton,
       this.shootingButton,
       this.archeryButton,
-      this.milkTeaButton,
-      this.penRefillButton,
       this.nailHammerButton,
       this.balloonWheelButton,
+      this.foodDeliveryButton,
+      this.whiteGooseButton,
     ].filter(Boolean);
   }
 

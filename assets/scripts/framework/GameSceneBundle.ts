@@ -6,31 +6,28 @@ export const GAME_SCENE_BUNDLE = "gamescene";
 export enum GameSceneName {
   /** 当前正式主界面。 */
   Main = "NewMainScene",
-  /** 保留的旧主界面，便于需要时快速切回。 */
-  LegacyMain = "MainScene",
   Game = "GameScene",
   ShootingGlassBottles = "ShootingGlassBottlesGame",
   ArcheryGame = "ArcheryGameScene",
   JuggleBallGame = "JuggleBallGameScene",
-  MilkTeaFeedGame = "MilkTeaFeedGameScene",
-  PenRefillFeedGame = "PenRefillFeedGameScene",
   NailHammerFeedGame = "NailHammerFeedGameScene",
   BalloonWheelFeedGame = "BalloonWheelFeedGameScene",
   PenguinStackFeedGame = "PenguinStackFeedGameScene",
+  FoodDeliveryFeedGame = "FoodDeliveryFeedGameScene",
+  WhiteGooseFeedGame = "WhiteGooseFeedGameScene",
 }
 
 const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
   [GameSceneName.Main]: "e2f66be5-60ce-4ebc-90a4-d99841dd2b9a",
-  [GameSceneName.LegacyMain]: "855395d1-7838-47e0-bb59-2ae3e155eecc",
   [GameSceneName.Game]: "f1b4dce3-df3d-4fdd-b734-66899ef83623",
   [GameSceneName.ShootingGlassBottles]: "5b031fbc-c698-4add-ae79-f39a1cfa3b8c",
   [GameSceneName.ArcheryGame]: "48e39c54-d92f-4eaa-9c7a-8739181bf36a",
   [GameSceneName.JuggleBallGame]: "222c590e-82b2-4778-b62d-acf4b3829c0b",
-  [GameSceneName.MilkTeaFeedGame]: "39f4adf0-fb6a-400f-87ec-b3d26e9cae00",
-  [GameSceneName.PenRefillFeedGame]: "ac4d1c84-6d9a-4b9a-a2e3-bc2a19d476ee",
   [GameSceneName.NailHammerFeedGame]: "cd1d5a38-5c59-4e1a-aa6e-f9ed1d66512b",
   [GameSceneName.BalloonWheelFeedGame]: "1c6b548c-ff93-5519-a51a-1cc2ed5ccaf4",
   [GameSceneName.PenguinStackFeedGame]: "85cdd217-919a-5695-a19b-1a2d0618addf",
+  [GameSceneName.FoodDeliveryFeedGame]: "fccc8a6c-9bab-5757-a411-a8bf4c40935b",
+  [GameSceneName.WhiteGooseFeedGame]: "ba4c8390-ece1-56f3-ae54-585950e78599",
 };
 
 /**

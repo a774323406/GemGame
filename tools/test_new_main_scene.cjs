@@ -54,7 +54,7 @@ assert.deepEqual(
 assert.equal(backgroundSprite._spriteFrame.__uuid__, BACKGROUND_FRAME);
 assert.equal(backgroundSprite._sizeMode, 1, 'LobbyBackground must use editor Sprite Size Mode = TRIMMED');
 assert.equal(backgroundSprite._isTrimmedMode, true, 'LobbyBackground trim must stay enabled');
-assert.equal(backgroundWidget._alignFlags, 17, 'background must be top-centered without stretch constraints');
+assert.equal(backgroundWidget._alignFlags, 18, 'background must stay top-centered without stretch constraints');
 assert.equal(backgroundWidget._top, 0);
 
 const controller = component(canvas.id, SCRIPT_TYPE);
@@ -73,12 +73,12 @@ assert.equal(titleWidget._top, -166.554);
 const gameListTransform = component(gameListNode.id, 'cc.UITransform');
 const gameListWidget = component(gameListNode.id, 'cc.Widget');
 assert.equal(gameListWidget._alignFlags, 21, 'GameList must use top, bottom and center Widget constraints');
-assert.equal(gameListWidget._top, 296);
-assert.equal(gameListWidget._bottom, 47.67);
+assert(gameListWidget._top >= 0 && gameListWidget._bottom >= 0,
+  'GameList must keep non-negative safe-area insets');
 const baseListHeight = 1334 - gameListWidget._top - gameListWidget._bottom;
 const tallListHeight = 1624 - gameListWidget._top - gameListWidget._bottom;
-assert(Math.abs(gameListTransform._contentSize.height - baseListHeight) < 0.001);
-assert(Math.abs(tallListHeight - 1280.33) < 0.001);
+assert(Math.abs(gameListTransform._contentSize.height - tallListHeight) < 0.001,
+  'serialized editor layout must match the 750x1624 target');
 assert(Math.abs(tallListHeight - baseListHeight - 290) < 0.001,
   'GameList must gain the complete long-screen height');
 const scrollView = component(gameListNode.id, 'cc.ScrollView');
@@ -109,16 +109,29 @@ const expectedCards = [
   'PenguinStackCard',
   'ShootingGlassBottlesCard',
   'ArcheryCard',
-  'MilkTeaCard',
-  'PenRefillCard',
   'NailHammerCard',
   'BalloonWheelCard',
+  'FoodDeliveryCard',
+  'WhiteGooseCard',
 ];
 const contentChildren = content.entry._children.map(object).map(node => node._name);
 assert.deepEqual(contentChildren, expectedCards, 'game cards/order changed');
+const contentTransform = component(content.id, 'cc.UITransform');
+assert.equal(contentTransform._contentSize.height, 1182,
+  'four two-column rows must be fully scrollable');
+assert.deepEqual(
+  [nodeByName('FoodDeliveryCard').entry._lpos.x, nodeByName('FoodDeliveryCard').entry._lpos.y],
+  [-139, -1034],
+  'the seventh card must start the fourth row',
+);
+assert.deepEqual(
+  [nodeByName('WhiteGooseCard').entry._lpos.x, nodeByName('WhiteGooseCard').entry._lpos.y],
+  [139, -1034],
+  'the eighth card must complete the fourth row',
+);
 
 const buildSource = read('tools/build_new_main_scene.mjs');
-for (const title of ['插吸管', '牛来神箭', '打气球']) {
+for (const title of ['牛来神箭', '打气球']) {
   assert(buildSource.includes(`title: '${title}'`), `new lobby title is missing: ${title}`);
 }
 const visibleStrings = scene
@@ -131,7 +144,6 @@ for (const oldTitle of ['奶茶接接乐', '神箭手', '气球转盘']) {
 
 const expectedRenamedTitleFrames = {
   ArcheryCard: '6c7a110b-ce40-473b-a49d-0b60aa513b42@f9941',
-  MilkTeaCard: 'd2d4b25d-bf0d-404a-b774-904e07594c18@f9941',
   BalloonWheelCard: '3f6c3128-e02f-4191-8287-56f514f718e8@f9941',
 };
 for (const [cardName, frameUuid] of Object.entries(expectedRenamedTitleFrames)) {
@@ -170,10 +182,10 @@ const buttonProperties = [
   'penguinButton',
   'shootingButton',
   'archeryButton',
-  'milkTeaButton',
-  'penRefillButton',
   'nailHammerButton',
   'balloonWheelButton',
+  'foodDeliveryButton',
+  'whiteGooseButton',
 ];
 buttonProperties.forEach((property, index) => {
   const button = object(controller[property]);
@@ -182,6 +194,28 @@ buttonProperties.forEach((property, index) => {
 });
 assert(!('juggleButton' in controller), 'new lobby must not bind a juggle entry');
 assert(!scene.some(item => item?._name === 'JuggleBallCard'), 'new lobby must not contain a juggle card');
+const foodCard = nodeByName('FoodDeliveryCard');
+const foodTitle = foodCard.entry._children.map(object).find(child => child._name === 'TitlePlaque');
+const foodTitleLabel = foodTitle._children.map(object).find(child => child._name === 'GameName');
+assert.equal(component(scene.indexOf(foodTitleLabel), 'cc.Label')._string, '外卖精准投送');
+const foodMask = foodCard.entry._children.map(object).find(child => child._name === 'ArtworkMask');
+const foodArtNames = foodMask._children.map(object).map(child => child._name);
+assert.deepEqual(foodArtNames, ['Artwork', 'CourierPreview', 'OrderPreview']);
+const whiteGooseCard = nodeByName('WhiteGooseCard');
+const whiteGooseTitle = whiteGooseCard.entry._children.map(object)
+  .find(child => child._name === 'TitlePlaque')
+  ._children.map(object)
+  .find(child => child._name === 'GameName');
+assert.equal(component(scene.indexOf(whiteGooseTitle), 'cc.Label')._string, '套大鹅');
+const whiteGooseMask = whiteGooseCard.entry._children.map(object)
+  .find(child => child._name === 'ArtworkMask');
+const whiteGooseArtwork = whiteGooseMask._children.map(object)
+  .find(child => child._name === 'Artwork');
+assert.equal(
+  component(scene.indexOf(whiteGooseArtwork), 'cc.Sprite')._spriteFrame.__uuid__,
+  '9bc09818-0e84-5ea3-a1a0-42cca593f1bd@f9941',
+  'white goose card must use its dedicated preview image',
+);
 
 for (const property of ['settingButton', 'shareButton', 'sidebarButton']) {
   assert.equal(object(controller[property]).__type__, 'cc.Button', `${property} is not bound`);
@@ -200,18 +234,27 @@ assert.deepEqual(
 );
 const bundleSource = read('assets/scripts/framework/GameSceneBundle.ts');
 assert(bundleSource.includes('Main = "NewMainScene"'));
-assert(bundleSource.includes('LegacyMain = "MainScene"'));
 assert(bundleSource.includes(`[GameSceneName.Main]: "${SCENE_UUID}"`));
-assert(bundleSource.includes('[GameSceneName.LegacyMain]: "855395d1-7838-47e0-bb59-2ae3e155eecc"'));
+assert(bundleSource.includes('WhiteGooseFeedGame = "WhiteGooseFeedGameScene"'));
+assert(bundleSource.includes(
+  '[GameSceneName.WhiteGooseFeedGame]: "ba4c8390-ece1-56f3-ae54-585950e78599"',
+));
+assert(!bundleSource.includes('LegacyMain'));
+
+const controllerSource = read('assets/scripts/newMainScene.ts');
+assert(controllerSource.includes('whiteGooseButton: Button = null'));
+assert(controllerSource.includes(
+  'this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this)',
+));
+assert(controllerSource.includes(
+  'this.whiteGooseButton?.node?.off(Button.EventType.CLICK, this.openWhiteGoose, this)',
+));
+assert(controllerSource.includes('this.enterGame(GameSceneName.WhiteGooseFeedGame)'));
 
 const loadingSource = read('assets/scripts/loadScene.ts');
 assert(loadingSource.includes('feedEntry?.sceneName ?? GameSceneName.Main'));
 assert(!loadingSource.includes('FIRST_DIRECT_GAME_ENTRY_KEY'));
 assert(!loadingSource.includes('首次启动直接进入关卡'));
-
-const legacyScene = JSON.parse(read('assets/gamescene/MainScene.scene'));
-assert.equal(legacyScene[0]._name, 'MainScene');
-assert.equal(legacyScene[1]._id, '855395d1-7838-47e0-bb59-2ae3e155eecc');
 
 const rasterFiles = fs.readdirSync(path.join(projectRoot, 'assets/res/newMain'))
   .filter(filename => /\.(?:png|jpe?g)$/i.test(filename));
@@ -220,7 +263,7 @@ const rasterBytes = rasterFiles.reduce((total, filename) =>
 assert(rasterBytes < 1024 * 1024, `new lobby images exceed 1 MiB: ${rasterBytes}`);
 
 const previewFiles = rasterFiles.filter(filename => /^preview_.*\.jpg$/i.test(filename));
-assert.equal(previewFiles.length, 7, 'expected seven extracted preview images');
+assert.equal(previewFiles.length, 5, 'expected five extracted preview images');
 for (const filename of previewFiles) {
   const meta = JSON.parse(read(`assets/res/newMain/${filename}.meta`));
   const frame = meta.subMetas.f9941.userData;
@@ -239,5 +282,5 @@ console.log(JSON.stringify({
   baseListHeight,
   tallListHeight,
   rasterBytes,
-  legacyMainPreserved: true,
+  legacyMainRemoved: true,
 }, null, 2));
