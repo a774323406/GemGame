@@ -24,6 +24,10 @@ export enum soundName {
   down = "down",
   nailHit = "nailHit",
   nailMiss = "nailMiss",
+  whiteGooseBgm = "whiteGooseBgm",
+  whiteGooseCall1 = "whiteGooseCall1",
+  whiteGooseCall2 = "whiteGooseCall2",
+  whiteGooseCall3 = "whiteGooseCall3",
 }
 
 const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
@@ -42,6 +46,10 @@ export const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
   [soundName.countDown]: "bb6dc42a-4883-4049-a42f-dfedede2d19c",
   [soundName.nailHit]: "ed96897e-8b47-4fcf-bd99-702e6b8ab670",
   [soundName.nailMiss]: "045b060e-de86-450e-b955-3a1cf8b5e0fd",
+  [soundName.whiteGooseBgm]: "b87e7117-2101-541c-a09a-d9098dc1999f",
+  [soundName.whiteGooseCall1]: "29d5da10-dd9f-5055-a86e-bb35e3c94992",
+  [soundName.whiteGooseCall2]: "5f156231-244b-5544-a6ee-34214f17ea77",
+  [soundName.whiteGooseCall3]: "961f66b2-0c6a-59ec-a1fd-2110270be33d",
 };
 
 type LoadTask = {
