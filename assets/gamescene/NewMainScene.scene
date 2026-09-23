@@ -11250,11 +11250,7 @@
     "_parent": {
       "__id__": 273
     },
-    "_children": [
-      {
-        "__id__": 311
-      }
-    ],
+    "_children": [],
     "_active": true,
     "_components": [
       {
@@ -11337,7 +11333,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "e625bd7b-cbf1-4b43-9552-b13edb0bc4f4@f9941",
+      "__uuid__": "a21b33ea-e748-44dd-a2af-092a25be28fa@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -12820,11 +12816,7 @@
     "_parent": {
       "__id__": 314
     },
-    "_children": [
-      {
-        "__id__": 346
-      }
-    ],
+    "_children": [],
     "_active": true,
     "_components": [
       {
@@ -12907,7 +12899,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "e625bd7b-cbf1-4b43-9552-b13edb0bc4f4@f9941",
+      "__uuid__": "8ef97696-879e-43df-b9dc-42991bd5fedf@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,

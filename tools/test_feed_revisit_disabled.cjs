@@ -107,19 +107,6 @@ async function main() {
     assert.deepEqual(f.calls, []); assert.deepEqual(f.warnings, []);
     assert.deepEqual([...f.storage], before);
   });
-  test('home hides the authored revisit button without initializing its service', () => {
-    const f = fixture(), home = new (f.load('mainScene.ts').mainScene)();
-    home.milkTeaGameBtn = { node: { on() {} } };
-    const reminder = { node: { active: true, on() { assert.fail('disabled revisit must not bind clicks'); } } };
-    home.feedSubscribeBtn = reminder;
-    home.refreshFeedSubscribeEntry = () => assert.fail('disabled revisit must not initialize from home');
-    home.showDouyinToast = () => assert.fail('disabled revisit must not show a failure toast');
-    home.onLoad();
-    home.handleFeedSubscribeResult('disabled');
-    assert.equal(home.feedSubscribeBtn, reminder);
-    assert.equal(reminder.node.active, false);
-    assert.deepEqual(f.calls, []); assert.deepEqual(f.warnings, []);
-  });
   test('acquisition launch and 7001 scene-ready reporting still work while revisit is off', () => {
     const f = fixture(), service = f.load('framework/Platform/FeedAcquisitionService.ts').FeedAcquisitionService;
     const state = service.getState();
@@ -128,23 +115,6 @@ async function main() {
     service.reportSceneReady(); service.reportSceneReady();
     assert.deepEqual(f.calls.filter(Array.isArray), [['reportScene', 7001]]);
     assert.deepEqual(f.warnings, []);
-  });
-  test('re-enabled home binds the existing reminder without constructing UI', () => {
-    const f = fixture(true), home = new (f.load('mainScene.ts').mainScene)();
-    const handlers = [];
-    const reminder = { node: { active: true, on: (...args) => handlers.push(args) } };
-    home.feedSubscribeBtn = reminder;
-    let refreshCount = 0;
-    home.refreshFeedSubscribeEntry = () => { refreshCount++; };
-    home.onLoad();
-    assert.equal(home.feedSubscribeBtn, reminder);
-    assert.equal(reminder.node.active, false, 'Keep hidden until availability is known');
-    assert.equal(refreshCount, 1);
-    assert.equal(handlers.length, 1);
-    assert.equal(handlers[0][0], 'click');
-    assert.equal(handlers[0][1], home.onFeedSubscribeClicked);
-    assert.equal(handlers[0][2], home);
-    assert.deepEqual(f.calls, []);
   });
   test('retained revisit implementation can still initialize when explicitly re-enabled', async () => {
     const f = fixture(true), service = f.load('framework/Platform/FeedRevisitService.ts').FeedRevisitService;

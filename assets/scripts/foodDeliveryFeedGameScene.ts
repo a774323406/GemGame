@@ -7,6 +7,7 @@ import {
     Game,
     input,
     Input,
+    Label,
     Node,
     ResolutionPolicy,
     UITransform,
@@ -54,6 +55,8 @@ type NativeTouchEvent = {
 @ccclass('foodDeliveryFeedGameScene')
 export class foodDeliveryFeedGameScene extends Component {
     @property({ tooltip: '手臂每秒旋转角度' }) public rotationSpeed = 480;
+    @property({ tooltip: '每次完整观看激励广告后的旋转速度倍率' }) public slowdownRatio = 0.72;
+    @property({ tooltip: '每局可失误次数' }) public initialChances = 3;
     @property({ tooltip: '投掷初速度' }) public speed = 1750;
     @property({ tooltip: '重力加速度' }) public gravity = 1600;
     @property({ tooltip: '食物碰撞半径' }) public radius = 8;
@@ -73,6 +76,7 @@ export class foodDeliveryFeedGameScene extends Component {
     @property(Node) public failureContent: Node = null;
     @property(Node) public successTitle: Node = null;
     @property(Node) public failureTitle: Node = null;
+    @property(Label) public chanceLabel: Label = null;
 
     @property([Node]) public targets: Node[] = [];
     @property([Node]) public orderSprites: Node[] = [];
@@ -83,6 +87,7 @@ export class foodDeliveryFeedGameScene extends Component {
     @property([Node]) public aimDots: Node[] = [];
 
     @property(Button) public backButton: Button = null;
+    @property(Button) public slowdownButton: Button = null;
     @property(Button) public homeButton: Button = null;
     @property(Button) public retryButton: Button = null;
     @property(Button) public nextButton: Button = null;
@@ -102,6 +107,8 @@ export class foodDeliveryFeedGameScene extends Component {
     private lastAcceptedTouchMs = -Infinity;
     private deliveredDelay = 0;
     private resultDelay = 0;
+    private rotationSpeedMultiplier = 1;
+    private adInFlight = false;
     private authoredArmAngle = 0;
     private authoredBackgroundScale = new Vec3(1, 1, 1);
     private authoredGameplayScale = new Vec3(1, 1, 1);
@@ -125,7 +132,7 @@ export class foodDeliveryFeedGameScene extends Component {
             gravity: this.gravity,
             radius: this.radius,
             maxFlightSeconds: this.maxFlightSeconds,
-        });
+        }, undefined, this.initialChances);
 
         FeedAcquisitionService.init();
         const state = FeedAcquisitionService.getState();
@@ -133,6 +140,7 @@ export class foodDeliveryFeedGameScene extends Component {
         this.feedExited = state.active && state.exited;
         this.bindings = [
             [this.backButton, this.onBack],
+            [this.slowdownButton, this.onSlowdown],
             [this.homeButton, this.onHome],
             [this.retryButton, this.onRetry],
             [this.nextButton, this.onNext],
@@ -167,8 +175,10 @@ export class foodDeliveryFeedGameScene extends Component {
         const dt = Math.max(0, Math.min(0.1, Number.isFinite(deltaTime) ? deltaTime : 0));
         if (dt <= 0) return;
 
-        if (this.round.phase === 'aiming' && !this.resultOverlay.active) {
-            this.armPivot.angle = (this.armPivot.angle + this.rotationSpeed * dt) % 360;
+        if (this.round.phase === 'aiming' && !this.resultOverlay.active
+            && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
+            const speed = this.rotationSpeed * this.rotationSpeedMultiplier;
+            this.armPivot.angle = (this.armPivot.angle + speed * dt) % 360;
         }
 
         if (!this.canInteract()) {
@@ -217,7 +227,7 @@ export class foodDeliveryFeedGameScene extends Component {
     };
 
     public tryThrow(isButton: boolean, nowMs: number): boolean {
-        if (isButton || this.disposed || this.leaving || this.appHidden || this.resultOverlay.active
+        if (this.disposed || this.leaving || this.appHidden || this.resultOverlay.active || this.adInFlight
             || SdkUtils.isRewardedVideoBusy()) return false;
 
         const beforeActivation = FeedAcquisitionService.getState();
@@ -227,6 +237,10 @@ export class foodDeliveryFeedGameScene extends Component {
         this.feedMode = state.active;
         this.feedExited = state.active && state.exited;
         if (state.active && (!state.entered || state.exited)) return false;
+        if (isButton) {
+            this.refreshButtons();
+            return false;
+        }
         if (!Number.isFinite(nowMs) || nowMs - this.lastAcceptedTouchMs < DUPLICATE_TOUCH_MS) return false;
 
         const gameplayTransform = this.gameplayRoot.getComponent(UITransform);
@@ -290,6 +304,8 @@ export class foodDeliveryFeedGameScene extends Component {
         this.lastAcceptedTouchMs = -Infinity;
         this.deliveredDelay = 0;
         this.resultDelay = 0;
+        this.rotationSpeedMultiplier = 1;
+        this.adInFlight = false;
         this.armPivot.angle = this.authoredArmAngle;
         this.resultOverlay.active = false;
         this.successContent.active = false;
@@ -325,17 +341,20 @@ export class foodDeliveryFeedGameScene extends Component {
         this.aimDots.forEach((node) => {
             node.active = this.round.phase === 'aiming' && !this.resultOverlay.active;
         });
+        this.chanceLabel.string = `机会 ×${this.round.chancesRemaining}`;
         this.successTitle.active = this.round.phase === 'won';
         this.failureTitle.active = this.round.phase === 'failed';
         this.successContent.active = this.round.phase === 'won';
         this.failureContent.active = this.round.phase === 'failed';
+        this.refreshButtons();
     }
 
     public validateBindings(): void {
         const required = [
             'background', 'gameplayRoot', 'courier', 'armPivot', 'muzzle', 'guard',
             'guardHitArea', 'wallHitArea', 'groundMarker', 'resultOverlay', 'successContent',
-            'failureContent', 'successTitle', 'failureTitle', 'backButton', 'homeButton',
+            'failureContent', 'successTitle', 'failureTitle', 'chanceLabel', 'backButton',
+            'slowdownButton', 'homeButton',
             'retryButton', 'nextButton',
         ];
         const missing = required.filter((key) => !this[key]);
@@ -414,6 +433,8 @@ export class foodDeliveryFeedGameScene extends Component {
                 AudioManager.playEffect(soundName.up);
             } else if (event.type === 'won') {
                 this.resultDelay = 0.3;
+            } else if (event.type === 'missed') {
+                AudioManager.playEffect(soundName.fail);
             } else if (event.type === 'failed') {
                 this.resultDelay = 0.3;
                 AudioManager.playEffect(soundName.fail);
@@ -431,7 +452,7 @@ export class foodDeliveryFeedGameScene extends Component {
     }
 
     private canInteract(): boolean {
-        if (this.disposed || this.leaving || this.appHidden || this.feedExited
+        if (this.disposed || this.leaving || this.appHidden || this.feedExited || this.adInFlight
             || this.resultOverlay.active || SdkUtils.isRewardedVideoBusy()) return false;
         const state = FeedAcquisitionService.getState();
         return !state.active || (state.entered && !state.exited);
@@ -504,10 +525,17 @@ export class foodDeliveryFeedGameScene extends Component {
     private refreshButtons(): void {
         const enabled = !this.disposed && !this.leaving;
         const showResult = !!this.round && this.resultOverlay.active;
+        const feedState = FeedAcquisitionService.getState();
+        const awaitingFirstFeedGesture = !this.appHidden && feedState.active
+            && !feedState.entered && !feedState.exited && !SdkUtils.isRewardedVideoBusy();
         this.homeButton.node.active = showResult;
         this.retryButton.node.active = showResult && this.round.phase === 'failed';
         this.nextButton.node.active = showResult && this.round.phase === 'won';
+        this.slowdownButton.node.active = !showResult;
         this.backButton.interactable = enabled;
+        this.slowdownButton.interactable = enabled && !this.adInFlight
+            && !!this.round && this.round.phase === 'aiming'
+            && (this.canInteract() || awaitingFirstFeedGesture);
         this.homeButton.interactable = enabled;
         this.retryButton.interactable = enabled;
         this.nextButton.interactable = enabled && this.round?.phase === 'won';
@@ -517,6 +545,54 @@ export class foodDeliveryFeedGameScene extends Component {
         AudioManager.playEffect(soundName.buttonClick);
         void this.returnHome();
     };
+
+    private onSlowdown = (): void => {
+        const state = FeedAcquisitionService.getState();
+        if (state.active && !state.entered && !state.exited) {
+            FeedAcquisitionService.activateFromFirstTouch();
+            const activated = FeedAcquisitionService.getState();
+            this.feedMode = activated.active;
+            this.feedExited = activated.active && activated.exited;
+            this.refreshButtons();
+        }
+        void this.requestSlowdown();
+    };
+
+    private async requestSlowdown(): Promise<void> {
+        if (this.adInFlight || !this.slowdownButton?.interactable || !this.canInteract()
+            || this.round?.phase !== 'aiming') return;
+
+        AudioManager.playEffect(soundName.buttonClick);
+        const serial = this.roundSerial;
+        this.adInFlight = true;
+        this.refreshButtons();
+        let rewarded = false;
+        try {
+            rewarded = await SdkUtils.showRewardedVideo();
+        } catch (error) {
+            console.warn('[foodDeliveryFeedGameScene] 降速激励视频失败', error);
+        }
+        if (this.disposed || this.leaving || !this.node?.isValid || serial !== this.roundSerial) return;
+
+        this.adInFlight = false;
+        if (rewarded) {
+            this.rotationSpeedMultiplier *= this.slowdownRatio;
+            this.showDouyinToast('旋转速度已降低');
+        } else {
+            this.showDouyinToast('完整看完广告才能降速');
+        }
+        this.refreshButtons();
+    }
+
+    private showDouyinToast(title: string): void {
+        try {
+            const api = typeof tt !== 'undefined' ? tt : null;
+            if (typeof api?.showToast === 'function') api.showToast({ title, icon: 'none' });
+            else console.log(`[foodDeliveryFeedGameScene] ${title}`);
+        } catch {
+            console.log(`[foodDeliveryFeedGameScene] ${title}`);
+        }
+    }
 
     private onHome = (): void => {
         AudioManager.playEffect(soundName.buttonClick);

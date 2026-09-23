@@ -17,7 +17,7 @@ class Emitter {
 }
 function fixture() {
   let now = 1_700_000_000_000, serial = 0, timers = [], busy = false;
-  let scene = { name: 'MainScene', isValid: true };
+  let scene = { name: 'NewMainScene', isValid: true };
   const requests = [], game = new Emitter(), director = new Emitter();
   const feed = { active: false, entered: false, exited: false, mode: 'acquisition', contentId: '' };
   const config = { showAd: true }, bundle = { isLoadingScene: false };
@@ -25,9 +25,10 @@ function fixture() {
   // The scheduler must never pause the engine or install touch interception.
   director.pause = director.resume = () => assert.fail('interstitial must not change engine pause');
   const sceneNames = Object.fromEntries([
-    'MainScene', 'GameScene', 'ArcheryGameScene', 'JuggleBallGameScene', 'ShootingGlassBottlesGame',
-    'MilkTeaFeedGameScene', 'NailHammerFeedGameScene', 'PenRefillFeedGameScene',
-    'BalloonWheelFeedGameScene', 'PenguinStackFeedGameScene',
+    'NewMainScene', 'GameScene', 'ArcheryGameScene', 'JuggleBallGameScene', 'ShootingGlassBottlesGame',
+    'NailHammerFeedGameScene',
+    'BalloonWheelFeedGameScene', 'PenguinStackFeedGameScene', 'FoodDeliveryFeedGameScene',
+    'WhiteGooseFeedGameScene',
   ].map(name => [name, name]));
   const sdk = {
     EVENT_AD_PAUSE_CHANGED: 'rewarded-pause', EVENT_INTERSTITIAL_ENDED: 'interstitial-ended',
@@ -131,14 +132,15 @@ test('preview state is checked even when a scene omits cancellation on feed exit
 test('all games, home and result pages share cooldown; feed completion does not stop ads', () => {
   const f = fixture(); f.enter(); f.advance(31_000); f.requests[0].show(); f.requests[0].close();
   f.adc.cancelFeedEntryInterstitial(); f.feed.active = false;
-  for (const name of ['MainScene', 'GameScene', 'ArcheryGameScene', 'JuggleBallGameScene',
-    'ShootingGlassBottlesGame', 'MilkTeaFeedGameScene', 'PenRefillFeedGameScene',
-    'NailHammerFeedGameScene', 'BalloonWheelFeedGameScene', 'PenguinStackFeedGameScene']) {
+  for (const name of ['NewMainScene', 'GameScene', 'ArcheryGameScene', 'JuggleBallGameScene',
+    'ShootingGlassBottlesGame',
+    'NailHammerFeedGameScene', 'BalloonWheelFeedGameScene', 'PenguinStackFeedGameScene',
+    'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene']) {
     f.scene({ name, isValid: true }); f.adc.onLevelResult(1, 'pass', { eligible: false });
     f.advance(1_000);
   }
   assert.equal(f.requests.length, 1);
-  f.advance(50_000); assert.equal(f.requests.length, 2);
+  f.advance(52_000); assert.equal(f.requests.length, 2);
 });
 test('background stops timer and invalidates asynchronous native presentation', () => {
   const f = fixture(); f.advance(31_000);
@@ -157,7 +159,7 @@ test('sharing/fullscreen requests are exclusive; rewarded end restarts cooldown'
 test('loading screen, bundle loading, scene swaps and destroyed scenes cannot display', () => {
   const f = fixture(); f.scene({ name: 'loadScene', isValid: true });
   f.advance(50_000); assert.equal(f.requests.length, 0);
-  f.scene({ name: 'MainScene', isValid: true }); f.bundle.isLoadingScene = true;
+  f.scene({ name: 'NewMainScene', isValid: true }); f.bundle.isLoadingScene = true;
   f.advance(50_000); assert.equal(f.requests.length, 0);
   f.bundle.isLoadingScene = false; f.scene({ name: 'ArcheryGameScene', isValid: true });
   f.advance(649); assert.equal(f.requests.length, 0);

@@ -130,7 +130,9 @@ for (const food of kinds) {
   assert.equal(round.score, 0);
   assert.equal(round.completed.size, 0);
   assert(events.some((event) => event.type === 'deflected'));
-  assert(events.some((event) => event.type === 'failed'));
+  assert(events.some((event) => event.type === 'missed' && event.chancesRemaining === 2));
+  assert.equal(round.phase, 'aiming', 'the first miss must return the same order to aiming');
+  assert.equal(round.currentFood, 'cola');
 }
 
 {
@@ -144,7 +146,7 @@ for (const food of kinds) {
   const round = new FoodDeliveryRound(guardWorld, { ...tuning, gravity: 1 }, kinds);
   round.shoot(0, { x: -100, y: 0 });
   const events = round.tick(0.25);
-  assert(events.some((event) => event.type === 'failed' && event.reason === 'guard'));
+  assert(events.some((event) => event.type === 'missed' && event.reason === 'guard'));
 }
 
 {
@@ -158,7 +160,7 @@ for (const food of kinds) {
   const round = new FoodDeliveryRound(groundWorld, tuning, kinds);
   round.shoot(-90, { x: 0, y: 50 });
   const events = runUntilSettled(round);
-  assert(events.some((event) => event.type === 'failed' && event.reason === 'ground'));
+  assert(events.some((event) => event.type === 'missed' && event.reason === 'ground'));
 }
 
 {
@@ -173,7 +175,7 @@ for (const food of kinds) {
   const round = new FoodDeliveryRound(outsideWorld, tuning, kinds);
   round.shoot(0, { x: 0, y: 0 });
   const events = runUntilSettled(round);
-  assert(events.some((event) => event.type === 'failed' && event.reason === 'outside'));
+  assert(events.some((event) => event.type === 'missed' && event.reason === 'outside'));
 }
 
 {
@@ -188,7 +190,32 @@ for (const food of kinds) {
   const round = new FoodDeliveryRound(timeoutWorld, { ...tuning, gravity: 1, maxFlightSeconds: 0.05 }, kinds);
   round.shoot(90, { x: 0, y: 0 });
   const events = runUntilSettled(round);
-  assert(events.some((event) => event.type === 'failed' && event.reason === 'timeout'));
+  assert(events.some((event) => event.type === 'missed' && event.reason === 'timeout'));
+}
+
+{
+  const missWorld = {
+    ...world,
+    targets: world.targets.map((target) => ({ ...target, x: 3000 })),
+    wall: { x: 3000, y: -350, width: 100, height: 1000 },
+    guard: { x: 3000, y: -350, width: 100, height: 100 },
+  };
+  const round = new FoodDeliveryRound(missWorld, tuning, kinds);
+  assert.equal(round.chancesRemaining, 3);
+  for (const expected of [2, 1]) {
+    assert.equal(round.shoot(-90, origin), true);
+    const events = runUntilSettled(round);
+    assert(events.some((event) => event.type === 'missed' && event.chancesRemaining === expected));
+    assert.equal(round.phase, 'aiming');
+    assert.equal(round.currentFood, 'lime', 'a miss must retry the same delivery');
+    assert.equal(round.score, 0);
+    assert.equal(round.chancesRemaining, expected);
+  }
+  assert.equal(round.shoot(-90, origin), true);
+  const finalEvents = runUntilSettled(round);
+  assert(finalEvents.some((event) => event.type === 'failed' && event.reason === 'ground'));
+  assert.equal(round.phase, 'failed', 'only the third miss should fail the round');
+  assert.equal(round.chancesRemaining, 0);
 }
 
 {
@@ -200,6 +227,7 @@ for (const food of kinds) {
   assert.deepEqual([...round.order], originalOrder);
   assert.equal(round.phase, 'aiming');
   assert.equal(round.score, 0);
+  assert.equal(round.chancesRemaining, 3);
   assert.equal(round.projectile, null);
   round.reset(false, () => 0);
   assert.deepEqual([...round.order], ['icecream', 'cake', 'burger', 'cola', 'lime']);

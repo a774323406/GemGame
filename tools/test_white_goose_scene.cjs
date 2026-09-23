@@ -36,11 +36,9 @@ for (const [index, entry] of scene.entries()) {
 
 const canvas = nodeByName('Canvas');
 assert(canvas, 'Canvas is missing');
-assert.deepEqual(
-  [component(canvas.id, 'cc.UITransform')._contentSize.width,
-   component(canvas.id, 'cc.UITransform')._contentSize.height],
-  [750, 1624],
-);
+const canvasSize = component(canvas.id, 'cc.UITransform')._contentSize;
+assert(Math.abs(canvasSize.width - 750) < 1e-9);
+assert(Math.abs(canvasSize.height - 1624) < 1e-9);
 const controller = component(canvas.id, SCRIPT_TYPE);
 assert(controller, 'whiteGooseFeedGameScene controller is missing');
 
@@ -59,9 +57,12 @@ for (let index = 0; index < 10; index += 1) {
   const slot = nodeByName(`GooseSlot${index}`);
   assert(slot, `GooseSlot${index} is missing`);
   const children = slot.entry._children.map(object);
-  assert(children.some(node => node._name === 'Shadow'));
+  const shadow = children.find(node => node._name === 'Shadow');
+  assert(shadow, `GooseSlot${index} shadow is missing`);
   const goose = children.find(node => node._name === 'GooseSkeleton');
   assert(goose, `GooseSlot${index} skeleton is missing`);
+  assert.equal(goose._lpos.y, shadow._lpos.y,
+    `GooseSlot${index} feet and shadow must share the same local baseline`);
   assert(component(scene.indexOf(goose), 'sp.Skeleton'));
   assert(children.some(node => node._name === 'HitArea'));
 }
@@ -75,15 +76,49 @@ assert(nodeByName('FieldTouchArea'));
 const overlay = nodeByName('ResultOverlay');
 assert(overlay, 'ResultOverlay is missing');
 assert(component(overlay.id, 'cc.BlockInputEvents'));
-const resultDim = nodeByName('ResultDim');
+assert.equal(overlay.entry._active, true,
+  'the result UI should remain visible and editable in Creator; resetRound hides it at runtime');
+const resultDim = nodeByName('Mask');
+assert(resultDim, 'the delivery-style full-screen result mask is missing');
 assert.equal(component(resultDim.id, 'cc.Widget')._alignFlags, 45);
 for (const side of ['_left', '_right', '_top', '_bottom']) {
   assert.equal(component(resultDim.id, 'cc.Widget')[side], 0);
 }
+assert.deepEqual(component(resultDim.id, 'cc.Sprite')._color,
+  { __type__: 'cc.Color', r: 0, g: 0, b: 0, a: 255 });
+assert.equal(component(resultDim.id, 'cc.UIOpacity')._opacity, 200);
+
+const resultPanel = nodeByName('ResultPanel');
+const resultPanelSize = component(resultPanel.id, 'cc.UITransform')._contentSize;
+assert(Math.abs(resultPanelSize.width - 750) < 1e-9);
+assert(Math.abs(resultPanelSize.height - 1624) < 1e-9);
+assert(component(resultPanel.id, 'cc.Widget'), 'ResultPanel must stretch with tall phone screens');
+assert.equal(component(resultPanel.id, 'cc.Sprite'), undefined,
+  'the delivery-style result page is full-screen layout content, not a rectangular popup');
+
+for (const name of ['ResultGameTitle', 'ResultDivider']) {
+  assert(nodeByName(name), `missing delivery-style result node ${name}`);
+}
+assert.equal(component(nodeByName('ResultGameTitle').id, 'cc.Label')._string, '套大鹅');
+assert.equal(component(nodeByName('SuccessTitle').id, 'cc.Label')._string, '挑战成功');
+assert.equal(component(nodeByName('FailureTitle').id, 'cc.Label')._string, '挑战失败');
+
+assert.equal(nodeByName('NextButton'), undefined,
+  'the success result must not offer navigation into the puzzle game');
+const sharedActionButtonFrame = 'dd5b91d5-aed1-5e36-aefd-d6dc5056eaa3@f9941';
+for (const name of ['ReplayButton', 'RestartButton', 'ReviveButton', 'HomeButton']) {
+  const node = nodeByName(name);
+  const size = component(node.id, 'cc.UITransform')._contentSize;
+  assert.deepEqual([size.width, size.height], [360, 112],
+    `${name} must use the same proportions as the food-delivery result buttons`);
+  assert.equal(component(node.id, 'cc.Sprite')._spriteFrame.__uuid__, sharedActionButtonFrame,
+    `${name} must use the food-delivery result button artwork`);
+  assert.equal(node.entry._lpos.x, 0, `${name} must be centered`);
+}
 
 for (const name of [
   'BackButton', 'AddRingsButton', 'ReplayButton', 'RestartButton',
-  'ReviveButton', 'HomeButton', 'NextButton',
+  'ReviveButton', 'HomeButton',
 ]) {
   const node = nodeByName(name);
   assert(node, `missing editor-authored node ${name}`);
@@ -93,19 +128,22 @@ for (const name of [
 const visibleStrings = scene
   .filter(entry => typeof entry?._string === 'string')
   .map(entry => entry._string);
-for (const text of ['套大鹅', '已套中 0/7', '套圈 10/10', '再玩一次', '重新开始', '加套圈']) {
+for (const text of ['套大鹅', '已套中 0/7', '套圈 10/10', '再玩一次', '重新开始', '+5套圈']) {
   assert(visibleStrings.includes(text), `missing editor-authored label: ${text}`);
 }
+assert(!visibleStrings.includes('进入拼豆'), 'the removed puzzle entry must not remain visible');
 
 for (const key of [
   'sceneBackground', 'sceneBackButton', 'sceneAddRingsButton', 'sceneCaughtLabel',
   'sceneRingLabel', 'sceneFieldTouchArea', 'sceneGooseSlots', 'sceneThrowingHand',
   'sceneThrownRingLayer', 'sceneRingTemplates', 'sceneResultOverlay', 'sceneResultPanel',
-  'sceneSuccessActions', 'sceneFailureActions', 'sceneReplayButton', 'sceneNextButton',
+  'sceneSuccessActions', 'sceneFailureActions', 'sceneReplayButton',
   'sceneRestartButton', 'sceneHomeButton', 'sceneReviveButton',
 ]) {
   assert(controller[key] !== undefined && controller[key] !== null, `controller binding missing: ${key}`);
 }
+assert.equal(controller.sceneNextButton, undefined,
+  'the serialized controller must not retain a stale puzzle-entry binding');
 assert.equal(controller.sceneRingTemplates.length, 3);
 
 console.log('White goose scene tests passed');

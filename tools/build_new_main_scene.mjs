@@ -33,6 +33,8 @@ const NEW_MAIN_ASSETS = [
   { name: 'title_archery.jpg', uuid: '6c7a110b-ce40-473b-a49d-0b60aa513b42', width: 268, height: 57, alpha: false },
   { name: 'title_balloon.jpg', uuid: '3f6c3128-e02f-4191-8287-56f514f718e8', width: 268, height: 57, alpha: false },
   { name: 'title_nail.jpg', uuid: '1087d369-3c94-43ad-bae5-8579307f178e', width: 290, height: 64, alpha: false },
+  { name: 'title_food_delivery.jpg', uuid: 'a21b33ea-e748-44dd-a2af-092a25be28fa', width: 268, height: 57, alpha: false },
+  { name: 'title_white_goose.jpg', uuid: '8ef97696-879e-43df-b9dc-42991bd5fedf', width: 268, height: 57, alpha: false },
   { name: 'preview_border.png', uuid: '75720185-3cba-42e9-bfa6-155295a8045a', width: 10, height: 10, alpha: true },
 ];
 const SCENE_FILE = `assets/gamescene/${SCENE_NAME}.scene`;
@@ -66,6 +68,8 @@ const art = {
   titleArchery: newMainFrame('title_archery.jpg'),
   titleBalloon: newMainFrame('title_balloon.jpg'),
   titleNail: newMainFrame('title_nail.jpg'),
+  titleFoodDelivery: newMainFrame('title_food_delivery.jpg'),
+  titleWhiteGoose: newMainFrame('title_white_goose.jpg'),
   previewBorder: newMainFrame('preview_border.png'),
   setting: existingFrame('assets/res/texture/设置按钮-最小.png'),
   share: existingFrame('assets/res/texture/UIs/share_main_icon.png'),

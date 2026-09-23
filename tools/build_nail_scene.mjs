@@ -4,8 +4,7 @@ import { appendSceneGlobals, fitFeedResultOverlay } from "./feed_result_layout.m
 
 const root = process.cwd();
 const scenePath = path.join(root, "assets/gamescene/NailHammerFeedGameScene.scene");
-const globalsSourcePath = path.join(root, "assets/gamescene/PenRefillFeedGameScene.scene");
-const mainScenePath = path.join(root, "assets/gamescene/MainScene.scene");
+const globalsSourcePath = path.join(root, "assets/gamescene/ArcheryGameScene.scene");
 const sourceScene = JSON.parse(fs.readFileSync(globalsSourcePath, "utf8"));
 const objects = [];
 let serial = 0;
@@ -558,7 +557,7 @@ function makeResultButton(name, parent, text, x, { y = 0, width = 290 } = {}) {
 }
 const replayButton = makeResultButton("ReplayButton", successActions, "再玩一次", -165);
 const nextButton = makeResultButton("NextButton", successActions, "下一关", 165);
-// Match the milk-tea result action: orange/pink video button with a separate
+// Match the shared feed result action: orange/pink video button with a separate
 // red clapperboard badge over its left play icon, and a reward-only caption.
 const reviveNode = makeSprite("ReviveButton", failureActions, frames.adButton, {
   y: 60, width: 420, height: 114,
@@ -638,178 +637,4 @@ objects[1]._globals = ref(appendSceneGlobals(sourceScene, objects));
 fitFeedResultOverlay(objects, "NailHammerFeedGameScene");
 fs.writeFileSync(scenePath, `${JSON.stringify(objects, null, 2)}\n`);
 
-function addEntryToMainScene() {
-  const main = JSON.parse(fs.readFileSync(mainScenePath, "utf8"));
-  const canvasId = main.findIndex((item) => item?.__type__ === "cc.Node" && item._name === "Canvas");
-  const controllerId = main.findIndex((item) => item && Object.prototype.hasOwnProperty.call(item, "startBtn"));
-  if (canvasId < 0 || controllerId < 0) throw new Error("MainScene Canvas/controller not found");
-
-  if (main[controllerId].nailHammerGameBtn) {
-    console.log("MainScene already contains nailHammerGameBtn");
-    return;
-  }
-
-  let idSerial = 0;
-  const addMain = (item) => {
-    const id = main.length;
-    main.push(item);
-    return id;
-  };
-  const mainId = (prefix) => `nailEntry_${prefix}_${++idSerial}`;
-  const addMainComponent = (nodeId, component) => {
-    const componentId = addMain(component);
-    main[nodeId]._components.push(ref(componentId));
-    return componentId;
-  };
-  const makeMainNode = (name, parentId, x, y, width, height) => {
-    const nodeId = addMain({
-      __type__: "cc.Node",
-      _name: name,
-      _objFlags: 0,
-      __editorExtras__: {},
-      _parent: ref(parentId),
-      _children: [],
-      _active: true,
-      _components: [],
-      _prefab: null,
-      _lpos: vec3(x, y, 0),
-      _lrot: quat(),
-      _lscale: vec3(1, 1, 1),
-      _mobility: 0,
-      _layer: 33554432,
-      _euler: vec3(),
-      _id: mainId(name),
-    });
-    main[parentId]._children.push(ref(nodeId));
-    addMainComponent(nodeId, {
-      __type__: "cc.UITransform",
-      _name: "",
-      _objFlags: 0,
-      __editorExtras__: {},
-      node: ref(nodeId),
-      _enabled: true,
-      __prefab: null,
-      _contentSize: { __type__: "cc.Size", width, height },
-      _anchorPoint: { __type__: "cc.Vec2", x: 0.5, y: 0.5 },
-      _id: mainId("Transform"),
-    });
-    return nodeId;
-  };
-
-  const entry = makeMainNode("nailHammerGameBtn", canvasId, 306, -420, 128, 192);
-  const art = makeMainNode("HammerArt", entry, 0, 20, 84, 190);
-  addMainComponent(art, {
-    __type__: "cc.Sprite",
-    _name: "",
-    _objFlags: 0,
-    __editorExtras__: {},
-    node: ref(art),
-    _enabled: true,
-    __prefab: null,
-    _customMaterial: null,
-    _srcBlendFactor: 2,
-    _dstBlendFactor: 4,
-    _color: color(255, 255, 255),
-    _spriteFrame: uuidRef(frames.hammerReady),
-    _type: 0,
-    _fillType: 0,
-    _sizeMode: 0,
-    _fillCenter: { __type__: "cc.Vec2", x: 0, y: 0 },
-    _fillStart: 0,
-    _fillRange: 0,
-    _isTrimmedMode: true,
-    _useGrayscale: false,
-    _atlas: null,
-    _id: mainId("HammerSprite"),
-  });
-  const labelNode = makeMainNode("Label", entry, 0, -82, 128, 48);
-  addMainComponent(labelNode, {
-    __type__: "cc.Label",
-    _name: "",
-    _objFlags: 0,
-    __editorExtras__: {},
-    node: ref(labelNode),
-    _enabled: true,
-    __prefab: null,
-    _customMaterial: null,
-    _srcBlendFactor: 2,
-    _dstBlendFactor: 4,
-    _color: color(255, 255, 255),
-    _string: "砸钉子",
-    _horizontalAlign: 1,
-    _verticalAlign: 1,
-    _actualFontSize: 30,
-    _fontSize: 30,
-    _fontFamily: "Arial",
-    _lineHeight: 38,
-    _overflow: 2,
-    _enableWrapText: false,
-    _font: null,
-    _isSystemFontUsed: true,
-    _spacingX: 0,
-    _isItalic: false,
-    _isBold: true,
-    _isUnderline: false,
-    _underlineHeight: 2,
-    _cacheMode: 0,
-    _enableOutline: true,
-    _outlineColor: color(79, 48, 28),
-    _outlineWidth: 3,
-    _enableShadow: false,
-    _shadowColor: color(0, 0, 0, 150),
-    _shadowOffset: { __type__: "cc.Vec2", x: 2, y: -2 },
-    _shadowBlur: 2,
-    _id: mainId("Label"),
-  });
-  addMainComponent(labelNode, {
-    __type__: "cc.LabelOutline",
-    _name: "",
-    _objFlags: 0,
-    __editorExtras__: {},
-    node: ref(labelNode),
-    _enabled: true,
-    __prefab: null,
-    _id: mainId("LabelOutline"),
-  });
-  const buttonId = addMainComponent(entry, {
-    __type__: "cc.Button",
-    _name: "",
-    _objFlags: 0,
-    __editorExtras__: {},
-    node: ref(entry),
-    _enabled: true,
-    __prefab: null,
-    clickEvents: [],
-    _interactable: true,
-    _transition: 3,
-    _normalColor: color(255, 255, 255),
-    _hoverColor: color(255, 255, 255),
-    _pressedColor: color(225, 225, 225),
-    _disabledColor: color(124, 124, 124),
-    _normalSprite: null,
-    _hoverSprite: null,
-    _pressedSprite: null,
-    _disabledSprite: null,
-    _duration: 0.1,
-    _zoomScale: 1.08,
-    _target: ref(entry),
-    _id: mainId("Button"),
-  });
-  addMainComponent(entry, {
-    __type__: "7a1a5iVpkNPsYcjs1PU1SS/",
-    _name: "",
-    _objFlags: 0,
-    __editorExtras__: {},
-    node: ref(entry),
-    _enabled: true,
-    __prefab: null,
-    enableClickSound: true,
-    onlyPlayWhenInteractable: true,
-    _id: mainId("ButtonSound"),
-  });
-  main[controllerId].nailHammerGameBtn = ref(buttonId);
-  fs.writeFileSync(mainScenePath, `${JSON.stringify(main, null, 2)}\n`);
-}
-
-addEntryToMainScene();
 console.log(`Wrote ${scenePath} (${objects.length} serialized objects)`);

@@ -74,7 +74,8 @@ async function sceneLayout(page) {
         backgroundBounds.top > 0 || backgroundBounds.bottom < viewport.height) {
       throw new Error(`background does not cover viewport: ${JSON.stringify(backgroundBounds)}`);
     }
-    const fixed = [game.backButton.node, game.courier, game.guard, ...game.orderSprites].map(bounds);
+    const fixed = [game.backButton.node, game.slowdownButton.node, game.chanceLabel.node,
+      game.courier, game.guard, ...game.orderSprites].map(bounds);
     const title = bounds(canvas.getChildByName('SafeArea').getChildByName('Title'));
     const starRow = Array.from({ length: 5 }, (_, index) =>
       bounds(game.gameplayRoot.getChildByName(`StarOff${index}`)));
@@ -280,13 +281,30 @@ async function findHitAngle(page) {
       return { phase: game.round.phase, score: game.round.score, overlay: game.resultOverlay.active };
     });
     assert.deepEqual(report.normalEntry.nextRound, { phase: 'aiming', score: 0, overlay: false });
-    await page.evaluate(() => {
-      const game = cc.director.getScene().getChildByName('Canvas')
-        .getComponent('foodDeliveryFeedGameScene');
-      game.armPivot.angle = 180;
-      game.armPivot.updateWorldTransform();
-    });
-    await tap(client, 375, 900);
+    const misses = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await page.waitForTimeout(100);
+      await page.evaluate(() => {
+        const game = cc.director.getScene().getChildByName('Canvas')
+          .getComponent('foodDeliveryFeedGameScene');
+        game.armPivot.angle = 180;
+        game.armPivot.updateWorldTransform();
+      });
+      await tap(client, 375, 900);
+      await page.waitForFunction(() => cc.director.getScene().getChildByName('Canvas')
+        .getComponent('foodDeliveryFeedGameScene').round.phase !== 'flying');
+      misses.push(await page.evaluate(() => {
+        const game = cc.director.getScene().getChildByName('Canvas')
+          .getComponent('foodDeliveryFeedGameScene');
+        return { phase: game.round.phase, chances: game.round.chancesRemaining,
+          overlay: game.resultOverlay.active };
+      }));
+    }
+    assert.deepEqual(misses, [
+      { phase: 'aiming', chances: 2, overlay: false },
+      { phase: 'aiming', chances: 1, overlay: false },
+      { phase: 'failed', chances: 0, overlay: false },
+    ]);
     await page.waitForFunction(() => cc.director.getScene().getChildByName('Canvas')
       .getComponent('foodDeliveryFeedGameScene').resultOverlay.activeInHierarchy);
     await page.screenshot({ path: screenshots.failure });
@@ -300,11 +318,13 @@ async function findHitAngle(page) {
       game.retryButton.node.emit(cc.Button.EventType.CLICK);
       return { failedPhase, retryPhase: game.round.phase, score: game.round.score,
         sameOrder: JSON.stringify(order) === JSON.stringify(game.round.order),
-        successContent, failureContent, overlay: game.resultOverlay.active };
+        successContent, failureContent, overlay: game.resultOverlay.active,
+        chances: game.round.chancesRemaining };
     });
     assert.deepEqual(report.normalEntry.failure,
       { failedPhase: 'failed', retryPhase: 'aiming', score: 0, sameOrder: true,
-        successContent: false, failureContent: true, overlay: false });
+        successContent: false, failureContent: true, overlay: false, chances: 3 });
+    report.normalEntry.misses = misses;
     await page.evaluate(() => cc.director.getScene().getChildByName('Canvas')
       .getComponent('foodDeliveryFeedGameScene').backButton.node.emit(cc.Button.EventType.CLICK));
     await page.waitForFunction(() => cc.director.getScene()?.name === 'NewMainScene');
@@ -403,11 +423,13 @@ async function findHitAngle(page) {
       const game = cc.director.getScene().getChildByName('Canvas')
         .getComponent('foodDeliveryFeedGameScene');
       return { phase: game.round.phase,
+        chances: game.round.chancesRemaining,
         shootSounds: foodDeliveryFeedHarness.audio
           .filter(item => item[0] === 'playEffect' && item[1] === 'archeryShoot').length,
         schedules: foodDeliveryFeedHarness.ads.filter(item => item.type === 'schedule').length };
     });
-    assert.notEqual(entered.phase, 'aiming', 'native touch must launch the single projectile');
+    assert(entered.phase === 'flying' || entered.chances === 2,
+      'native touch must launch one projectile; a fast miss may already return to aiming');
     assert.equal(entered.shootSounds, 1);
     assert.equal(entered.schedules, 1);
     await page.evaluate(() => {

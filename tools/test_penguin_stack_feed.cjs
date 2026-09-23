@@ -65,10 +65,12 @@ function validateScene() {
   assert(components(node('ResultOverlay')).some(component => component.__type__ === 'cc.BlockInputEvents'));
   assert(components(node('SurgeOverlay')).some(component => component.__type__ === 'cc.BlockInputEvents'));
 
-  const main = JSON.parse(fs.readFileSync('assets/gamescene/MainScene.scene', 'utf8'));
-  const controller = main.find(item => item?.startBtn);
-  assert(controller?.penguinStackGameBtn, 'MainScene penguin entry is missing');
-  assert(main[controller.penguinStackGameBtn.__id__], 'MainScene entry button reference is invalid');
+  const main = JSON.parse(fs.readFileSync('assets/gamescene/NewMainScene.scene', 'utf8'));
+  const controller = main.find(item => item?.penguinButton);
+  assert(controller?.penguinButton, 'NewMainScene penguin entry is missing');
+  const button = main[controller.penguinButton.__id__];
+  assert.equal(main[button.node.__id__]._name, 'PenguinStackCard',
+    'NewMainScene penguin button must bind the PenguinStackCard');
 
   const code = fs.readFileSync('assets/scripts/penguinStackFeedGameScene.ts', 'utf8');
   assert(!/new Node\s*\(|addComponent\s*\(|\bGraphics\b/.test(code), 'fixed UI must remain scene-authored');

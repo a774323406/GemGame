@@ -22,6 +22,8 @@ export function frameUuid(name) {
 export const SCENE_UUID = assetUuid('FoodDeliveryFeedGameScene');
 export const SCRIPT_UUID = assetUuid('foodDeliveryFeedGameScene.ts');
 export const SCRIPT_TYPE = compressUuid(SCRIPT_UUID);
+const SHARED_ACTION_BUTTON_FRAME = 'dd5b91d5-aed1-5e36-aefd-d6dc5056eaa3@f9941';
+const FOOD_DELIVERY_TITLE_FRAME = 'a21b33ea-e748-44dd-a2af-092a25be28fa@f9941';
 
 function makeSceneRoot(author) {
   author.add({
@@ -55,8 +57,8 @@ function makeSceneRoot(author) {
 }
 
 function actionButton(author, parent, name, caption, x, y, width = 250) {
-  const node = author.sprite(name, parent, frameUuid('orange-button.png'), {
-    x, y, w: width, h: 92,
+  const node = author.sprite(name, parent, SHARED_ACTION_BUTTON_FRAME, {
+    x, y, w: width, h: 112,
   });
   author.label('Caption', node, caption, {
     w: width - 24,
@@ -71,6 +73,7 @@ function actionButton(author, parent, name, caption, x, y, width = 250) {
 
 export function buildFoodDeliveryScene() {
   const source = JSON.parse(fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'));
+  const juggleSource = JSON.parse(fs.readFileSync('assets/gamescene/JuggleBallGameScene.scene', 'utf8'));
   const author = new SceneAuthor([], 'foodDelivery');
   const objects = author.objects;
   makeSceneRoot(author);
@@ -94,7 +97,7 @@ export function buildFoodDeliveryScene() {
 
   // Safe-area anchored editor nodes. The runtime may inset SafeArea as one unit,
   // but never rewrites the authored child spacing or style.
-  const safeArea = author.node('SafeArea', canvas, { y: 812, w: 750, h: 210, ay: 1 });
+  const safeArea = author.node('SafeArea', canvas, { y: 742, w: 750, h: 210, ay: 1 });
   author.widget(safeArea, 17, { _top: 70 });
   const backNode = author.sprite('BackButton', safeArea, frameUuid('back.png'), {
     x: -319, y: -48, w: 76, h: 76,
@@ -106,12 +109,13 @@ export function buildFoodDeliveryScene() {
   });
 
   const gameplay = author.node('GameplayRoot', canvas, { w: 750, h: 1624 });
-  const starX = [-256, -196, -136, -76, -16];
-  const starOff = starX.map((x, index) => author.sprite(`StarOff${index}`, gameplay, frameUuid('star-off.png'), {
+  const starsRoot = author.node('StarsRoot', gameplay, { w: 0, h: 0 });
+  const starX = [-134.746, -74.746, -14.746, 45.254, 105.254];
+  const starOff = starX.map((x, index) => author.sprite(`StarOff${index}`, starsRoot, frameUuid('star-off.png'), {
     x, y: 574, w: 54, h: 54,
   }));
-  const starOn = starX.map((x, index) => author.sprite(`StarOn${index}`, gameplay, frameUuid('star-on.png'), {
-    x, y: 574, w: 54, h: 54, active: false,
+  const starOn = starOff.map((parent, index) => author.sprite(`StarOn${index}`, parent, frameUuid('star-on.png'), {
+    w: 54, h: 54, active: false,
   }));
 
   const building = author.sprite('Building', gameplay, frameUuid('building.png'), {
@@ -157,18 +161,18 @@ export function buildFoodDeliveryScene() {
     x: -247, y: -229.5, w: 230, h: 241,
   });
   const armPivot = author.node('ArmPivot', gameplay, {
-    x: -218, y: -195, w: 1, h: 1,
+    x: -265, y: -222, w: 1, h: 1,
   });
   author.sprite('ThrowingArm', armPivot, frameUuid('arm.png'), {
-    x: 43, w: 100, h: 44, ax: 0.1,
+    x: 0, y: 0, w: 100, h: 44, ax: 0.08, ay: 0.77,
   });
-  const muzzle = author.node('Muzzle', armPivot, { x: 40, y: 0, w: 1, h: 1 });
+  const muzzle = author.node('Muzzle', armPivot, { x: 86, y: 0, w: 1, h: 1 });
 
   const aimDots = Array.from({ length: 12 }, (_, index) => author.sprite(`AimDot${index}`, armPivot, frameUuid('dot.png'), {
-    x: 72 + index * 24, w: 8, h: 8,
+    x: 118 + index * 24, w: 8, h: 8,
   }));
   const pendingFoods = foods.map((food, index) => author.sprite(`PendingFood${index}`, armPivot, frameUuid(`food-${food}.png`), {
-    x: 40, w: 58, h: 62, active: index === 0,
+    x: 86, w: 58, h: 62, active: index === 0,
   }));
   const flyingFoods = foods.map((food, index) => author.sprite(`FlyingFood${index}`, gameplay, frameUuid(`food-${food}.png`), {
     x: -190, y: -245, w: 58, h: 62, active: false,
@@ -180,42 +184,61 @@ export function buildFoodDeliveryScene() {
   });
   author.opacity(hint.node);
 
-  const resultOverlay = author.node('ResultOverlay', canvas, { w: 750, h: 1624, active: false });
+  const sourceSlowdownId = juggleSource.findIndex(item =>
+    item?.__type__ === 'cc.Node' && item._name === 'SlowdownButton');
+  if (sourceSlowdownId < 0) throw new Error('JuggleBallGameScene SlowdownButton is missing');
+  const slowdown = cloneExternalNodeSubtree(juggleSource, objects, sourceSlowdownId, 'foodDeliverySlowdown');
+  const slowdownNode = objects[slowdown.rootId];
+  slowdownNode._parent = ref(gameplay);
+  slowdownNode._lpos = vec(-280, -570, 0);
+  objects[gameplay]._children.push(ref(slowdown.rootId));
+  const slowdownButton = componentId(objects, slowdown.rootId, 'cc.Button');
+  const slowdownBadge = directChildId(objects, slowdown.rootId, 'AdBadge');
+  objects[slowdownBadge]._name = 'SlowdownAdBadge';
+
+  const chanceLabel = author.label('ChanceLabel', gameplay, '机会 ×3', {
+    x: 185, y: 574, w: 220, h: 58, size: 34,
+    color: rgba(255, 255, 255), outlineColor: rgba(42, 41, 38), outlineWidth: 4,
+  });
+
+  // Keep the result hierarchy visible while authoring. resetRound() hides it
+  // during onLoad, so this does not flash on the first rendered frame.
+  const resultOverlay = author.node('ResultOverlay', canvas, { w: 750, h: 1624, active: true });
   author.component(resultOverlay, 'cc.BlockInputEvents');
-  const dim = author.sprite('ResultDim', resultOverlay, frameUuid('white.png'), {
-    w: 750, h: 1624, color: rgba(3, 44, 75, 190),
+  const mask = author.sprite('Mask', resultOverlay, frameUuid('white.png'), {
+    w: 750, h: 1624, color: rgba(0, 0, 0),
   });
-  author.widget(dim, 45);
-  const panel = author.sprite('ResultPanel', resultOverlay, frameUuid('white.png'), {
-    y: 0, w: 750, h: 1624, color: rgba(10, 105, 121, 170),
-  });
+  author.widget(mask, 45);
+  const maskOpacity = author.opacity(mask);
+  objects[maskOpacity]._opacity = 200;
+  const panel = author.node('ResultPanel', resultOverlay, { y: 0, w: 750, h: 1624 });
   author.widget(panel, 45);
   author.label('ResultGameTitle', panel, '外卖精准投送', {
     y: 318, w: 540, h: 68, size: 45,
-    color: rgba(255, 220, 72), outlineColor: rgba(14, 57, 70), outlineWidth: 4,
+    color: rgba(255, 232, 190), outlineColor: rgba(38, 28, 20), outlineWidth: 4,
   });
   author.sprite('ResultDivider', panel, frameUuid('white.png'), {
     y: 180, w: 360, h: 4, color: rgba(255, 226, 113, 210),
   });
   const successTitle = author.label('SuccessTitle', panel, '挑战成功', {
     y: 238, w: 500, h: 84, size: 56,
-    color: rgba(255, 255, 255), outlineColor: rgba(14, 57, 70), outlineWidth: 4,
+    color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 4,
   });
   const failureTitle = author.label('FailureTitle', panel, '挑战失败', {
     y: 238, w: 500, h: 84, size: 56, active: false,
-    color: rgba(255, 255, 255), outlineColor: rgba(14, 57, 70), outlineWidth: 4,
+    color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 4,
   });
   const successContent = author.node('SuccessContent', panel, { y: 60, w: 560, h: 180 });
   author.label('SuccessMessage', successContent,
     '五份外卖全部送达！\n本次送达：5份', {
       w: 540, h: 130, size: 32, lineHeight: 44, wrap: true,
-      color: rgba(255, 255, 255), outlineColor: rgba(13, 70, 81), outlineWidth: 3,
+      color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 3,
     });
   const failureContent = author.node('FailureContent', panel, { y: 60, w: 560, h: 180, active: false });
   author.label('FailureMessage', failureContent,
     '外卖掉落了，再试一次吧\n本次送达：0份', {
       w: 540, h: 130, size: 32, lineHeight: 44, wrap: true,
-      color: rgba(255, 255, 255), outlineColor: rgba(13, 70, 81), outlineWidth: 3,
+      color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 3,
     });
   const homeButton = actionButton(author, panel, 'HomeButton', '返回主页', 0, -205, 360);
   const retryButton = actionButton(author, panel, 'RetryButton', '重新开始', 0, -325, 360);
@@ -223,6 +246,8 @@ export function buildFoodDeliveryScene() {
 
   author.component(canvas, SCRIPT_TYPE, {
     rotationSpeed: 480,
+    slowdownRatio: 0.72,
+    initialChances: 3,
     speed: 1750,
     gravity: 1600,
     radius: 8,
@@ -241,6 +266,7 @@ export function buildFoodDeliveryScene() {
     failureContent: ref(failureContent),
     successTitle: ref(successTitle.node),
     failureTitle: ref(failureTitle.node),
+    chanceLabel: ref(chanceLabel.component),
     targets: targets.map(ref),
     orderSprites: orderSprites.map(ref),
     checks: checks.map(ref),
@@ -249,6 +275,7 @@ export function buildFoodDeliveryScene() {
     flyingFoods: flyingFoods.map(ref),
     aimDots: aimDots.map(ref),
     backButton: ref(backButton),
+    slowdownButton: ref(slowdownButton),
     homeButton: ref(homeButton),
     retryButton: ref(retryButton),
     nextButton: ref(nextButton),
@@ -306,6 +333,18 @@ function cloneNodeSubtree(objects, rootId, idPrefix = 'foodDelivery') {
   return { rootId: idMap.get(rootId), idMap };
 }
 
+function cloneExternalNodeSubtree(sourceObjects, targetObjects, rootId, idPrefix) {
+  const sourceIds = collectNodeSubtree(sourceObjects, rootId);
+  const idMap = new Map(sourceIds.map((id, offset) => [id, targetObjects.length + offset]));
+  for (const sourceId of sourceIds) {
+    const clone = structuredClone(sourceObjects[sourceId]);
+    remapReferences(clone, idMap);
+    if (typeof clone._id === 'string') clone._id = `${idPrefix}_${idMap.get(sourceId)}`;
+    targetObjects.push(clone);
+  }
+  return { rootId: idMap.get(rootId), idMap };
+}
+
 function setSpriteFrame(objects, nodeId, uuid) {
   const sprite = objects[componentId(objects, nodeId, 'cc.Sprite')];
   sprite._spriteFrame = {
@@ -348,6 +387,9 @@ export function appendFoodDeliveryCard(objects) {
     .map(item => item.__id__)
     .find(id => objects[id]?._name === 'FoodDeliveryCard');
   if (Number.isInteger(existingCardId)) {
+    const titlePlaqueId = directChildId(objects, existingCardId, 'TitlePlaque');
+    setSpriteFrame(objects, titlePlaqueId, FOOD_DELIVERY_TITLE_FRAME);
+    objects[titlePlaqueId]._children = [];
     const existingButtonId = componentId(objects, existingCardId, 'cc.Button');
     controller.foodDeliveryButton = ref(existingButtonId);
     return existingButtonId;
@@ -360,9 +402,6 @@ export function appendFoodDeliveryCard(objects) {
 
   const sourceArtworkMaskId = directChildId(objects, sourceCardId, 'ArtworkMask');
   const sourceArtworkId = directChildId(objects, sourceArtworkMaskId, 'Artwork');
-  const captionDonorId = objects.findIndex(item =>
-    item?.__type__ === 'cc.Node' && item._name === 'Caption' &&
-    Number.isInteger(componentId(objects, objects.indexOf(item), 'cc.Label')));
 
   const index = content._children.length;
   const { rootId: cardId } = cloneNodeSubtree(objects, sourceCardId, 'foodDeliveryCard');
@@ -399,32 +438,8 @@ export function appendFoodDeliveryCard(objects) {
   objects[artworkMaskId]._children.push(ref(order.rootId));
 
   const titlePlaqueId = directChildId(objects, cardId, 'TitlePlaque');
-  setSpriteFrame(objects, titlePlaqueId, 'e625bd7b-cbf1-4b43-9552-b13edb0bc4f4@f9941');
-  const gameName = cloneNodeSubtree(objects, captionDonorId, 'foodDeliveryTitle');
-  const gameNameNode = objects[gameName.rootId];
-  gameNameNode._name = 'GameName';
-  gameNameNode._parent = ref(titlePlaqueId);
-  gameNameNode._children = [];
-  gameNameNode._lpos = vec(0, 0, 0);
-  const titleTransform = objects[componentId(objects, gameName.rootId, 'cc.UITransform')];
-  titleTransform._contentSize.width = 204;
-  titleTransform._contentSize.height = 42;
-  const titleLabel = objects[componentId(objects, gameName.rootId, 'cc.Label')];
-  titleLabel._string = '外卖精准投送';
-  titleLabel._fontSize = 27;
-  titleLabel._lineHeight = 42;
-  titleLabel._horizontalAlign = 1;
-  titleLabel._verticalAlign = 1;
-  titleLabel._color = rgba(255, 251, 241);
-  titleLabel._enableOutline = true;
-  titleLabel._outlineColor = rgba(105, 55, 28);
-  titleLabel._outlineWidth = 4;
-  const titleOutlineId = componentId(objects, gameName.rootId, 'cc.LabelOutline');
-  if (Number.isInteger(titleOutlineId)) {
-    objects[titleOutlineId]._color = rgba(105, 55, 28);
-    objects[titleOutlineId]._width = 4;
-  }
-  objects[titlePlaqueId]._children.push(ref(gameName.rootId));
+  setSpriteFrame(objects, titlePlaqueId, FOOD_DELIVERY_TITLE_FRAME);
+  objects[titlePlaqueId]._children = [];
 
   const contentTransform = objects[componentId(objects, contentId, 'cc.UITransform')];
   const rowCount = Math.ceil((index + 1) / 2);

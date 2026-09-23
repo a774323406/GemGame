@@ -100,7 +100,7 @@ function fixture(feedPreview = false) {
         showInterstitialAd(close, fail, onShown) { shown++; onShown(); director.emit('ad-pause', false); close(); return true; },
         showRewardedVideo() { requests++; return new Promise(resolve => adResolver = resolve); } } };
       if (name.endsWith('GameSceneBundle')) return {
-        GameSceneName: { Main: 'MainScene', Game: 'GameScene', Balloon: 'BalloonWheelFeedGameScene' },
+        GameSceneName: { Main: 'NewMainScene', Game: 'GameScene', Balloon: 'BalloonWheelFeedGameScene' },
         GameSceneBundle: { loadScene: async name => {
           currentScene = { name, isValid: true }; director.emit('scene-launched');
         } },
@@ -249,7 +249,7 @@ async function main() {
   });
   test('returning home and scene destruction preserve the global interstitial queue', async () => {
     const f = fixture(true), g = f.controller(); f.state({ entered: true }); f.advance(10);
-    await g.navigate('MainScene'); g.onDestroy(); f.advance(21.01);
+    await g.navigate('NewMainScene'); g.onDestroy(); f.advance(21.01);
     assert.equal(f.shown(), 1); assert.equal(f.scheduled(), 1);
   });
   test('a new feed session still respects sixty seconds since the previous interstitial', () => {

@@ -180,7 +180,8 @@ async function main() {
     const f = fixture();
     const config = f.load('framework/Platform/FeedRevisitConfig.ts');
     assert.equal(config.FEED_BALLOON_WHEEL_CONTENT_ID, 'CONTENT14816266754');
-    assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'xxx');
+    assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'CONTENT14960528898');
+    assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT15252968962');
     const loader = new (f.load('loadScene.ts').loadScene)();
     const juggle = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)(); juggle.feedMode = true;
     const cases = [
@@ -191,7 +192,8 @@ async function main() {
       ['CONTENT14389313538', 'ShootingGlassBottlesGame'],
       ['CONTENT14816266754', 'BalloonWheelFeedGameScene'],
       ['CONTENT14860954626', 'PenguinStackFeedGameScene'],
-      ['xxx', 'WhiteGooseFeedGameScene'],
+      ['CONTENT14960528898', 'WhiteGooseFeedGameScene'],
+      ['CONTENT15252968962', 'FoodDeliveryFeedGameScene'],
     ];
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene);

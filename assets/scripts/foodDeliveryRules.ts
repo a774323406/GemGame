@@ -44,6 +44,7 @@ export interface Projectile extends Point {
 export type DeliveryEvent =
     | { type: 'delivered'; food: FoodKind; score: number }
     | { type: 'deflected' }
+    | { type: 'missed'; reason: 'guard' | 'ground' | 'outside' | 'timeout'; chancesRemaining: number }
     | { type: 'failed'; reason: 'guard' | 'ground' | 'outside' | 'timeout' }
     | { type: 'won' };
 
@@ -67,6 +68,12 @@ function positive(value: number, field: string): number {
 function nonNegative(value: number, field: string): number {
     finite(value, field);
     if (value < 0) throw new Error(`${field} must be non-negative`);
+    return value;
+}
+
+function positiveInteger(value: number, field: string): number {
+    positive(value, field);
+    if (!Number.isInteger(value)) throw new Error(`${field} must be an integer`);
     return value;
 }
 
@@ -199,11 +206,20 @@ export class FoodDeliveryRound {
     private readonly completedValue = new Set<FoodKind>();
     private projectileValue: Projectile | null = null;
     private accumulatedSeconds = 0;
+    private readonly initialChancesValue: number;
+    private chancesRemainingValue: number;
 
-    public constructor(world: DeliveryWorld, tuning: DeliveryTuning, order?: readonly FoodKind[]) {
+    public constructor(
+        world: DeliveryWorld,
+        tuning: DeliveryTuning,
+        order?: readonly FoodKind[],
+        initialChances = 3,
+    ) {
         this.worldValue = validateWorld(world);
         this.tuningValue = validateTuning(tuning);
         this.orderValue = validatedOrder(order ?? shuffledFoods());
+        this.initialChancesValue = positiveInteger(initialChances, 'initialChances');
+        this.chancesRemainingValue = this.initialChancesValue;
     }
 
     public get phase(): DeliveryPhase {
@@ -228,6 +244,10 @@ export class FoodDeliveryRound {
 
     public get projectile(): Projectile | null {
         return this.projectileValue ? { ...this.projectileValue } : null;
+    }
+
+    public get chancesRemaining(): number {
+        return this.chancesRemainingValue;
     }
 
     public shoot(angleDegrees: number, origin: Point): boolean {
@@ -278,6 +298,7 @@ export class FoodDeliveryRound {
         this.completedValue.clear();
         this.projectileValue = null;
         this.accumulatedSeconds = 0;
+        this.chancesRemainingValue = this.initialChancesValue;
     }
 
     private step(stepSeconds: number): DeliveryEvent[] {
@@ -378,6 +399,13 @@ export class FoodDeliveryRound {
 
     private fail(reason: 'guard' | 'ground' | 'outside' | 'timeout'): DeliveryEvent[] {
         if (this.phaseValue !== 'flying') return [];
+        this.chancesRemainingValue = Math.max(0, this.chancesRemainingValue - 1);
+        this.projectileValue = null;
+        this.accumulatedSeconds = 0;
+        if (this.chancesRemainingValue > 0) {
+            this.phaseValue = 'aiming';
+            return [{ type: 'missed', reason, chancesRemaining: this.chancesRemainingValue }];
+        }
         this.phaseValue = 'failed';
         return [{ type: 'failed', reason }];
     }

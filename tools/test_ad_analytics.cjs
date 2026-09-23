@@ -83,11 +83,12 @@ async function main() {
   test('every current scene reports its gameplay name for both ad types', () => {
     const f = fixture();
     const cases = {
-      MainScene: '拼豆排序', GameScene: '拼豆排序',
+      NewMainScene: '玩法大厅', GameScene: '拼豆排序',
       ShootingGlassBottlesGame: '打瓶子', ArcheryGameScene: '射箭',
-      JuggleBallGameScene: '乒乓球第一关', MilkTeaFeedGameScene: '奶茶',
-      PenRefillFeedGameScene: '插入笔芯', NailHammerFeedGameScene: '砸钉子',
+      JuggleBallGameScene: '乒乓球第一关', NailHammerFeedGameScene: '砸钉子',
       BalloonWheelFeedGameScene: '旋转打气球', PenguinStackFeedGameScene: '企鹅叠叠乐',
+      FoodDeliveryFeedGameScene: '外卖精准投送',
+      WhiteGooseFeedGameScene: '套大鹅',
     };
     const sceneNames = Object.values(f.load('framework/GameSceneBundle.ts').GameSceneName);
     assert.deepEqual(sceneNames.sort(), Object.keys(cases).sort(), 'new scenes need an analytics name');

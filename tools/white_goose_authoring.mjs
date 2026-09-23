@@ -20,6 +20,7 @@ const existingFrame = file => {
   const meta = JSON.parse(fs.readFileSync(`${file}.meta`, 'utf8'));
   return `${meta.uuid}@f9941`;
 };
+const SHARED_ACTION_BUTTON_FRAME = existingFrame('assets/res/penguinStackFeed/action-orange.png');
 
 function makeSceneRoot(author) {
   author.add({
@@ -88,17 +89,14 @@ function skeleton(author, node, skeletonDataUuid, animation, loop = true) {
   });
 }
 
-function actionButton(author, parent, name, caption, x, y, width = 238) {
-  const node = author.sprite(name, parent, existingFrame('assets/res/foodDeliveryFeed/orange-button.png'), {
-    x, y, w: width, h: 78,
+function actionButton(author, parent, name, caption, x, y, width = 360) {
+  const node = author.sprite(name, parent, SHARED_ACTION_BUTTON_FRAME, {
+    x, y, w: width, h: 112,
   });
   author.label('Caption', node, caption, {
-    w: width - 24,
-    h: 54,
-    size: 29,
+    w: width - 24, h: 62, size: 34,
     color: rgba(255, 255, 255),
-    outlineColor: rgba(113, 58, 24),
-    outlineWidth: 3,
+    outlineColor: rgba(117, 57, 20), outlineWidth: 3,
   });
   return button(author, node);
 }
@@ -152,9 +150,9 @@ export function buildWhiteGooseScene() {
       x: sourceX * (750 / 720), y, w: 220, h: 280,
     });
     author.sprite('Shadow', slot, frameUuid('goose-shadow.png'), {
-      y: -4, w: 135, h: 63,
+      y: 0, w: 135, h: 63,
     });
-    const goose = author.node('GooseSkeleton', slot, { y: 58, w: 220, h: 270 });
+    const goose = author.node('GooseSkeleton', slot, { y: 0, w: 220, h: 270 });
     const gooseSkeleton = skeleton(author, goose, assetUuid('taodae.json'), 'zou', true);
     const hitArea = author.node('HitArea', slot, { y: 72, w: 164, h: 238 });
     gooseSlotNodes.push(slot);
@@ -211,48 +209,59 @@ export function buildWhiteGooseScene() {
   });
   const addRingsButton = button(author, addRingsNode);
 
-  const resultOverlay = author.node('ResultOverlay', canvas, { w: 750, h: 1624, active: false });
+  // Keep the result hierarchy visible while authoring. resetRound() hides it
+  // during onLoad, so the first rendered frame remains gameplay-only.
+  const resultOverlay = author.node('ResultOverlay', canvas, { w: 750, h: 1624, active: true });
   author.component(resultOverlay, 'cc.BlockInputEvents');
-  const resultDim = author.sprite('ResultDim', resultOverlay, existingFrame('assets/res/foodDeliveryFeed/white.png'), {
-    w: 750, h: 1624, color: rgba(20, 24, 35, 190),
+  const resultDim = author.sprite('Mask', resultOverlay, existingFrame('assets/res/foodDeliveryFeed/white.png'), {
+    w: 750, h: 1624, color: rgba(0, 0, 0),
   });
   author.widget(resultDim, 45);
-  const resultPanel = author.sprite('ResultPanel', resultOverlay, existingFrame('assets/res/foodDeliveryFeed/white.png'), {
-    y: 10, w: 626, h: 650, color: rgba(255, 247, 214),
+  const resultDimOpacity = author.opacity(resultDim);
+  objects[resultDimOpacity]._opacity = 200;
+  const resultPanel = author.node('ResultPanel', resultOverlay, {
+    w: 750, h: 1624,
   });
-  const successTitle = author.label('SuccessTitle', resultPanel, '全部套中啦！', {
-    y: 244, w: 520, h: 86, size: 52,
-    color: rgba(65, 180, 77), outlineColor: rgba(54, 80, 35), outlineWidth: 4,
+  author.widget(resultPanel, 45);
+  author.label('ResultGameTitle', resultPanel, '套大鹅', {
+    y: 318, w: 540, h: 68, size: 45,
+    color: rgba(255, 232, 190), outlineColor: rgba(38, 28, 20), outlineWidth: 4,
   });
-  const failureTitle = author.label('FailureTitle', resultPanel, '套圈用完啦', {
-    y: 244, w: 520, h: 86, size: 49, active: false,
-    color: rgba(235, 83, 67), outlineColor: rgba(103, 50, 29), outlineWidth: 4,
+  author.sprite('ResultDivider', resultPanel, existingFrame('assets/res/foodDeliveryFeed/white.png'), {
+    y: 180, w: 360, h: 4, color: rgba(255, 226, 113, 210),
+  });
+  const successTitle = author.label('SuccessTitle', resultPanel, '挑战成功', {
+    y: 238, w: 500, h: 84, size: 56,
+    color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 4,
+  });
+  const failureTitle = author.label('FailureTitle', resultPanel, '挑战失败', {
+    y: 238, w: 500, h: 84, size: 56, active: false,
+    color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 4,
   });
   const progressLabel = author.label('ProgressLabel', resultPanel, '已套中 0/7', {
-    y: 132, w: 520, h: 62, size: 34,
-    color: rgba(91, 59, 34), outline: false,
+    y: 88, w: 540, h: 58, size: 34,
+    color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 3,
   });
   const detailLabel = author.label('DetailLabel', resultPanel, '再来一局，看看能不能全部套中！', {
-    y: 70, w: 540, h: 70, size: 27,
-    color: rgba(111, 76, 45), outline: false, wrap: true,
+    y: 24, w: 540, h: 72, size: 29,
+    color: rgba(255, 255, 255), outlineColor: rgba(38, 28, 20), outlineWidth: 3, wrap: true,
   });
-  const successActions = author.node('SuccessActions', resultPanel, { w: 560, h: 180 });
-  const replayButton = actionButton(author, successActions, 'ReplayButton', '再玩一次', -140, -40, 250);
-  const nextButton = actionButton(author, successActions, 'NextButton', '进入拼豆', 140, -40, 250);
-  const failureActions = author.node('FailureActions', resultPanel, { w: 560, h: 180, active: false });
-  const reviveNode = author.sprite('ReviveButton', failureActions, existingFrame('assets/res/foodDeliveryFeed/orange-button.png'), {
-    x: -140, y: -40, w: 250, h: 78,
+  const homeButton = actionButton(author, resultPanel, 'HomeButton', '返回主页', 0, -205);
+  const successActions = author.node('SuccessActions', resultPanel, { w: 560, h: 620 });
+  const replayButton = actionButton(author, successActions, 'ReplayButton', '再玩一次', 0, -325);
+  const failureActions = author.node('FailureActions', resultPanel, { w: 560, h: 620, active: false });
+  const reviveNode = author.sprite('ReviveButton', failureActions, SHARED_ACTION_BUTTON_FRAME, {
+    x: 0, y: -325, w: 360, h: 112,
   });
   author.sprite('AdBadge', reviveNode, existingFrame('assets/res/texture/UIs/ad_badge_cartoon_red.png'), {
-    x: -87, w: 46, h: 46,
+    x: -126, w: 46, h: 46,
   });
   author.label('Caption', reviveNode, '加套圈', {
-    x: 18, w: 150, h: 54, size: 29,
-    color: rgba(255, 255, 255), outlineColor: rgba(113, 58, 24), outlineWidth: 3,
+    x: 18, w: 248, h: 62, size: 34,
+    color: rgba(255, 255, 255), outlineColor: rgba(117, 57, 20), outlineWidth: 3,
   });
   const reviveButton = button(author, reviveNode);
-  const restartButton = actionButton(author, failureActions, 'RestartButton', '重新开始', 140, -40, 250);
-  const homeButton = actionButton(author, resultPanel, 'HomeButton', '返回首页', 0, -220, 290);
+  const restartButton = actionButton(author, failureActions, 'RestartButton', '重新开始', 0, -445);
 
   author.component(canvas, SCRIPT_TYPE, {
     sceneBackground: ref(background),
@@ -278,7 +287,6 @@ export function buildWhiteGooseScene() {
     sceneSuccessActions: ref(successActions),
     sceneFailureActions: ref(failureActions),
     sceneReplayButton: ref(replayButton),
-    sceneNextButton: ref(nextButton),
     sceneRestartButton: ref(restartButton),
     sceneHomeButton: ref(homeButton),
     sceneReviveButton: ref(reviveButton),

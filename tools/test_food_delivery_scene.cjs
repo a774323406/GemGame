@@ -6,6 +6,7 @@ const ts = require('/Applications/Cocos/Creator/3.8.5/CocosCreator.app/Contents/
 const sharp = require('/Users/skyhand/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');
 
 async function main() {
+  const sharedActionButtonFrame = 'dd5b91d5-aed1-5e36-aefd-d6dc5056eaa3@f9941';
   const {
     assetUuid,
     frameUuid,
@@ -32,11 +33,12 @@ async function main() {
     .find((entry) => entry.__type__ === type);
 
   for (const name of [
-    'Background', 'SafeArea', 'GameplayRoot', 'Title', 'Courier', 'ArmPivot', 'Muzzle',
+    'Background', 'SafeArea', 'GameplayRoot', 'Title', 'Courier', 'ArmPivot', 'ThrowingArm', 'Muzzle',
     'Guard', 'GuardHitArea', 'WallHitArea', 'GroundMarker', 'Building', 'ResultOverlay',
-    'ResultGameTitle', 'SuccessContent', 'FailureContent', 'SuccessTitle', 'FailureTitle',
+    'Mask', 'ResultPanel', 'ResultGameTitle', 'SuccessContent', 'FailureContent', 'SuccessTitle', 'FailureTitle',
     'SuccessMessage', 'FailureMessage',
-    'BackButton', 'HomeButton', 'RetryButton', 'NextButton',
+    'BackButton', 'SlowdownButton', 'SlowdownAdBadge', 'ChanceLabel',
+    'HomeButton', 'RetryButton', 'NextButton',
   ]) assert(byName(name), `${name} must be authored in the scene`);
 
   for (let index = 0; index < 5; index += 1) {
@@ -46,14 +48,23 @@ async function main() {
   }
   for (let index = 0; index < 12; index += 1) assert(byName(`AimDot${index}`));
 
-  assert.equal(byName('ResultOverlay')._active, false);
+  assert.equal(byName('ResultOverlay')._active, true,
+    'the authored result UI should stay visible and directly editable in Creator; runtime hides it on reset');
   assert.equal(byName('SuccessContent')._active, true);
   assert.equal(byName('FailureContent')._active, false);
   assert.equal(byName('ResultStar'), undefined, 'the redesigned result page must not reuse the old bright star card');
   assert.equal(component(byName('ResultOverlay'), 'cc.BlockInputEvents') !== undefined, true);
-  for (const name of ['BackButton', 'HomeButton', 'RetryButton', 'NextButton']) {
+  for (const name of ['BackButton', 'SlowdownButton', 'HomeButton', 'RetryButton', 'NextButton']) {
     assert(component(byName(name), 'cc.Button'), `${name} needs a serialized Button`);
   }
+  assert.equal(component(byName('SlowdownButton'), 'cc.Sprite')._spriteFrame.__uuid__,
+    'f534c6c1-3eab-4e30-ba18-c59559e13744@f9941',
+    'the slowdown control must reuse the established gameplay artwork');
+  assert.equal(component(byName('SlowdownAdBadge'), 'cc.Sprite')._spriteFrame.__uuid__,
+    'cf633ac8-e94b-4433-a837-05cc338157cd@f9941',
+    'the slowdown control must copy the current JuggleBall ad badge');
+  assert.equal(component(byName('SlowdownAdBadge'), 'cc.UIOpacity')._opacity, 250);
+  assert.equal(component(byName('ChanceLabel'), 'cc.Label')._string, '机会 ×3');
   for (const name of ['GuardHitArea', 'WallHitArea', 'GroundMarker', ...Array.from({ length: 5 }, (_, i) => `TargetHitArea${i}`)]) {
     assert.equal(component(byName(name), 'cc.Sprite'), undefined, `${name} must stay invisible`);
   }
@@ -73,6 +84,25 @@ async function main() {
     'the result page should be full-screen instead of a centered rectangular popup');
   assert(component(byName('ResultPanel'), 'cc.Widget'),
     'the full-screen result background must continue covering short and tall screens');
+  assert.equal(component(byName('ResultPanel'), 'cc.Sprite'), undefined,
+    'ResultPanel is layout content only; the dim background belongs to Mask');
+  const mask = byName('Mask');
+  assert.equal(scene[mask._parent.__id__]._name, 'ResultOverlay');
+  const maskSprite = component(mask, 'cc.Sprite');
+  assert.deepEqual(maskSprite._color, { __type__: 'cc.Color', r: 0, g: 0, b: 0, a: 255 },
+    'Mask image must remain fully black and opaque before node opacity is applied');
+  assert.equal(maskSprite._spriteFrame.__uuid__, frameUuid('white.png'));
+  assert.equal(component(mask, 'cc.UIOpacity')._opacity, 200,
+    'Mask transparency must be authored with UIOpacity');
+  assert(component(mask, 'cc.Widget'), 'Mask must cover every supported aspect ratio');
+
+  for (const name of ['ResultGameTitle', 'SuccessTitle', 'FailureTitle', 'SuccessMessage', 'FailureMessage']) {
+    const label = component(byName(name), 'cc.Label');
+    assert(label._color.r >= 245 && label._color.g >= 220 && label._color.b >= 180,
+      `${name} must remain high-contrast on the black result mask`);
+    assert(label._outlineColor.r <= 55 && label._outlineColor.g <= 45 && label._outlineColor.b <= 35,
+      `${name} should use a neutral dark outline instead of the old blue-green outline`);
+  }
   const buttonPosition = (name) => byName(name)._lpos;
   assert.equal(buttonPosition('HomeButton').x, 0);
   assert.equal(buttonPosition('RetryButton').x, 0);
@@ -81,6 +111,13 @@ async function main() {
     'retry and next should occupy the same second-row slot for their respective phases');
   assert(buttonPosition('HomeButton').y > buttonPosition('RetryButton').y,
     'result actions must be a vertical stack with home above the phase-specific action');
+  for (const name of ['HomeButton', 'RetryButton', 'NextButton']) {
+    assert.equal(component(byName(name), 'cc.Sprite')._spriteFrame.__uuid__, sharedActionButtonFrame,
+      `${name} must reuse the established light-orange white-outline result button`);
+    const buttonSize = component(byName(name), 'cc.UITransform')._contentSize;
+    assert.deepEqual([buttonSize.width, buttonSize.height], [360, 112],
+      `${name} should preserve the reference button proportions instead of looking flattened`);
+  }
 
   for (let index = 0; index < 5; index += 1) {
     assert.equal(scene[byName(`TargetHitArea${index}`)._parent.__id__]._name, `Order${index}`,
@@ -92,14 +129,29 @@ async function main() {
     'moving the guard in the editor must move its hit area');
   assert.equal(scene[byName('WallHitArea')._parent.__id__]._name, 'Building',
     'moving the building in the editor must move its wall hit area');
-  assert.equal(byName('PendingFood0')._parent.__id__, nodeId('ArmPivot'));
-  assert.equal(byName('PendingFood0')._lpos.x, byName('Muzzle')._lpos.x,
-    'held food and projectile origin must share the same hand position');
-  assert.equal(byName('PendingFood0')._lpos.y, byName('Muzzle')._lpos.y);
+  const courierPosition = byName('Courier')._lpos;
+  const armPosition = byName('ArmPivot')._lpos;
+  assert(Math.abs(armPosition.x - (courierPosition.x - 18)) <= 2,
+    'the arm pivot must sit on the courier shoulder horizontally');
+  assert(Math.abs(armPosition.y - (courierPosition.y + 7.5)) <= 2,
+    'the arm pivot must sit on the courier shoulder vertically');
+  const armTransform = component(byName('ThrowingArm'), 'cc.UITransform');
+  assert.deepEqual([byName('ThrowingArm')._lpos.x, byName('ThrowingArm')._lpos.y], [0, 0]);
+  assert(Math.abs(armTransform._anchorPoint.x - 0.08) < 0.001);
+  assert(Math.abs(armTransform._anchorPoint.y - 0.77) < 0.001,
+    'the artwork must rotate from the printed shoulder joint');
+  for (let index = 0; index < 5; index += 1) {
+    assert.equal(byName(`PendingFood${index}`)._parent.__id__, nodeId('ArmPivot'));
+    assert.equal(byName(`PendingFood${index}`)._lpos.x, byName('Muzzle')._lpos.x,
+      'held food and projectile origin must share the same hand position');
+    assert.equal(byName(`PendingFood${index}`)._lpos.y, byName('Muzzle')._lpos.y);
+  }
 
   const controller = scene.find((object) => object.__type__ === SCRIPT_TYPE);
   assert(controller, 'serialized controller component must exist');
   assert.equal(controller.rotationSpeed, 480);
+  assert.equal(controller.slowdownRatio, 0.72);
+  assert.equal(controller.initialChances, 3);
   assert.equal(controller.speed, 1750);
   assert.equal(controller.gravity, 1600);
   assert.equal(controller.radius, 8);
@@ -111,6 +163,8 @@ async function main() {
   assert.equal(controller.pendingFoods.length, 5);
   assert.equal(controller.flyingFoods.length, 5);
   assert.equal(controller.aimDots.length, 12);
+  assert.equal(scene[controller.slowdownButton.__id__].__type__, 'cc.Button');
+  assert.equal(scene[controller.chanceLabel.__id__].__type__, 'cc.Label');
 
   for (const object of scene) {
     visitReferences(object, scene.length);
@@ -188,7 +242,9 @@ async function main() {
 
   const scenePath = 'assets/gamescene/FoodDeliveryFeedGameScene.scene';
   assert(fs.existsSync(scenePath), `${scenePath} is missing`);
-  assert.deepEqual(JSON.parse(fs.readFileSync(scenePath, 'utf8')), scene, 'disk scene must match the authoring result');
+  const diskScene = JSON.parse(fs.readFileSync(scenePath, 'utf8'));
+  assert.deepEqual(sceneContract(diskScene), sceneContract(scene),
+    'disk scene must preserve the authored gameplay and result-UI contract without depending on Creator object order');
   const sceneMeta = JSON.parse(fs.readFileSync(`${scenePath}.meta`, 'utf8'));
   assert.equal(sceneMeta.uuid, SCENE_UUID);
   const scriptMeta = JSON.parse(fs.readFileSync('assets/scripts/foodDeliveryFeedGameScene.ts.meta', 'utf8'));
@@ -196,9 +252,56 @@ async function main() {
   const controllerSource = fs.readFileSync('assets/scripts/foodDeliveryFeedGameScene.ts', 'utf8');
   assert(!/new\s+Node\s*\(/.test(controllerSource), 'controller must not construct fixed UI nodes');
   assert(!/spriteFrame\s*=/.test(controllerSource), 'controller must not overwrite editor SpriteFrames');
-  assert(!/\.string\s*=/.test(controllerSource), 'controller must not overwrite editor label text');
+  const staticLabelWrites = controllerSource.replace(/this\.chanceLabel\.string\s*=/g, '');
+  assert(!/\.string\s*=/.test(staticLabelWrites),
+    'controller may update the live chance counter but must not overwrite editor-authored static labels');
 
   console.log(`Food delivery scene authoring tests passed (${scene.length} serialized objects)`);
+}
+
+function sceneContract(scene) {
+  const node = (name) => scene.find((object) => object?.__type__ === 'cc.Node' && object._name === name);
+  const component = (name, type) => (node(name)?._components || [])
+    .map((entry) => scene[entry.__id__])
+    .find((entry) => entry?.__type__ === type);
+  const nodeState = (name) => {
+    const value = node(name);
+    return {
+      active: value?._active,
+      parent: scene[value?._parent?.__id__]?._name,
+      position: value?._lpos,
+      size: component(name, 'cc.UITransform')?._contentSize,
+      anchor: component(name, 'cc.UITransform')?._anchorPoint,
+      frame: component(name, 'cc.Sprite')?._spriteFrame?.__uuid__,
+      spriteColor: component(name, 'cc.Sprite')?._color,
+      opacity: component(name, 'cc.UIOpacity')?._opacity,
+      labelColor: component(name, 'cc.Label')?._color,
+      labelOutline: component(name, 'cc.Label')?._outlineColor,
+      labelText: component(name, 'cc.Label')?._string,
+      hasWidget: !!component(name, 'cc.Widget'),
+      hasSprite: !!component(name, 'cc.Sprite'),
+    };
+  };
+  const names = [
+    'SafeArea', 'Courier', 'ArmPivot', 'ThrowingArm', 'Muzzle',
+    ...Array.from({ length: 12 }, (_, index) => `AimDot${index}`),
+    ...Array.from({ length: 5 }, (_, index) => `PendingFood${index}`),
+    'ResultOverlay', 'Mask', 'ResultPanel', 'ResultGameTitle',
+    'SuccessTitle', 'FailureTitle', 'SuccessMessage', 'FailureMessage',
+    'HomeButton', 'RetryButton', 'NextButton',
+    'SlowdownButton', 'SlowdownAdBadge', 'ChanceLabel',
+  ];
+  const controller = scene.find((object) => object?.rotationSpeed === 480 && object?.pendingFoods?.length === 5);
+  return {
+    nodes: Object.fromEntries(names.map((name) => [name, nodeState(name)])),
+    tuning: controller && {
+      rotationSpeed: controller.rotationSpeed,
+      speed: controller.speed,
+      gravity: controller.gravity,
+      radius: controller.radius,
+      maxFlightSeconds: controller.maxFlightSeconds,
+    },
+  };
 }
 
 function loadRules() {

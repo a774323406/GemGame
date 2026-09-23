@@ -60,6 +60,7 @@ type GooseState = {
   direction: -1 | 1;
   walkRemaining: number;
   baseX: number;
+  motionLocked: boolean;
 };
 
 type ScenePhase = "preview" | "playing" | "throwing" | "result" | "leaving";
@@ -136,9 +137,6 @@ export class whiteGooseFeedGameScene extends Component {
   public sceneReplayButton: Button | null = null;
 
   @property(Button)
-  public sceneNextButton: Button | null = null;
-
-  @property(Button)
   public sceneRestartButton: Button | null = null;
 
   @property(Button)
@@ -190,7 +188,7 @@ export class whiteGooseFeedGameScene extends Component {
   }
 
   protected update(deltaTime: number): void {
-    if (this.phase !== "playing" || this.adInFlight || this.feedExited) return;
+    if ((this.phase !== "playing" && this.phase !== "throwing") || this.adInFlight || this.feedExited) return;
     this.updateGooseMotion(Math.min(0.04, Math.max(0, deltaTime)));
   }
 
@@ -207,7 +205,10 @@ export class whiteGooseFeedGameScene extends Component {
     input.off(Input.EventType.TOUCH_START, this.onGlobalTouchStart, this);
     game.off(Game.EVENT_HIDE, this.onGameHide, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
-    this.sceneFieldTouchArea?.off(Node.EventType.TOUCH_START, this.onFieldTouch, this);
+    const fieldTouchArea = this.sceneFieldTouchArea;
+    if (fieldTouchArea?.isValid) {
+      fieldTouchArea.off(Node.EventType.TOUCH_START, this.onFieldTouch, this);
+    }
     for (let index = 0; index < this.gooseStates.length; index += 1) {
       const state = this.gooseStates[index];
       const handler = this.gooseTouchHandlers[index];
@@ -215,13 +216,18 @@ export class whiteGooseFeedGameScene extends Component {
         state.hitArea.off(Node.EventType.TOUCH_START, handler, this);
       }
     }
-    this.sceneBackButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneAddRingsButton?.node?.off(Button.EventType.CLICK, this.onAddRingsPressed, this);
-    this.sceneReplayButton?.node?.off(Button.EventType.CLICK, this.onReplayPressed, this);
-    this.sceneNextButton?.node?.off(Button.EventType.CLICK, this.goToMainGame, this);
-    this.sceneRestartButton?.node?.off(Button.EventType.CLICK, this.onReplayPressed, this);
-    this.sceneHomeButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneReviveButton?.node?.off(Button.EventType.CLICK, this.onRevivePressed, this);
+    const backNode = this.sceneBackButton?.node;
+    const addRingsNode = this.sceneAddRingsButton?.node;
+    const replayNode = this.sceneReplayButton?.node;
+    const restartNode = this.sceneRestartButton?.node;
+    const homeNode = this.sceneHomeButton?.node;
+    const reviveNode = this.sceneReviveButton?.node;
+    if (backNode?.isValid) backNode.off(Button.EventType.CLICK, this.returnToMain, this);
+    if (addRingsNode?.isValid) addRingsNode.off(Button.EventType.CLICK, this.onAddRingsPressed, this);
+    if (replayNode?.isValid) replayNode.off(Button.EventType.CLICK, this.onReplayPressed, this);
+    if (restartNode?.isValid) restartNode.off(Button.EventType.CLICK, this.onReplayPressed, this);
+    if (homeNode?.isValid) homeNode.off(Button.EventType.CLICK, this.returnToMain, this);
+    if (reviveNode?.isValid) reviveNode.off(Button.EventType.CLICK, this.onRevivePressed, this);
     this.stopSceneTweensAndSpineListeners();
   }
 
@@ -247,7 +253,6 @@ export class whiteGooseFeedGameScene extends Component {
       ["sceneSuccessActions", this.sceneSuccessActions],
       ["sceneFailureActions", this.sceneFailureActions],
       ["sceneReplayButton", this.sceneReplayButton],
-      ["sceneNextButton", this.sceneNextButton],
       ["sceneRestartButton", this.sceneRestartButton],
       ["sceneHomeButton", this.sceneHomeButton],
       ["sceneReviveButton", this.sceneReviveButton],
@@ -273,6 +278,7 @@ export class whiteGooseFeedGameScene extends Component {
       direction: 1 as const,
       walkRemaining: 0,
       baseX: slots[index].position.x,
+      motionLocked: false,
     }));
   }
 
@@ -289,7 +295,6 @@ export class whiteGooseFeedGameScene extends Component {
     this.sceneBackButton.node.on(Button.EventType.CLICK, this.returnToMain, this);
     this.sceneAddRingsButton.node.on(Button.EventType.CLICK, this.onAddRingsPressed, this);
     this.sceneReplayButton.node.on(Button.EventType.CLICK, this.onReplayPressed, this);
-    this.sceneNextButton.node.on(Button.EventType.CLICK, this.goToMainGame, this);
     this.sceneRestartButton.node.on(Button.EventType.CLICK, this.onReplayPressed, this);
     this.sceneHomeButton.node.on(Button.EventType.CLICK, this.returnToMain, this);
     this.sceneReviveButton.node.on(Button.EventType.CLICK, this.onRevivePressed, this);
@@ -321,6 +326,7 @@ export class whiteGooseFeedGameScene extends Component {
       goose.active = active;
       goose.walking = true;
       goose.pose = "s1";
+      goose.motionLocked = false;
       goose.direction = Math.random() < 0.5 ? -1 : 1;
       goose.walkRemaining = 3 + Math.random() * 2;
       if (!goose.slot?.isValid) continue;
@@ -340,7 +346,7 @@ export class whiteGooseFeedGameScene extends Component {
 
   private updateGooseMotion(deltaTime: number): void {
     for (const goose of this.gooseStates) {
-      if (!goose.active || !goose.slot?.isValid) continue;
+      if (!goose.active || goose.motionLocked || !goose.slot?.isValid) continue;
       goose.walkRemaining -= deltaTime;
       if (goose.walking) {
         let x = goose.slot.position.x + goose.direction * GOOSE_WALK_SPEED * deltaTime;
@@ -375,9 +381,7 @@ export class whiteGooseFeedGameScene extends Component {
     goose.walking = false;
     goose.pose = poses[Math.floor(Math.random() * poses.length)];
     goose.walkRemaining = 2.6 + Math.random() * 2.2;
-    const animation = goose.pose === "s1" || Math.random() >= 0.35
-      ? goose.pose
-      : `${goose.pose}_duo`;
+    const animation = goose.pose;
     try {
       goose.skeleton.setCompleteListener(null);
       goose.skeleton.setAnimation(0, animation, true);
@@ -506,6 +510,7 @@ export class whiteGooseFeedGameScene extends Component {
   }
 
   private playCaughtAnimation(goose: GooseState, ringColor: number, serial: number): void {
+    goose.motionLocked = true;
     let completed = false;
     const finish = (): void => {
       if (completed) return;
@@ -533,14 +538,17 @@ export class whiteGooseFeedGameScene extends Component {
   private playDodgeAnimation(goose: GooseState | null, serial: number): void {
     if (!goose?.active || goose.walking || goose.pose === "s1") return;
     const dodge = `${goose.pose}_duo`;
+    goose.motionLocked = true;
     try {
       goose.skeleton.setAnimation(0, dodge, false);
       goose.skeleton.setCompleteListener((entry) => {
         if (!this.isCurrentRound(serial) || (entry?.animation?.name ?? "") !== dodge) return;
         goose.skeleton.setCompleteListener(null);
+        goose.motionLocked = false;
         if (goose.active) goose.skeleton.setAnimation(0, goose.pose, true);
       });
     } catch {
+      goose.motionLocked = false;
       // 缺失闪避动画时保持当前姿势，不影响回合继续。
     }
   }
@@ -584,7 +592,6 @@ export class whiteGooseFeedGameScene extends Component {
       this.sceneAddRingsButton.interactable = enabled && this.phase === "playing";
     }
     if (this.sceneReplayButton?.node?.isValid) this.sceneReplayButton.interactable = enabled;
-    if (this.sceneNextButton?.node?.isValid) this.sceneNextButton.interactable = enabled;
     if (this.sceneRestartButton?.node?.isValid) this.sceneRestartButton.interactable = enabled;
     if (this.sceneHomeButton?.node?.isValid) this.sceneHomeButton.interactable = enabled;
     if (this.sceneReviveButton?.node?.isValid) {
@@ -665,19 +672,6 @@ export class whiteGooseFeedGameScene extends Component {
   private onReplayPressed = (): void => {
     if (this.adInFlight || this.phase === "leaving") return;
     this.resetRound(true);
-  };
-
-  private goToMainGame = (): void => {
-    if (this.adInFlight || this.round.snapshot.status !== "won" || this.phase !== "result") return;
-    this.phase = "leaving";
-    this.finishFeedExperience();
-    AudioManager.playDefaultBgm();
-    void GameSceneBundle.loadScene(GameSceneName.Game).catch((error) => {
-      console.error("[whiteGooseFeedGameScene] 进入拼豆失败", error);
-      if (!this.node?.isValid) return;
-      this.phase = "result";
-      this.refreshHud();
-    });
   };
 
   private returnToMain = (): void => {

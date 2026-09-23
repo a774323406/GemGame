@@ -25,11 +25,11 @@ export const FEED_BALLOON_WHEEL_CONTENT_ID = "CONTENT14816266754";
 /** 企鹅叠叠乐推荐流方案，直接进入 PenguinStackFeedGameScene。 */
 export const FEED_PENGUIN_STACK_CONTENT_ID = "CONTENT14860954626";
 
-/** 外卖精准投送推荐流方案；后台尚未配置时保持为空。 */
-export const FEED_FOOD_DELIVERY_CONTENT_ID = "";
+/** 外卖精准投送推荐流方案，直接进入 FoodDeliveryFeedGameScene。 */
+export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT15252968962";
 
-/** 套大鹅推荐流方案；后台正式 ID 创建前使用用户指定的临时值。 */
-export const FEED_WHITE_GOOSE_CONTENT_ID = "xxx";
+/** 套大鹅推荐流方案，直接进入 WhiteGooseFeedGameScene。 */
+export const FEED_WHITE_GOOSE_CONTENT_ID = "CONTENT14960528898";
 
 /** 复访方案已在抖音后台下线：暂停订阅、排期上报与奖励；获客直玩不受影响。 */
 export const FEED_REVISIT_ENABLED = false;

@@ -147,7 +147,7 @@
         "_value": false
       },
       "spine": {
-        "_value": false,
+        "_value": true,
         "_flags": {
           "spine": {
             "LOAD_SPINE_MANUALLY": false
@@ -188,6 +188,7 @@
       "gfx-webgl",
       "intersection-2d",
       "particle-2d",
+      "spine",
       "tween",
       "ui"
     ],
@@ -195,6 +196,8 @@
       "value": false,
       "version": ""
     },
-    "flags": {}
+    "flags": {
+      "LOAD_SPINE_MANUALLY": false
+    }
   }
 }

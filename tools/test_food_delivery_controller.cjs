@@ -104,11 +104,15 @@ class Button {
   constructor(node) { this.node = node; this.interactable = true; }
 }
 
+class Label {
+  constructor(node, value = '') { this.node = node; this.string = value; }
+}
+
 class Component {
   unscheduleAllCallbacks() {}
 }
 
-function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
+function fixture({ state: stateOverride = {}, loadSceneError = null, rewardedResults = [true] } = {}) {
   let now = 1000;
   let state = {
     active: true, mode: 'acquisition', entered: false, exited: false,
@@ -120,6 +124,7 @@ function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
   const ads = [];
   const loads = [];
   const readyReports = [];
+  const rewardedCalls = [];
   const input = new Emitter();
   const gameEvents = new Emitter();
   const viewEvents = new Emitter();
@@ -132,7 +137,7 @@ function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
   });
   const cc = {
     _decorator: { ccclass: () => (type) => type, property: () => () => {} },
-    Button, Component, EventTouch: class {}, Game: { EVENT_HIDE: 'hide', EVENT_SHOW: 'show' },
+    Button, Component, EventTouch: class {}, Game: { EVENT_HIDE: 'hide', EVENT_SHOW: 'show' }, Label,
     Node, ResolutionPolicy: { FIXED_WIDTH: 1 }, UITransform, Vec2, Vec3,
     input, Input: { EventType: { TOUCH_START: 'touch-start' } }, game: gameEvents,
     view: viewEvents,
@@ -162,7 +167,14 @@ function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
     pauseBgmForVideo() { audio.push('pause'); },
     playEffect(name) { audio.push(`effect:${name}`); },
   };
-  const sdk = { isRewardedVideoBusy: () => false };
+  const rewardQueue = [...rewardedResults];
+  const sdk = {
+    isRewardedVideoBusy: () => false,
+    async showRewardedVideo() {
+      rewardedCalls.push('show');
+      return rewardQueue.length > 0 ? rewardQueue.shift() : false;
+    },
+  };
   const soundName = {
     getUserBgm: 'getUserBgm', archeryShoot: 'archeryShoot', up: 'up', fail: 'fail', buttonClick: 'buttonClick',
   };
@@ -247,6 +259,9 @@ function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
     return new Button(node);
   }
   const backButton = button('BackButton', -319, 764, 76, 76);
+  const slowdownButton = button('SlowdownButton', -280, -570, 112, 112);
+  const chanceLabelNode = new Node('ChanceLabel', gameplay, 185, 574, 220, 58);
+  const chanceLabel = new Label(chanceLabelNode, '机会 ×3');
   const homeButton = button('HomeButton', -145, -176, 270, 82, resultOverlay);
   const retryButton = button('RetryButton', 0, -66, 330, 82, resultOverlay);
   const nextButton = button('NextButton', 145, -176, 270, 82, resultOverlay);
@@ -256,10 +271,11 @@ function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
   Object.assign(controller, {
     node: canvas, background, gameplayRoot: gameplay, courier, armPivot, muzzle, guard,
     guardHitArea, wallHitArea, groundMarker, resultOverlay, successContent, failureContent,
-    successTitle, failureTitle,
+    successTitle, failureTitle, chanceLabel,
     targets, orderSprites, checks, stars, pendingFoods, flyingFoods, aimDots,
-    backButton, homeButton, retryButton, nextButton,
-    rotationSpeed: 480, speed: 1750, gravity: 1600, radius: 8, maxFlightSeconds: 4,
+    backButton, slowdownButton, homeButton, retryButton, nextButton,
+    rotationSpeed: 480, slowdownRatio: 0.72, initialChances: 3,
+    speed: 1750, gravity: 1600, radius: 8, maxFlightSeconds: 4,
   });
   return {
     game: controller,
@@ -268,6 +284,7 @@ function fixture({ state: stateOverride = {}, loadSceneError = null } = {}) {
     ads,
     loads,
     readyReports,
+    rewardedCalls,
     input,
     gameEvents,
     nativeHandlers,
@@ -294,6 +311,10 @@ function touch(x = 600, y = 800) {
     getUILocation: () => new Vec2(x, y),
     windowId: 0,
   };
+}
+
+async function flushAsyncButton() {
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 function findHitAngle(food) {
@@ -392,6 +413,7 @@ function loadRules() {
 {
   const f = fixture({ state: { active: true, entered: true } });
   f.game.onLoad(); f.game.start();
+  f.game.armPivot.angle = -90;
   f.clock.set(2500);
   f.nativeHandlers.start({ touches: [{ identifier: 7, clientX: 600, clientY: 800 }] });
   f.game.onTouchStart(touch(600, 824));
@@ -403,6 +425,10 @@ function loadRules() {
   assert.deepEqual({ ...f.game.round.projectile }, { ...before }, 'background must not advance physics');
   f.game.onShow();
   assert(f.audio.includes('restart:getUserBgm'));
+  for (let frame = 0; frame < 300 && f.game.round.phase === 'flying'; frame += 1) f.game.update(1 / 60);
+  assert.equal(f.game.round.phase, 'aiming');
+  assert.equal(f.game.slowdownButton.interactable, true,
+    'returning to aiming after a missed throw must re-enable the slowdown button');
 }
 
 {
@@ -420,6 +446,7 @@ function loadRules() {
 {
   const f = fixture({ state: { active: false, entered: true } });
   f.game.onLoad(); f.game.start();
+  assert.equal(f.game.chanceLabel.string, '机会 ×3');
   const initialOrder = [...f.game.round.order];
   for (let delivery = 0; delivery < 5; delivery += 1) {
     const food = f.game.round.currentFood;
@@ -455,6 +482,13 @@ function loadRules() {
 {
   const f = fixture({ state: { active: false, entered: true } });
   f.game.onLoad(); f.game.start();
+  for (const expected of [2, 1]) {
+    f.game.round.shoot(-90, { x: -190, y: -245 });
+    for (let frame = 0; frame < 300 && f.game.round.phase === 'flying'; frame += 1) f.game.update(1 / 60);
+    assert.equal(f.game.round.phase, 'aiming');
+    assert.equal(f.game.chanceLabel.string, `机会 ×${expected}`);
+    assert.equal(f.game.resultOverlay.active, false);
+  }
   f.game.round.shoot(-90, { x: -190, y: -245 });
   for (let frame = 0; frame < 300 && f.game.round.phase === 'flying'; frame += 1) f.game.update(1 / 60);
   f.game.update(0.1); f.game.update(0.1); f.game.update(0.1);
@@ -470,7 +504,7 @@ function loadRules() {
 {
   const f = fixture({ state: { active: true, entered: true } });
   f.game.onLoad(); f.game.start();
-  for (const button of [f.game.backButton, f.game.homeButton, f.game.retryButton, f.game.nextButton]) button.node.isValid = false;
+  for (const button of [f.game.backButton, f.game.slowdownButton, f.game.homeButton, f.game.retryButton, f.game.nextButton]) button.node.isValid = false;
   f.game.node.isValid = false;
   assert.doesNotThrow(() => f.game.onDestroy());
   assert.equal(f.nativeHandlers.start, undefined);
@@ -490,6 +524,56 @@ function loadRules() {
 }
 
 (async () => {
+  {
+    const f = fixture({ state: { active: true, entered: false }, rewardedResults: [true] });
+    f.game.onLoad(); f.game.start();
+    assert.equal(f.game.slowdownButton.interactable, true,
+      'the slowdown button must remain pressable while the recommendation feed is awaiting its first gesture');
+    f.game.slowdownButton.node.emit(Button.EventType.CLICK);
+    await flushAsyncButton();
+    assert.equal(f.feed.getState().entered, true,
+      'the first feed touch on the slowdown button must activate real interaction');
+    assert.equal(f.rewardedCalls.length, 1,
+      'the slowdown button must work when it is the first interaction from recommendation feed');
+    f.game.onDestroy();
+  }
+
+  {
+    const f = fixture({ state: { active: false, entered: true }, rewardedResults: [true, true] });
+    f.game.onLoad(); f.game.start();
+    const beforeFirst = f.game.armPivot.angle;
+    f.game.slowdownButton.node.emit(Button.EventType.CLICK);
+    await flushAsyncButton();
+    assert.equal(f.rewardedCalls.length, 1);
+    f.game.update(0.1);
+    const firstDelta = (f.game.armPivot.angle - beforeFirst + 360) % 360;
+    assert(Math.abs(firstDelta - 34.56) < 1e-9,
+      'a completed rewarded ad must reduce the visible arm rotation speed by 28%');
+
+    const beforeSecond = f.game.armPivot.angle;
+    f.game.slowdownButton.node.emit(Button.EventType.CLICK);
+    await flushAsyncButton();
+    f.game.update(0.1);
+    const secondDelta = (f.game.armPivot.angle - beforeSecond + 360) % 360;
+    assert(Math.abs(secondDelta - 24.8832) < 1e-9,
+      'the serialized slowdown button must remain reusable after a successful reward');
+    f.game.onDestroy();
+  }
+
+  {
+    const f = fixture({ state: { active: false, entered: true }, rewardedResults: [false] });
+    f.game.onLoad(); f.game.start();
+    const before = f.game.armPivot.angle;
+    f.game.slowdownButton.node.emit(Button.EventType.CLICK);
+    await flushAsyncButton();
+    f.game.update(0.1);
+    const delta = (f.game.armPivot.angle - before + 360) % 360;
+    assert(Math.abs(delta - 48) < 1e-9,
+      'closing the rewarded ad early must not grant slowdown');
+    assert.equal(f.game.slowdownButton.interactable, true);
+    f.game.onDestroy();
+  }
+
   const f = fixture({
     state: { active: true, entered: true },
     loadSceneError: new Error('scene load failed'),

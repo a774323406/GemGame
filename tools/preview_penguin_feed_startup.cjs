@@ -18,11 +18,11 @@ const { chromium } = require(process.env.PENGUIN_PLAYWRIGHT_PATH ||
     await page.addInitScript(() => localStorage.setItem('gem_first_direct_game_entry_v1', '1'));
     await page.goto(process.env.PENGUIN_PREVIEW_URL || 'http://127.0.0.1:7457/');
     await page.evaluate(async () => { window.cc = await System.import('cc'); });
-    await page.waitForFunction(() => cc.director.getScene()?.name === 'MainScene', { timeout: 30000 });
+    await page.waitForFunction(() => cc.director.getScene()?.name === 'NewMainScene', { timeout: 30000 });
     await page.evaluate(async () => {
       const { GameConfig } = await System.import('chunks:///_virtual/GameConfig.ts');
       GameConfig.showAd = false;
-      await cc.director.getScene().getChildByName('Canvas').getComponent('mainScene').gotoPenguinStackGame();
+      await cc.director.getScene().getChildByName('Canvas').getComponent('newMainScene').openPenguin();
     });
     await page.waitForFunction(() => cc.director.getScene()?.name === 'PenguinStackFeedGameScene');
     await page.waitForFunction(() => cc.director.getScene().getChildByName('Canvas')
@@ -39,7 +39,7 @@ const { chromium } = require(process.env.PENGUIN_PLAYWRIGHT_PATH ||
       const { GameSceneBundle, GameSceneName } = await System.import('chunks:///_virtual/GameSceneBundle.ts');
       await GameSceneBundle.loadScene(GameSceneName.Main);
     });
-    await page.waitForFunction(() => cc.director.getScene()?.name === 'MainScene');
+    await page.waitForFunction(() => cc.director.getScene()?.name === 'NewMainScene');
     const route = await page.evaluate(async () => {
       const { EnvTool } = await System.import('chunks:///_virtual/EnvTool.ts');
       const { FeedAcquisitionService: feed } = await System.import('chunks:///_virtual/FeedAcquisitionService.ts');

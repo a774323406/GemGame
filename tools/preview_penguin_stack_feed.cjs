@@ -32,20 +32,20 @@ fs.mkdirSync(output, { recursive: true });
     await page.evaluate(async () => { window.cc = await System.import('cc'); });
     await page.waitForFunction(() => !!window.cc?.director?.getScene(), { timeout: 30000 });
     // Let the project's normal loading scene finish so it cannot replace the manually loaded test scene later.
-    await page.waitForFunction(() => ['MainScene', 'GameScene'].includes(cc.director.getScene()?.name), {
+    await page.waitForFunction(() => cc.director.getScene()?.name === 'NewMainScene', {
       timeout: 30000,
     });
     const homeEntry = await page.evaluate(() => {
       const scene = cc.director.getScene();
-      const controller = scene?.getChildByName('Canvas')?.getComponent('mainScene');
-      return { scene: scene?.name, entry: controller?.penguinStackGameBtn?.node?.name || '' };
+      const controller = scene?.getChildByName('Canvas')?.getComponent('newMainScene');
+      return { scene: scene?.name, entry: controller?.penguinButton?.node?.name || '' };
     });
-    if (homeEntry.scene !== 'MainScene' || homeEntry.entry !== 'penguinStackGameBtn') {
-      throw new Error(`MainScene penguin entry missing: ${JSON.stringify(homeEntry)}`);
+    if (homeEntry.scene !== 'NewMainScene' || homeEntry.entry !== 'PenguinStackCard') {
+      throw new Error(`NewMainScene penguin entry missing: ${JSON.stringify(homeEntry)}`);
     }
     console.log('HOME_ENTRY', JSON.stringify(homeEntry));
     await page.evaluate(() =>
-      cc.director.getScene().getChildByName('Canvas').getComponent('mainScene').gotoPenguinStackGame());
+      cc.director.getScene().getChildByName('Canvas').getComponent('newMainScene').openPenguin());
     await page.waitForFunction(() =>
       !!cc.director.getScene()?.getChildByName('Canvas')?.getComponent('penguinStackFeedGameScene'));
     await page.screenshot({ path: `${output}/penguin-start.png` });

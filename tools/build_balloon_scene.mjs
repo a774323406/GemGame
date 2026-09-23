@@ -7,7 +7,7 @@ const metadata = (importer, uuid, ver, files = []) => ({ ver, importer, imported
 const frame = name => assetUuid(name) + '@f9941';
 const existing = file => JSON.parse(fs.readFileSync(file + '.meta', 'utf8')).uuid + '@f9941';
 const art = {
-  back: existing('assets/res/milkTeaFeed/back-button.png'),
+  back: existing('assets/res/texture/UIs/feed_back_button.png'),
   header: existing('assets/res/shootingGlassBottles/cartoonHeader.png'),
   wood: existing('assets/res/shootingGlassBottles/woodTitle.png'),
   panel: existing('assets/res/shootingGlassBottles/panel.png'),
@@ -19,7 +19,7 @@ const art = {
   modal: existing('assets/res/shootingGlassBottles/cuteModal.png'),
   action: existing('assets/res/shootingGlassBottles/successButton.png'),
 };
-const source = JSON.parse(fs.readFileSync('assets/gamescene/PenRefillFeedGameScene.scene', 'utf8'));
+const source = JSON.parse(fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'));
 const a = new SceneAuthor(); const o = a.objects;
 a.add({ __type__: 'cc.SceneAsset', _name: 'BalloonWheelFeedGameScene', _objFlags: 0, __editorExtras__: {}, _native: '', scene: ref(1) });
 a.add({ __type__: 'cc.Scene', _name: 'BalloonWheelFeedGameScene', _objFlags: 0, __editorExtras__: {}, _parent: null,
@@ -142,22 +142,6 @@ a.component(canvas, compressUuid(SCRIPT_UUID), {
 o[1]._globals = ref(appendSceneGlobals(source, o));
 fitFeedResultOverlay(o, 'BalloonWheelFeedGameScene');
 
-function addMainEntry() {
-  const file = 'assets/gamescene/MainScene.scene';
-  const main = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const controller = main.find(item => Object.hasOwn(item, 'startBtn'));
-  if (controller.balloonWheelGameBtn) return;
-  const canvasId = main.findIndex(item => item.__type__ === 'cc.Node' && item._name === 'Canvas');
-  const b = new SceneAuthor(main, 'balloonEntry');
-  const entry = b.node('balloonWheelGameBtn', canvasId, { x: -306, y: -375, w: 128, h: 172 });
-  b.sprite('WheelIcon', entry, frame('wheel.png'), { y: 12, w: 118, h: 118 });
-  b.sprite('CharacterIcon', entry, frame('character.png'), { y: 12, w: 74, h: 99 });
-  b.sprite('BalloonIcon', entry, frame('balloon.png'), { x: 41, y: 15, w: 24, h: 29 });
-  b.label('Label', entry, '打气球', { y: -65, w: 128, h: 47, size: 30, outlineWidth: 3 });
-  controller.balloonWheelGameBtn = ref(b.button(entry));
-  fs.writeFileSync(file, JSON.stringify(main, null, 2) + '\n');
-}
-
 if (process.argv.includes('--write')) {
   if (fs.existsSync(SCENE) && !process.argv.includes('--replace-scene')) {
     throw new Error('Scene already exists. Preserve editor changes; --replace-scene is only for intentional regeneration.');
@@ -169,11 +153,5 @@ if (process.argv.includes('--write')) {
     ['assets/scripts/balloonWheelRules.ts.meta', metadata('typescript', assetUuid('balloonWheelRules.ts'), '4.0.24')],
   ];
   for (const [file, data] of metas) if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
-  // Do not expose an entry pointing at missing sprites/mask while asset preparation is pending.
-  if (fs.existsSync('assets/res/balloonWheelFeed/character-mask.json')) addMainEntry();
-}
-if (process.argv.includes('--add-main-entry')) {
-  if (!fs.existsSync('assets/res/balloonWheelFeed/character-mask.json')) throw new Error('Prepare transparent assets first');
-  addMainEntry();
 }
 console.log(JSON.stringify({ scene: SCENE, sceneUuid: SCENE_UUID, scriptUuid: SCRIPT_UUID, objects: o.length, wrote: process.argv.includes('--write') }));

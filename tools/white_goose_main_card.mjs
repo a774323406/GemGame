@@ -1,8 +1,8 @@
 // Non-destructive NewMainScene card appender for the white-goose game.
-import { ref, rgba, vec } from './penguin_scene_authoring.mjs';
+import { ref, vec } from './penguin_scene_authoring.mjs';
 
 const WHITE_GOOSE_PREVIEW = '9bc09818-0e84-5ea3-a1a0-42cca593f1bd@f9941';
-const BLANK_TITLE = 'e625bd7b-cbf1-4b43-9552-b13edb0bc4f4@f9941';
+const WHITE_GOOSE_TITLE = '8ef97696-879e-43df-b9dc-42991bd5fedf@f9941';
 
 function componentId(objects, nodeId, type) {
   return objects[nodeId]._components
@@ -81,6 +81,9 @@ export function appendWhiteGooseCard(objects) {
     .map(item => item.__id__)
     .find(id => objects[id]?._name === 'WhiteGooseCard');
   if (Number.isInteger(existingCardId)) {
+    const titlePlaqueId = directChildId(objects, existingCardId, 'TitlePlaque');
+    setSpriteFrame(objects, titlePlaqueId, WHITE_GOOSE_TITLE);
+    objects[titlePlaqueId]._children = [];
     const existingButtonId = componentId(objects, existingCardId, 'cc.Button');
     controller.whiteGooseButton = ref(existingButtonId);
     setContentHeight(objects, contentId, content._children.length);
@@ -91,13 +94,6 @@ export function appendWhiteGooseCard(objects) {
     .map(item => item.__id__)
     .find(id => objects[id]?._name === 'PuzzleGameCard');
   if (!Number.isInteger(sourceCardId)) throw new Error('NewMainScene source card is missing');
-
-  const foodCardId = content._children
-    .map(item => item.__id__)
-    .find(id => objects[id]?._name === 'FoodDeliveryCard');
-  const foodTitleId = directChildId(objects, foodCardId, 'TitlePlaque');
-  const labelDonorId = directChildId(objects, foodTitleId, 'GameName');
-  if (!Number.isInteger(labelDonorId)) throw new Error('NewMainScene title label donor is missing');
 
   const cardId = cloneNodeSubtree(objects, sourceCardId, 'whiteGooseCard');
   const card = objects[cardId];
@@ -115,21 +111,8 @@ export function appendWhiteGooseCard(objects) {
   setSpriteFrame(objects, artworkId, WHITE_GOOSE_PREVIEW);
 
   const titlePlaqueId = directChildId(objects, cardId, 'TitlePlaque');
-  setSpriteFrame(objects, titlePlaqueId, BLANK_TITLE);
+  setSpriteFrame(objects, titlePlaqueId, WHITE_GOOSE_TITLE);
   objects[titlePlaqueId]._children = [];
-
-  const gameNameId = cloneNodeSubtree(objects, labelDonorId, 'whiteGooseTitle');
-  const gameName = objects[gameNameId];
-  gameName._name = 'GameName';
-  gameName._parent = ref(titlePlaqueId);
-  gameName._children = [];
-  gameName._lpos = vec(0, 0, 0);
-  const titleLabel = objects[componentId(objects, gameNameId, 'cc.Label')];
-  titleLabel._string = '套大鹅';
-  titleLabel._fontSize = 31;
-  titleLabel._lineHeight = 42;
-  titleLabel._color = rgba(255, 251, 241);
-  objects[titlePlaqueId]._children.push(ref(gameNameId));
 
   setContentHeight(objects, contentId, content._children.length);
   controller.whiteGooseButton = ref(buttonId);

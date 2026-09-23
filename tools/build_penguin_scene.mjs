@@ -43,7 +43,7 @@ const art = {
   dim: existing('assets/res/shootingGlassBottles/dim.png'),
 };
 
-const source = JSON.parse(fs.readFileSync('assets/gamescene/PenRefillFeedGameScene.scene', 'utf8'));
+const source = JSON.parse(fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'));
 const a = new SceneAuthor();
 const o = a.objects;
 
@@ -213,23 +213,6 @@ a.component(canvas, compressUuid(SCRIPT_UUID), {
 o[1]._globals = ref(appendSceneGlobals(source, o));
 fitFeedResultOverlay(o, 'PenguinStackFeedGameScene');
 
-function addMainEntry() {
-  const file = 'assets/gamescene/MainScene.scene';
-  const main = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const controller = main.find(item => Object.hasOwn(item, 'startBtn'));
-  if (!controller) throw new Error('mainScene controller is missing');
-  if (controller.penguinStackGameBtn) return;
-  const canvasId = main.findIndex(item => item.__type__ === 'cc.Node' && item._name === 'Canvas');
-  const b = new SceneAuthor(main, 'penguinEntry');
-  const entry = b.node('penguinStackGameBtn', canvasId, { x: 306, y: -395, w: 140, h: 174 });
-  b.sprite('WhaleIcon', entry, art.whale, { y: 2, w: 135, h: 68 });
-  b.sprite('PenguinIcon1', entry, art.penguin, { x: -3, y: 49, w: 68, h: 34 });
-  b.sprite('PenguinIcon2', entry, art.penguin, { x: 2, y: 78, w: 64, h: 32 });
-  b.label('Label', entry, '叠企鹅', { y: -65, w: 140, h: 47, size: 30, outlineWidth: 3 });
-  controller.penguinStackGameBtn = ref(b.button(entry));
-  fs.writeFileSync(file, JSON.stringify(main, null, 2) + '\n');
-}
-
 if (process.argv.includes('--write')) {
   if (fs.existsSync(SCENE) && !process.argv.includes('--replace-scene')) {
     throw new Error('Scene already exists. Use --replace-scene only for intentional regeneration.');
@@ -243,10 +226,7 @@ if (process.argv.includes('--write')) {
   for (const [file, data] of metas) {
     if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
   }
-  addMainEntry();
 }
-
-if (process.argv.includes('--add-main-entry')) addMainEntry();
 
 console.log(JSON.stringify({ scene: SCENE, sceneUuid: SCENE_UUID, scriptUuid: SCRIPT_UUID,
   objects: o.length, wrote: process.argv.includes('--write') }));

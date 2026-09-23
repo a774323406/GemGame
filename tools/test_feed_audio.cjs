@@ -24,8 +24,6 @@ const scenes = [
   ['archeryGameScene', 'archeryBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
   ['shootingGlassBottlesGame', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
   ['juggleBallGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
-  ['milkTeaFeedGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isInteractionEnabled'],
-  ['penRefillFeedGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isInteractionEnabled'],
   ['nailHammerFeedGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isInteractionEnabled'],
 ];
 

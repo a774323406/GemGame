@@ -140,12 +140,12 @@ const sceneId = '1c6b548c-ff93-5519-a51a-1cc2ed5ccaf4';
       return { tested: nodes.map(node => node.name), scaleX: cc.view.getScaleX(), ammo: g.round.remainingAmmo };
     }));
     await page.evaluate(() => cc.director.getScene().getChildByName('Canvas').getComponent('balloonWheelFeedGameScene').returnHome());
-    await page.waitForFunction(() => cc.director.getScene()?.name === 'MainScene');
+    await page.waitForFunction(() => cc.director.getScene()?.name === 'NewMainScene');
     console.log('HOME', await page.evaluate(() => {
-      const home = cc.director.getScene().getChildByName('Canvas').getComponent('mainScene');
-      return { entry: home.balloonWheelGameBtn?.node?.name, active: home.balloonWheelGameBtn?.node?.activeInHierarchy };
+      const home = cc.director.getScene().getChildByName('Canvas').getComponent('newMainScene');
+      return { entry: home.balloonWheelButton?.node?.name, active: home.balloonWheelButton?.node?.activeInHierarchy };
     }));
-    await page.evaluate(() => cc.director.getScene().getChildByName('Canvas').getComponent('mainScene').gotoBalloonWheelGame());
+    await page.evaluate(() => cc.director.getScene().getChildByName('Canvas').getComponent('newMainScene').openBalloonWheel());
     await page.waitForFunction(() => cc.director.getScene()?.name === 'BalloonWheelFeedGameScene');
     fs.writeFileSync(`${destination}/balloon-browser-errors.json`, JSON.stringify(errors, null, 2));
     console.log('ERRORS', JSON.stringify(errors));

@@ -981,7 +981,7 @@ export class shootingGlassBottlesGame extends Component {
       return;
     }
 
-    // MainScene 通常已经预载了设置面板；直接从此场景预览时也补一次加载。
+    // 主界面通常已经预载了设置面板；直接从此场景预览时也补一次加载。
     if (!gamePrefabMgr.Instance.uiPre[uiName.settingPanel]) {
       try {
         await gamePrefabMgr.Instance.loadDefaultAssets();

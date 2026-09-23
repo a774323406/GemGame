@@ -195,18 +195,28 @@ buttonProperties.forEach((property, index) => {
 assert(!('juggleButton' in controller), 'new lobby must not bind a juggle entry');
 assert(!scene.some(item => item?._name === 'JuggleBallCard'), 'new lobby must not contain a juggle card');
 const foodCard = nodeByName('FoodDeliveryCard');
-const foodTitle = foodCard.entry._children.map(object).find(child => child._name === 'TitlePlaque');
-const foodTitleLabel = foodTitle._children.map(object).find(child => child._name === 'GameName');
-assert.equal(component(scene.indexOf(foodTitleLabel), 'cc.Label')._string, '外卖精准投送');
+const bottomTitleAssets = [
+  ['FoodDeliveryCard', 'title_food_delivery.jpg'],
+  ['WhiteGooseCard', 'title_white_goose.jpg'],
+];
+for (const [cardName, filename] of bottomTitleAssets) {
+  const card = nodeByName(cardName);
+  const plaque = card.entry._children.map(object).find(child => child._name === 'TitlePlaque');
+  assert(plaque, `${cardName} title plaque is missing`);
+  assert(!plaque._children.some(child => object(child)._name === 'GameName'),
+    `${cardName} must use the same baked-title-image type as the other gameplay cards`);
+  const metaPath = `assets/res/newMain/${filename}.meta`;
+  assert(fs.existsSync(path.join(projectRoot, metaPath)), `${filename} metadata is missing`);
+  const meta = JSON.parse(read(metaPath));
+  const frame = meta.subMetas.f9941.userData;
+  assert.equal(component(scene.indexOf(plaque), 'cc.Sprite')._spriteFrame.__uuid__, `${meta.uuid}@f9941`);
+  assert.deepEqual([frame.rawWidth, frame.rawHeight], [268, 57],
+    `${filename} must match the common gameplay-title dimensions`);
+}
 const foodMask = foodCard.entry._children.map(object).find(child => child._name === 'ArtworkMask');
 const foodArtNames = foodMask._children.map(object).map(child => child._name);
 assert.deepEqual(foodArtNames, ['Artwork', 'CourierPreview', 'OrderPreview']);
 const whiteGooseCard = nodeByName('WhiteGooseCard');
-const whiteGooseTitle = whiteGooseCard.entry._children.map(object)
-  .find(child => child._name === 'TitlePlaque')
-  ._children.map(object)
-  .find(child => child._name === 'GameName');
-assert.equal(component(scene.indexOf(whiteGooseTitle), 'cc.Label')._string, '套大鹅');
 const whiteGooseMask = whiteGooseCard.entry._children.map(object)
   .find(child => child._name === 'ArtworkMask');
 const whiteGooseArtwork = whiteGooseMask._children.map(object)

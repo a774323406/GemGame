@@ -62,7 +62,10 @@ class Node {
     this.events = new Map();
   }
   on(type, fn, target) { this.events.set(type, { fn, target }); }
-  off(type) { this.events.delete(type); }
+  off(type) {
+    if (!this.isValid) throw new TypeError("Cannot read properties of null (reading 'off')");
+    this.events.delete(type);
+  }
   getComponent(type) { return this.components.get(type) || null; }
   setComponent(type, value) { this.components.set(type, value); return this; }
   setPosition(value, y, z) {
@@ -253,6 +256,69 @@ function makePlayableController(fixture) {
 
 {
   const fixture = createFixture();
+  const controller = makePlayableController(fixture);
+  const goose = controller.gooseStates[0];
+  goose.walking = true;
+  goose.pose = 's1';
+  goose.walkRemaining = 1;
+  goose.slot.setPosition(0, 0, 0);
+  controller.phase = 'throwing';
+
+  controller.update(0.25);
+
+  assert.equal(goose.walkRemaining, 0.96,
+    'throwing a ring must not pause the selected goose walk timer');
+  assert(goose.slot.position.x > 0,
+    'throwing a ring must not freeze goose movement before catch resolution');
+}
+
+{
+  const fixture = createFixture();
+  const controller = makePlayableController(fixture);
+  const goose = controller.gooseStates[0];
+  const originalRandom = Math.random;
+  const values = [0.3, 0.1];
+  Math.random = () => values.shift() ?? 0.1;
+  try {
+    controller.enterRandomPose(goose);
+  } finally {
+    Math.random = originalRandom;
+  }
+  assert.equal(goose.pose, 's2');
+  assert.equal(goose.skeleton.animation, 's2',
+    'normal idle selection must not play the dodge-only s2_duo animation');
+}
+
+{
+  const fixture = createFixture();
+  const controller = makePlayableController(fixture);
+  const goose = controller.gooseStates[0];
+  goose.walkRemaining = 0.01;
+  controller.phase = 'throwing';
+
+  controller.playCaughtAnimation(goose, 0, controller.roundSerial);
+  controller.update(0.04);
+
+  assert.equal(goose.skeleton.animation, 's2_tao',
+    'goose motion updates must not overwrite an in-flight catch animation');
+}
+
+{
+  const fixture = createFixture();
+  const controller = makePlayableController(fixture);
+  const goose = controller.gooseStates[0];
+  goose.walkRemaining = 0.01;
+  controller.phase = 'throwing';
+
+  controller.playDodgeAnimation(goose, controller.roundSerial);
+  controller.update(0.04);
+
+  assert.equal(goose.skeleton.animation, 's2_duo',
+    'goose motion updates must not overwrite an in-flight dodge animation');
+}
+
+{
+  const fixture = createFixture();
   const controller = new fixture.Controller();
   controller.feedMode = false;
   controller.start();
@@ -270,6 +336,23 @@ function makePlayableController(fixture) {
   assert.equal(controller.handSkeleton.complete, null);
   assert.equal(gooseSkeleton.complete, null);
   assert(fixture.tweenTargets.includes(controller.sceneThrowingHand));
+}
+
+{
+  const fixture = createFixture();
+  const controller = makePlayableController(fixture);
+  controller.sceneFieldTouchArea.isValid = false;
+  for (const key of [
+    'sceneBackButton', 'sceneAddRingsButton', 'sceneReplayButton',
+    'sceneRestartButton', 'sceneHomeButton', 'sceneReviveButton',
+  ]) {
+    const node = new fixture.Node(key);
+    node.isValid = false;
+    controller[key] = { node };
+  }
+
+  assert.doesNotThrow(() => controller.onDestroy(),
+    'scene teardown must skip event removal for child nodes that are already destroyed');
 }
 
 {
