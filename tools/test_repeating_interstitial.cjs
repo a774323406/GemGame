@@ -25,9 +25,8 @@ function fixture() {
   // The scheduler must never pause the engine or install touch interception.
   director.pause = director.resume = () => assert.fail('interstitial must not change engine pause');
   const sceneNames = Object.fromEntries([
-    'NewMainScene', 'GameScene', 'ArcheryGameScene', 'JuggleBallGameScene', 'ShootingGlassBottlesGame',
-    'NailHammerFeedGameScene',
-    'BalloonWheelFeedGameScene', 'PenguinStackFeedGameScene', 'FoodDeliveryFeedGameScene',
+    'NewMainScene', 'GameScene', 'JuggleBallGameScene', 'ShootingGlassBottlesGame',
+    'PenguinStackFeedGameScene', 'FoodDeliveryFeedGameScene',
     'WhiteGooseFeedGameScene',
   ].map(name => [name, name]));
   const sdk = {
@@ -132,15 +131,15 @@ test('preview state is checked even when a scene omits cancellation on feed exit
 test('all games, home and result pages share cooldown; feed completion does not stop ads', () => {
   const f = fixture(); f.enter(); f.advance(31_000); f.requests[0].show(); f.requests[0].close();
   f.adc.cancelFeedEntryInterstitial(); f.feed.active = false;
-  for (const name of ['NewMainScene', 'GameScene', 'ArcheryGameScene', 'JuggleBallGameScene',
+  for (const name of ['NewMainScene', 'GameScene', 'JuggleBallGameScene',
     'ShootingGlassBottlesGame',
-    'NailHammerFeedGameScene', 'BalloonWheelFeedGameScene', 'PenguinStackFeedGameScene',
+    'PenguinStackFeedGameScene',
     'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene']) {
     f.scene({ name, isValid: true }); f.adc.onLevelResult(1, 'pass', { eligible: false });
     f.advance(1_000);
   }
   assert.equal(f.requests.length, 1);
-  f.advance(52_000); assert.equal(f.requests.length, 2);
+  f.advance(53_000); assert.equal(f.requests.length, 2);
 });
 test('background stops timer and invalidates asynchronous native presentation', () => {
   const f = fixture(); f.advance(31_000);
@@ -161,7 +160,7 @@ test('loading screen, bundle loading, scene swaps and destroyed scenes cannot di
   f.advance(50_000); assert.equal(f.requests.length, 0);
   f.scene({ name: 'NewMainScene', isValid: true }); f.bundle.isLoadingScene = true;
   f.advance(50_000); assert.equal(f.requests.length, 0);
-  f.bundle.isLoadingScene = false; f.scene({ name: 'ArcheryGameScene', isValid: true });
+  f.bundle.isLoadingScene = false; f.scene({ name: 'PenguinStackFeedGameScene', isValid: true });
   f.advance(649); assert.equal(f.requests.length, 0);
   f.advance(1); assert.equal(f.requests.length, 1);
   f.scene({ name: 'JuggleBallGameScene', isValid: true });

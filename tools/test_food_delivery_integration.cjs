@@ -136,7 +136,7 @@ async function main() {
     .map(reference => reference.__id__)
     .find(id => menuScene[id].__type__ === 'cc.UITransform');
   const controllerId = menuScene.findIndex(item =>
-    item?.puzzleButton && item?.balloonWheelButton && item?.gameList);
+    item?.puzzleButton && item?.shootingButton && item?.gameList);
   content._children = content._children.filter(reference => reference.__id__ < serializedFoodCardId);
   menuScene[transformId]._contentSize.height = 888;
   delete menuScene[controllerId].foodDeliveryButton;
@@ -148,15 +148,15 @@ async function main() {
   const buttonId = appendFoodDeliveryCard(menuScene);
   assert(buttonId >= originalLength, 'homepage append must return the new serialized Button index');
   assert.equal(menuScene[buttonId].__type__, 'cc.Button');
-  assert.equal(content._children.length, 7);
+  assert.equal(content._children.length, 4);
   const cardId = content._children.at(-1).__id__;
   assert.equal(menuScene[cardId]._name, 'FoodDeliveryCard');
   assert.deepEqual(
     [menuScene[cardId]._lpos.x, menuScene[cardId]._lpos.y],
-    [-139, -1034],
-    'the seventh card must start a fourth row without moving existing cards',
+    [139, -446],
+    'the fourth card must complete the second row without moving existing cards',
   );
-  assert.equal(menuScene[transformId]._contentSize.height, 1182);
+  assert.equal(menuScene[transformId]._contentSize.height, 594);
   assert.equal(menuScene[controllerId].foodDeliveryButton.__id__, buttonId);
   const titlePlaqueId = menuScene[cardId]._children
     .map(reference => reference.__id__)

@@ -43,7 +43,7 @@ const art = {
   dim: existing('assets/res/shootingGlassBottles/dim.png'),
 };
 
-const source = JSON.parse(fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'));
+const source = JSON.parse(fs.readFileSync('assets/gamescene/JuggleBallGameScene.scene', 'utf8'));
 const a = new SceneAuthor();
 const o = a.objects;
 

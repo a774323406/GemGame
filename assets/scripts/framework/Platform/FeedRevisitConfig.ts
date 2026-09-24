@@ -1,8 +1,9 @@
 /** 推荐流方案管理中与实际玩法一一对应的 Content_ID。 */
 export const FEED_SHOOTING_CONTENT_ID = "CONTENT14389313538";
 
-/** 射中牛来推荐流方案 ID。 */
-export const FEED_ARCHERY_CONTENT_ID = "CONTENT14389077506";
+/** 爱心第 8 关获客方案；后台 ID 确定后替换 xxx。 */
+export const FEED_HEART_CONTENT_ID: string = "xxx";
+export const FEED_HEART_LEVEL = 8;
 
 /**
  * 颠球挑战推荐流方案 ID。
@@ -16,12 +17,6 @@ export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
  */
 export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
-/** 砸钉子推荐流方案，直接进入 NailHammerFeedGameScene。 */
-export const FEED_NAIL_HAMMER_CONTENT_ID = "CONTENT14868790274";
-
-/** 旋转打气球推荐流方案，直接进入 BalloonWheelFeedGameScene。 */
-export const FEED_BALLOON_WHEEL_CONTENT_ID = "CONTENT14816266754";
-
 /** 企鹅叠叠乐推荐流方案，直接进入 PenguinStackFeedGameScene。 */
 export const FEED_PENGUIN_STACK_CONTENT_ID = "CONTENT14860954626";
 
@@ -30,6 +25,9 @@ export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT15252968962";
 
 /** 套大鹅推荐流方案，直接进入 WhiteGooseFeedGameScene。 */
 export const FEED_WHITE_GOOSE_CONTENT_ID = "CONTENT14960528898";
+
+/** 口算大挑战推荐流方案，直接进入 MathExamFeedGameScene。 */
+export const FEED_MATH_EXAM_CONTENT_ID: string = "CONTENT15271990018";
 
 /** 复访方案已在抖音后台下线：暂停订阅、排期上报与奖励；获客直玩不受影响。 */
 export const FEED_REVISIT_ENABLED = false;
@@ -97,3 +95,6 @@ export function createFeedRevisitExtra(readyAt: number): string {
     readyAt,
   });
 }
+
+/** 节奏猫咪推荐流方案，直接进入 RhythmCatFeedGameScene。 */
+export const FEED_RHYTHM_CAT_CONTENT_ID: string = "CONTENT15383195906";

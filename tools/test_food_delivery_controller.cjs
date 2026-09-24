@@ -176,7 +176,7 @@ function fixture({ state: stateOverride = {}, loadSceneError = null, rewardedRes
     },
   };
   const soundName = {
-    getUserBgm: 'getUserBgm', archeryShoot: 'archeryShoot', up: 'up', fail: 'fail', buttonClick: 'buttonClick',
+    getUserBgm: 'getUserBgm', down: 'down', up: 'up', fail: 'fail', buttonClick: 'buttonClick',
   };
   const sceneBundle = {
     loadScene: async (name) => {
@@ -397,7 +397,7 @@ function loadRules() {
   assert.equal(f.game.tryThrow(false, 1000), true, 'first real touch should recover missing feedEnter');
   assert.equal(f.game.tryThrow(false, 1001), false, 'duplicate touch must not throw again');
   assert.equal(f.game.round.phase, 'flying');
-  assert.equal(f.audio.filter((entry) => entry === 'effect:archeryShoot').length, 1);
+  assert.equal(f.audio.filter((entry) => entry === 'effect:down').length, 1);
   assert.equal(f.ads.filter((entry) => entry.type === 'schedule').length, 1);
 }
 
@@ -418,7 +418,7 @@ function loadRules() {
   f.nativeHandlers.start({ touches: [{ identifier: 7, clientX: 600, clientY: 800 }] });
   f.game.onTouchStart(touch(600, 824));
   assert.equal(f.game.round.phase, 'flying');
-  assert.equal(f.audio.filter((entry) => entry === 'effect:archeryShoot').length, 1, 'native and Cocos events must fire once');
+  assert.equal(f.audio.filter((entry) => entry === 'effect:down').length, 1, 'native and Cocos events must fire once');
   const before = f.game.round.projectile;
   f.game.onHide();
   f.game.update(1);

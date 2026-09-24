@@ -19,12 +19,9 @@ class Node {
 }
 
 const scenes = [
-  ['balloonWheelFeedGameScene', 'getUserBgm', 'onFeedState', 'onHide', 'onShow', 'canInteract'],
   ['penguinStackFeedGameScene', 'getUserBgm', 'onFeedStateChanged', 'onHide', 'onShow', 'isFeedInteractionEnabled'],
-  ['archeryGameScene', 'archeryBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
   ['shootingGlassBottlesGame', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
   ['juggleBallGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
-  ['nailHammerFeedGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isInteractionEnabled'],
 ];
 
 async function fixture(descriptor, active = true) {
@@ -58,8 +55,7 @@ async function fixture(descriptor, active = true) {
           cancelFeedEntryInterstitial() {}, scheduleFeedEntryInterstitial() { scheduled++; },
         } };
         if (path.endsWith('SdkUtils')) return { SdkUtils: { isRewardedVideoBusy: () => rewardedBusy } };
-        if (path.endsWith('gamePrefabMgr')) return { soundName: { getUserBgm: 'getUserBgm', archeryBgm: 'archeryBgm' } };
-        if (path.endsWith('balloonWheelRules')) return load('balloonWheelRules.ts');
+        if (path.endsWith('gamePrefabMgr')) return { soundName: { getUserBgm: 'getUserBgm' } };
         if (path.endsWith('penguinStackRules')) return load('penguinStackRules.ts');
         return {};
       },

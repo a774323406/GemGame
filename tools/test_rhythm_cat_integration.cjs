@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');const {loadTs}=require('./rhythm_cat_test_helpers.cjs');
+const {AudioManager,...rest}={};
+const A=loadTs('assets/scripts/framework/AudioManager.ts',{'cc':{},'./gameStorage':{default:{getMusic:()=>0}},'../gamePrefabMgr':{},'./ResourceManager':{}}).default;
+let stops=0;A.stopMusic=()=>{stops++};assert(A.canPlayMusic());const releaseA=A.acquireSceneMusic(),releaseB=A.acquireSceneMusic();assert(!A.canPlayMusic());releaseA();releaseA();assert(!A.canPlayMusic());releaseB();assert(A.canPlayMusic());assert.equal(stops,2);
+const config=loadTs('assets/scripts/framework/Platform/FeedRevisitConfig.ts');assert.equal(config.FEED_RHYTHM_CAT_CONTENT_ID,'CONTENT15383195906');
+const name={RhythmCatFeedGame:'RhythmCatFeedGameScene',ShootingGlassBottles:'ShootingGlassBottlesGame',JuggleBallGame:'JuggleBallGameScene'};
+let state={mode:'acquisition',contentId:'CONTENT15383195906'};
+const cc={_decorator:{ccclass:()=>v=>v,property:()=>()=>{}},Component:class{},ProgressBar:class{}};
+const imports={cc,'./framework/AudioManager':{},'./gamePrefabMgr':{},'./framework/GameSceneBundle':{GameSceneName:name},'./framework/Platform/FeedAcquisitionService':{FeedAcquisitionService:{getState:()=>state}},'./framework/Platform/FeedRevisitConfig':config,'./framework/Platform/sdk/SdkUtils':{},'./framework/Platform/ADController':{}};
+let C=loadTs('assets/scripts/loadScene.ts',imports).loadScene;assert.equal(new C().resolveFeedEntry().sceneName,name.RhythmCatFeedGame);state.mode='revisit';assert.equal(new C().resolveFeedEntry().sceneName,name.ShootingGlassBottles);
+state={mode:'acquisition',contentId:''};assert.equal(new C().resolveFeedEntry().sceneName,name.ShootingGlassBottles);
+imports['./framework/Platform/FeedRevisitConfig']={...config,FEED_RHYTHM_CAT_CONTENT_ID:''};C=loadTs('assets/scripts/loadScene.ts',imports).loadScene;assert.equal(new C().resolveFeedEntry().sceneName,name.ShootingGlassBottles);
+(async()=>{const {appendRhythmCatCard}=await import('./rhythm_cat_authoring.mjs');const main=JSON.parse(fs.readFileSync('assets/gamescene/NewMainScene.scene'));const before=JSON.stringify(main);appendRhythmCatCard(main);assert.equal(JSON.stringify(main),before);console.log('rhythm cat integration: music ownership, guarded feed route, fallback and idempotent main card passed')})().catch(e=>{console.error(e);process.exitCode=1});

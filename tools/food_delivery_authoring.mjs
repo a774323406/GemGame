@@ -72,7 +72,7 @@ function actionButton(author, parent, name, caption, x, y, width = 250) {
 }
 
 export function buildFoodDeliveryScene() {
-  const source = JSON.parse(fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'));
+  const source = JSON.parse(fs.readFileSync('assets/gamescene/JuggleBallGameScene.scene', 'utf8'));
   const juggleSource = JSON.parse(fs.readFileSync('assets/gamescene/JuggleBallGameScene.scene', 'utf8'));
   const author = new SceneAuthor([], 'foodDelivery');
   const objects = author.objects;
@@ -379,7 +379,7 @@ export function appendFoodDeliveryCard(objects) {
   }
 
   const controller = objects.find(item =>
-    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.balloonWheelButton && item?.gameList);
+    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.shootingButton && item?.gameList);
   if (!controller) throw new Error('NewMainScene controller is missing');
 
   const content = objects[contentId];

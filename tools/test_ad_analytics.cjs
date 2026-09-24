@@ -84,11 +84,14 @@ async function main() {
     const f = fixture();
     const cases = {
       NewMainScene: '玩法大厅', GameScene: '拼豆排序',
-      ShootingGlassBottlesGame: '打瓶子', ArcheryGameScene: '射箭',
-      JuggleBallGameScene: '乒乓球第一关', NailHammerFeedGameScene: '砸钉子',
-      BalloonWheelFeedGameScene: '旋转打气球', PenguinStackFeedGameScene: '企鹅叠叠乐',
+      ShootingGlassBottlesGame: '打瓶子',
+      JuggleBallGameScene: '乒乓球第一关',
+      PenguinStackFeedGameScene: '企鹅叠叠乐',
       FoodDeliveryFeedGameScene: '外卖精准投送',
       WhiteGooseFeedGameScene: '套大鹅',
+      MathExamFeedGameScene: '口算大挑战',
+      RhythmCatFeedGameScene: '节奏猫咪',
+      MotoRaceGameScene: '狂暴摩托',
     };
     const sceneNames = Object.values(f.load('framework/GameSceneBundle.ts').GameSceneName);
     assert.deepEqual(sceneNames.sort(), Object.keys(cases).sort(), 'new scenes need an analytics name');

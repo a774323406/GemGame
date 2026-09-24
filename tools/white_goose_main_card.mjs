@@ -73,7 +73,7 @@ export function appendWhiteGooseCard(objects) {
   }
 
   const controller = objects.find(item =>
-    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.balloonWheelButton && item?.gameList);
+    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.shootingButton && item?.gameList);
   if (!controller) throw new Error('NewMainScene controller is missing');
 
   const content = objects[contentId];

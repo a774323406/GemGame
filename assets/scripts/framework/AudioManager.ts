@@ -12,6 +12,15 @@ import gamePrefabMgr, { SOUND_ASSET_UUIDS, soundName } from "../gamePrefabMgr";
 import { ResourceManager } from "./ResourceManager";
 
 export default class AudioManager {
+  private static sceneMusicOwners = new Set<symbol>();
+  /** 独立音游接管音乐，阻止广告关闭后默认 BGM 覆盖歌曲。释放可重复调用。 */
+  static acquireSceneMusic(): () => void {
+    const token = Symbol('scene-music');
+    this.sceneMusicOwners.add(token);
+    this.stopMusic();
+    return () => { this.sceneMusicOwners.delete(token); };
+  }
+
   // 背景音乐的 AudioSource 组件
   private static bgmAudioSource: AudioSource | null = null;
   // 音效的 AudioSource 组件
@@ -665,7 +674,7 @@ export default class AudioManager {
   }
 
   private static canPlayMusic(): boolean {
-    return gameStorage.getMusic() !== 1;
+    return this.sceneMusicOwners.size === 0 && gameStorage.getMusic() !== 1;
   }
   /**
    * 当前是否允许播放音效

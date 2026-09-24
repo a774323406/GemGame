@@ -113,7 +113,7 @@ function statPanel(author, parent, name, x, text) {
 }
 
 export function buildWhiteGooseScene() {
-  const source = JSON.parse(fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'));
+  const source = JSON.parse(fs.readFileSync('assets/gamescene/JuggleBallGameScene.scene', 'utf8'));
   const author = new SceneAuthor([], 'whiteGoose');
   const objects = author.objects;
   makeSceneRoot(author);

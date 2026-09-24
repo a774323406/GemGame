@@ -47,7 +47,11 @@ import {
   FeedAcquisitionService,
   FeedAcquisitionState,
 } from "./framework/Platform/FeedAcquisitionService";
-import { resolveFeedRevisitChallengeLevel } from "./framework/Platform/FeedRevisitConfig";
+import {
+  FEED_HEART_CONTENT_ID,
+  FEED_HEART_LEVEL,
+  resolveFeedRevisitChallengeLevel,
+} from "./framework/Platform/FeedRevisitConfig";
 import { FeedRevisitService } from "./framework/Platform/FeedRevisitService";
 import { adc } from "./framework/Platform/ADController";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -330,6 +334,7 @@ export class gameScene extends Component {
   private adPaused = false;
   private blockIdSeed = 0;
   private feedMode = false;
+  private heartFeedMode = false;
   private feedAcquisition = false;
   private feedRevisitChallenge = false;
   private feedSceneReady = false;
@@ -383,6 +388,9 @@ export class gameScene extends Component {
     FeedAcquisitionService.init();
     this.feedMode = FeedAcquisitionService.isActive();
     this.feedAcquisition = FeedAcquisitionService.isAcquisition();
+    this.heartFeedMode =
+      this.feedAcquisition &&
+      FeedAcquisitionService.getContentId().trim() === FEED_HEART_CONTENT_ID;
     this.feedRevisitChallenge = FeedAcquisitionService.isRevisit();
     if (this.feedMode) {
       FeedAcquisitionService.addListener(this.onFeedStateChanged);
@@ -390,10 +398,20 @@ export class gameScene extends Component {
 
     await this.prepareScene();
     await this.loadAssets();
+    if (this.heartFeedMode) {
+      // 在 loadLevel 的自动解锁与教学检查之前完成，首帧也不显示引导或赠送。
+      TutorialProgress.completeCoreGuide();
+      TutorialProgress.completeTrayExpandGuide();
+      ToolInventory.completeOnboardingWithoutRewards();
+      sys.localStorage.setItem(
+        STORAGE_LEVEL_KEY,
+        String(Math.max(FEED_HEART_LEVEL, this.getStoredLevelIndex())),
+      );
+    }
     this.levelIndex = this.feedRevisitChallenge
       ? resolveFeedRevisitChallengeLevel(FeedAcquisitionService.getExtra())
       : this.feedAcquisition
-        ? FEED_ACQUISITION_LEVEL
+        ? (this.heartFeedMode ? FEED_HEART_LEVEL : FEED_ACQUISITION_LEVEL)
         : this.getStoredLevelIndex();
     const levelLoaded = await this.loadLevel(this.levelIndex);
 
@@ -3178,6 +3196,12 @@ export class gameScene extends Component {
     if (this.feedRevisitChallenge) {
       // 兼容旧入口：只更新下一次复访时间，不再领取或发放挑战奖励。
       FeedRevisitService.scheduleNextImportantEvent(FeedAcquisitionService.getContentId());
+    } else if (this.heartFeedMode) {
+      // 通关即保存下一关，返回主页或退出后仍然继续第 9 关；老玩家不降级。
+      sys.localStorage.setItem(
+        STORAGE_LEVEL_KEY,
+        String(Math.max(this.levelIndex + 1, this.getStoredLevelIndex())),
+      );
     } else if (!this.feedMode && this.levelIndex >= LAST_STANDARD_LEVEL) {
       // 正式关卡全部完成后进入重玩循环；立即保存，点击主页或直接退出也不会重复第 50 关。
       sys.localStorage.setItem(STORAGE_LEVEL_KEY, String(REPLAY_START_LEVEL));
@@ -3245,6 +3269,7 @@ export class gameScene extends Component {
     if (!manager) return;
 
     const isRevisitChallenge = this.feedRevisitChallenge;
+    const isHeartFeed = this.heartFeedMode;
     const isReplayEntry = !isRevisitChallenge && this.levelIndex >= LAST_STANDARD_LEVEL;
     const data = {
       level: this.levelIndex,
@@ -3265,7 +3290,7 @@ export class gameScene extends Component {
       onNext: () => {
         this.finishFeedExperience();
         this.feedRevisitChallenge = false;
-        this.levelIndex = isRevisitChallenge
+        this.levelIndex = isRevisitChallenge || isHeartFeed
           ? this.getStoredLevelIndex()
           : isReplayEntry
             ? REPLAY_START_LEVEL
@@ -3332,7 +3357,7 @@ export class gameScene extends Component {
   }
 
   private hasPendingTutorialForCurrentLevel(): boolean {
-    if (this.feedRevisitChallenge) return false;
+    if (this.feedRevisitChallenge || this.heartFeedMode) return false;
     if (this.levelIndex === 1 && !TutorialProgress.isCoreGuideDone()) return true;
     if (this.levelIndex === 2 && !TutorialProgress.isTrayExpandGuideDone()) return true;
 
@@ -3366,6 +3391,7 @@ export class gameScene extends Component {
       this.settingsOpen ||
       this.inputLocked ||
       this.feedRevisitChallenge ||
+      this.heartFeedMode ||
       this.tutorialStep !== "none" ||
       this.tutorialTransitioning
     ) {
@@ -4619,7 +4645,7 @@ export class gameScene extends Component {
   }
 
   private showFeedAcquisitionGuide() {
-    if (!this.feedAcquisition || this.feedGuideShown) return;
+    if (!this.feedAcquisition || this.heartFeedMode || this.feedGuideShown) return;
 
     this.feedGuideShown = true;
     this.tryStartTutorialForCurrentLevel();
@@ -4630,6 +4656,7 @@ export class gameScene extends Component {
 
     this.clearTutorialPresentation();
     this.feedMode = false;
+    this.heartFeedMode = false;
     this.feedAcquisition = false;
     this.feedRevisitChallenge = false;
     this.feedSceneReady = false;

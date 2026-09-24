@@ -1,3 +1,5 @@
+import { appendRhythmCatCard } from './rhythm_cat_authoring.mjs';
+import { appendMotoCard } from './moto_race_authoring.mjs';
 // Offline scene authoring for the replacement lobby. Fixed UI is serialized
 // into NewMainScene.scene so it remains editable in Cocos Creator.
 import fs from 'node:fs';
@@ -12,6 +14,7 @@ import {
 import { appendSceneGlobals } from './feed_result_layout.mjs';
 import { appendFoodDeliveryCard } from './food_delivery_authoring.mjs';
 import { appendWhiteGooseCard } from './white_goose_main_card.mjs';
+import { appendMathExamCard } from './math_exam_authoring.mjs';
 
 const SCENE_NAME = 'NewMainScene';
 const SCENE_UUID = 'e2f66be5-60ce-4ebc-90a4-d99841dd2b9a';
@@ -25,14 +28,9 @@ const NEW_MAIN_ASSETS = [
   { name: 'preview_puzzle.jpg', uuid: 'bb2e83a4-eb22-435c-bb35-3a3256985701', width: 246, height: 198, alpha: false },
   { name: 'preview_penguin.jpg', uuid: '9ded1a28-be90-404f-84e3-7060e6f70b6a', width: 246, height: 198, alpha: false },
   { name: 'preview_shooting.jpg', uuid: '0026ad32-f309-4aee-89cb-c8c0fdc0a8a5', width: 246, height: 198, alpha: false },
-  { name: 'preview_archery.jpg', uuid: '3a4af03d-e8e9-41c0-9257-19109c84d816', width: 246, height: 198, alpha: false },
-  { name: 'preview_nail.jpg', uuid: '45b97611-636d-4e3e-886b-8530aa02a17a', width: 246, height: 198, alpha: false },
   { name: 'title_puzzle.jpg', uuid: '4d694c49-116b-4d23-a8ef-75cfb0c2a3e9', width: 268, height: 57, alpha: false },
   { name: 'title_penguin.jpg', uuid: 'a9b70d4b-74b0-491d-9570-f94539bc5110', width: 268, height: 57, alpha: false },
   { name: 'title_shooting.jpg', uuid: 'ac2d12f2-8c40-4fa0-8795-8e810a4939c8', width: 268, height: 57, alpha: false },
-  { name: 'title_archery.jpg', uuid: '6c7a110b-ce40-473b-a49d-0b60aa513b42', width: 268, height: 57, alpha: false },
-  { name: 'title_balloon.jpg', uuid: '3f6c3128-e02f-4191-8287-56f514f718e8', width: 268, height: 57, alpha: false },
-  { name: 'title_nail.jpg', uuid: '1087d369-3c94-43ad-bae5-8579307f178e', width: 290, height: 64, alpha: false },
   { name: 'title_food_delivery.jpg', uuid: 'a21b33ea-e748-44dd-a2af-092a25be28fa', width: 268, height: 57, alpha: false },
   { name: 'title_white_goose.jpg', uuid: '8ef97696-879e-43df-b9dc-42991bd5fedf', width: 268, height: 57, alpha: false },
   { name: 'preview_border.png', uuid: '75720185-3cba-42e9-bfa6-155295a8045a', width: 10, height: 10, alpha: true },
@@ -60,14 +58,9 @@ const art = {
   previewPuzzle: newMainFrame('preview_puzzle.jpg'),
   previewPenguin: newMainFrame('preview_penguin.jpg'),
   previewShooting: newMainFrame('preview_shooting.jpg'),
-  previewArchery: newMainFrame('preview_archery.jpg'),
-  previewNail: newMainFrame('preview_nail.jpg'),
   titlePuzzle: newMainFrame('title_puzzle.jpg'),
   titlePenguin: newMainFrame('title_penguin.jpg'),
   titleShooting: newMainFrame('title_shooting.jpg'),
-  titleArchery: newMainFrame('title_archery.jpg'),
-  titleBalloon: newMainFrame('title_balloon.jpg'),
-  titleNail: newMainFrame('title_nail.jpg'),
   titleFoodDelivery: newMainFrame('title_food_delivery.jpg'),
   titleWhiteGoose: newMainFrame('title_white_goose.jpg'),
   previewBorder: newMainFrame('preview_border.png'),
@@ -75,13 +68,10 @@ const art = {
   share: existingFrame('assets/res/texture/UIs/share_main_icon.png'),
   shareDot: existingFrame('assets/res/texture/UIs/share_red_dot.png'),
   sidebar: existingFrame('assets/res/texture/Sidebar/sidebar_entry_icon.png'),
-  balloonBackground: existingFrame('assets/res/balloonWheelFeed/background.jpg'),
-  wheel: existingFrame('assets/res/balloonWheelFeed/wheel.png'),
-  balloon: existingFrame('assets/res/balloonWheelFeed/balloon.png'),
 };
 
 const sourceScene = JSON.parse(
-  fs.readFileSync('assets/gamescene/ArcheryGameScene.scene', 'utf8'),
+  fs.readFileSync('assets/gamescene/JuggleBallGameScene.scene', 'utf8'),
 );
 const a = new SceneAuthor([], 'newMain');
 const objects = a.objects;
@@ -415,36 +405,6 @@ cards.push(addCard({
   titleArt: art.titleShooting,
   preview: mask => fullArtwork(mask, art.previewShooting),
 }));
-cards.push(addCard({
-  nodeName: 'ArcheryCard',
-  title: '牛来神箭',
-  titleArt: art.titleArchery,
-  preview: mask => fullArtwork(mask, art.previewArchery),
-}));
-cards.push(addCard({
-  nodeName: 'NailHammerCard',
-  title: '敲钉子',
-  titleArt: art.titleNail,
-  preview: mask => fullArtwork(mask, art.previewNail),
-}));
-cards.push(addCard({
-  nodeName: 'BalloonWheelCard',
-  title: '打气球',
-  titleArt: art.titleBalloon,
-  preview: mask => {
-    fullArtwork(mask, art.balloonBackground);
-    a.sprite('Wheel', mask, art.wheel, { x: -14, y: -9, w: 151, h: 151 });
-    a.sprite('BalloonOne', mask, art.balloon, { x: 78, y: 51, w: 37, h: 43, rotation: 10 });
-    a.sprite('BalloonTwo', mask, art.balloon, {
-      x: 83,
-      y: -5,
-      w: 32,
-      h: 37,
-      rotation: -9,
-      color: rgba(207, 139, 255),
-    });
-  },
-}));
 
 // Seed the exact editor positions as well as Layout settings. Creator can
 // immediately display the intended grid before or after Layout recalculation.
@@ -485,9 +445,6 @@ a.component(canvas, compressUuid(SCRIPT_UUID), {
   puzzleButton: ref(cards[0].button),
   penguinButton: ref(cards[1].button),
   shootingButton: ref(cards[2].button),
-  archeryButton: ref(cards[3].button),
-  nailHammerButton: ref(cards[4].button),
-  balloonWheelButton: ref(cards[5].button),
 });
 
 objects[1]._globals = ref(appendSceneGlobals(sourceScene, objects));
@@ -602,6 +559,9 @@ if (process.argv.includes('--write')) {
     : objects;
   appendFoodDeliveryCard(outputObjects);
   appendWhiteGooseCard(outputObjects);
+  appendMathExamCard(outputObjects);
+  appendRhythmCatCard(outputObjects);
+  appendMotoCard(outputObjects);
   writeJson(SCENE_FILE, outputObjects);
   if (!fs.existsSync(`${SCENE_FILE}.meta`)) {
     writeJson(`${SCENE_FILE}.meta`, {

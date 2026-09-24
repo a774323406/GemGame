@@ -20,13 +20,13 @@ const AD_FEED_TYPES: Readonly<Record<string, string>> = {
   NewMainScene: "玩法大厅",
   GameScene: "拼豆排序",
   ShootingGlassBottlesGame: "打瓶子",
-  ArcheryGameScene: "射箭",
   JuggleBallGameScene: "乒乓球第一关",
-  NailHammerFeedGameScene: "砸钉子",
-  BalloonWheelFeedGameScene: "旋转打气球",
   PenguinStackFeedGameScene: "企鹅叠叠乐",
   FoodDeliveryFeedGameScene: "外卖精准投送",
   WhiteGooseFeedGameScene: "套大鹅",
+  RhythmCatFeedGameScene: "节奏猫咪",
+  MathExamFeedGameScene: "口算大挑战",
+  MotoRaceGameScene: "狂暴摩托",
 };
 
 export class SdkUtils {

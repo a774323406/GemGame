@@ -251,7 +251,7 @@ export class foodDeliveryFeedGameScene extends Component {
 
         this.lastAcceptedTouchMs = nowMs;
         if (!this.feedAudioForeground) this.ensureAudio(true);
-        AudioManager.playEffect(soundName.archeryShoot);
+        AudioManager.playEffect(soundName.down);
         this.refreshVisuals();
         return true;
     }

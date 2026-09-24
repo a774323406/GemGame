@@ -75,7 +75,7 @@ async function main() {
     const f = fixture(), config = f.load('framework/Platform/FeedRevisitConfig.ts');
     assert.equal(config.FEED_REVISIT_ENABLED, false);
     assert.equal(config.FEED_SHOOTING_CONTENT_ID, 'CONTENT14389313538');
-    assert.equal(config.FEED_NAIL_HAMMER_CONTENT_ID, 'CONTENT14868790274');
+    assert.equal(config.FEED_NAIL_HAMMER_CONTENT_ID, undefined, 'retired nail feed must not be registered');
     assert.equal(config.FEED_JUGGLE_CONTENT_ID, 'CONTENT14893670402');
     assert.equal(config.FEED_JUGGLE_LEVEL2_CONTENT_ID, 'CONTENT14759731202');
   });

@@ -16,15 +16,15 @@ import {
   FeedDirectPlayMode,
 } from "./framework/Platform/FeedAcquisitionService";
 import {
-  FEED_ARCHERY_CONTENT_ID,
-  FEED_BALLOON_WHEEL_CONTENT_ID,
   FEED_FOOD_DELIVERY_CONTENT_ID,
   FEED_JUGGLE_CONTENT_ID,
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
-  FEED_NAIL_HAMMER_CONTENT_ID,
   FEED_PENGUIN_STACK_CONTENT_ID,
   FEED_SHOOTING_CONTENT_ID,
   FEED_WHITE_GOOSE_CONTENT_ID,
+  FEED_MATH_EXAM_CONTENT_ID,
+  FEED_RHYTHM_CAT_CONTENT_ID,
+  FEED_HEART_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { adc } from "./framework/Platform/ADController";
@@ -184,11 +184,12 @@ export class loadScene extends Component {
       };
     }
 
-    if (contentId === FEED_ARCHERY_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.ArcheryGame,
-        reason: `推荐流射中牛来方案（${contentId}）`,
-      };
+    if (contentId === FEED_HEART_CONTENT_ID) {
+      return { sceneName: GameSceneName.Game, reason: `推荐流爱心第 8 关（${contentId}）` };
+    }
+
+    if (FEED_RHYTHM_CAT_CONTENT_ID && contentId === FEED_RHYTHM_CAT_CONTENT_ID) {
+      return { sceneName: GameSceneName.RhythmCatFeedGame, reason: `推荐流节奏猫咪（${contentId}）` };
     }
 
     if (contentId === FEED_JUGGLE_CONTENT_ID) {
@@ -208,24 +209,10 @@ export class loadScene extends Component {
       };
     }
 
-    if (FEED_BALLOON_WHEEL_CONTENT_ID && contentId === FEED_BALLOON_WHEEL_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.BalloonWheelFeedGame,
-        reason: "旋转打气球获客玩法",
-      };
-    }
-
     if (FEED_PENGUIN_STACK_CONTENT_ID && contentId === FEED_PENGUIN_STACK_CONTENT_ID) {
       return {
         sceneName: GameSceneName.PenguinStackFeedGame,
         reason: `推荐流企鹅叠叠乐方案（${contentId}）`,
-      };
-    }
-
-    if (contentId === FEED_NAIL_HAMMER_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.NailHammerFeedGame,
-        reason: `推荐流砸钉子方案（${contentId}）`,
       };
     }
 
@@ -250,6 +237,13 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.WhiteGooseFeedGame,
         reason: `推荐流套大鹅方案（${contentId}）`,
+      };
+    }
+
+    if (FEED_MATH_EXAM_CONTENT_ID && contentId === FEED_MATH_EXAM_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.MathExamFeedGame,
+        reason: `推荐流口算大挑战方案（${contentId}）`,
       };
     }
 

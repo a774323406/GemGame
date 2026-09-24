@@ -19,6 +19,10 @@ function loadTypeScript(file, requireStub = () => ({})) {
 }
 
 const removedFiles = [
+  ...['ArcheryGameScene', 'NailHammerFeedGameScene', 'BalloonWheelFeedGameScene']
+    .flatMap(name => [`assets/gamescene/${name}.scene`, `assets/gamescene/${name}.scene.meta`]),
+  ...['archeryGameScene', 'nailHammerFeedGameScene', 'balloonWheelFeedGameScene', 'balloonWheelRules']
+    .flatMap(name => [`assets/scripts/${name}.ts`, `assets/scripts/${name}.ts.meta`]),
   'assets/gamescene/MainScene.scene',
   'assets/gamescene/MainScene.scene.meta',
   'assets/gamescene/MilkTeaFeedGameScene.scene',
@@ -42,35 +46,49 @@ const { GameSceneName } = loadTypeScript(
   'assets/scripts/framework/GameSceneBundle.ts',
   name => name === 'cc' ? {} : { ResourceManager: {} },
 );
-assert.deepEqual(Array.from(Object.values(GameSceneName)), [
+assert.deepEqual(Array.from(Object.values(GameSceneName)).filter(name => !['MathExamFeedGameScene', 'RhythmCatFeedGameScene'].includes(name)), [
   'NewMainScene',
   'GameScene',
   'ShootingGlassBottlesGame',
-  'ArcheryGameScene',
   'JuggleBallGameScene',
-  'NailHammerFeedGameScene',
-  'BalloonWheelFeedGameScene',
   'PenguinStackFeedGameScene',
   'FoodDeliveryFeedGameScene',
   'WhiteGooseFeedGameScene',
+  'MotoRaceGameScene',
 ]);
 
 const feedConfig = loadTypeScript('assets/scripts/framework/Platform/FeedRevisitConfig.ts');
 assert.equal(Object.hasOwn(feedConfig, 'FEED_MILK_TEA_CONTENT_ID'), false);
 assert.equal(Object.hasOwn(feedConfig, 'FEED_PEN_REFILL_CONTENT_ID'), false);
+for (const key of ['FEED_ARCHERY_CONTENT_ID', 'FEED_NAIL_HAMMER_CONTENT_ID', 'FEED_BALLOON_WHEEL_CONTENT_ID']) {
+  assert.equal(Object.hasOwn(feedConfig, key), false);
+}
+let contentId;
+const { loadScene } = loadTypeScript('assets/scripts/loadScene.ts', name => {
+  if (name === 'cc') return { Component: class {}, _decorator: { ccclass: () => t => t, property: () => () => {} } };
+  if (name.endsWith('FeedAcquisitionService')) return { FeedAcquisitionService: { getState: () => ({ active: true, mode: 'acquisition', contentId }) } };
+  if (name.endsWith('FeedRevisitConfig')) return feedConfig;
+  if (name.endsWith('GameSceneBundle')) return { GameSceneName };
+  return {};
+});
+const loader = new loadScene();
+loader.warnUnknownFeedContentId = () => {};
+for (contentId of ['CONTENT14389077506', 'CONTENT14868790274', 'CONTENT14816266754']) {
+  assert.equal(loader.resolveFeedEntry().sceneName, 'ShootingGlassBottlesGame', 'retired feed IDs must use the existing safe fallback');
+}
 
 const scene = JSON.parse(fs.readFileSync('assets/gamescene/NewMainScene.scene', 'utf8'));
 const content = scene.find(item => item?.__type__ === 'cc.Node' && item._name === 'Content');
 assert(content, 'NewMainScene Content node is missing');
-assert.deepEqual(content._children.map(ref => scene[ref.__id__]._name), [
+const cardNames = content._children.map(ref => scene[ref.__id__]._name);
+assert(!cardNames.some(name => /Archery|NailHammer|BalloonWheel/.test(name)), 'retired lobby cards must be removed');
+assert.deepEqual(cardNames.filter(name => !['MathExamCard', 'RhythmCatCard'].includes(name)), [
   'PuzzleGameCard',
   'PenguinStackCard',
   'ShootingGlassBottlesCard',
-  'ArcheryCard',
-  'NailHammerCard',
-  'BalloonWheelCard',
   'FoodDeliveryCard',
   'WhiteGooseCard',
+  'MotoRaceCard',
 ]);
 
 for (const [index, entry] of scene.entries()) {
@@ -87,16 +105,13 @@ for (const [index, entry] of scene.entries()) {
   validate(entry);
 }
 
-const sharedBackPath = 'assets/res/texture/UIs/feed_back_button.png';
-const sharedMeta = JSON.parse(fs.readFileSync(`${sharedBackPath}.meta`, 'utf8'));
-assert.equal(sharedMeta.uuid, '8f6b54c1-3b72-4cf3-8a36-a5d9f6e4c721');
-for (const file of [
-  'assets/gamescene/BalloonWheelFeedGameScene.scene',
-  'assets/gamescene/NailHammerFeedGameScene.scene',
-]) {
-  const survivingScene = fs.readFileSync(file, 'utf8');
-  assert(survivingScene.includes(`${sharedMeta.uuid}@f9941`),
-    `${file} lost the shared back button`);
+// External delivery still uses the shooting sound even though its name contains "archery".
+const { soundName, SOUND_ASSET_UUIDS } = loadTypeScript('assets/scripts/gamePrefabMgr.ts');
+for (const name of ['archeryShoot', 'shoot', 'getUserBgm', 'down', 'fail']) {
+  assert.equal(soundName[name], name);
+  assert(fs.statSync(`assets/res/sound/${name}.mp3`).size > 0);
 }
+const sharedShot = JSON.parse(fs.readFileSync('assets/res/sound/archeryShoot.mp3.meta', 'utf8'));
+assert.equal(SOUND_ASSET_UUIDS.archeryShoot, sharedShot.uuid);
 
 console.log('PASS retired games and legacy main are absent; surviving lobby/assets resolve');

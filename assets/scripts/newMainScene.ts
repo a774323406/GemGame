@@ -44,19 +44,19 @@ export class newMainScene extends Component {
   shootingButton: Button = null;
 
   @property(Button)
-  archeryButton: Button = null;
-
-  @property(Button)
-  nailHammerButton: Button = null;
-
-  @property(Button)
-  balloonWheelButton: Button = null;
-
-  @property(Button)
   foodDeliveryButton: Button = null;
 
   @property(Button)
   whiteGooseButton: Button = null;
+
+  @property(Button)
+  mathExamButton: Button = null;
+
+  @property(Button)
+  rhythmCatButton: Button = null;
+
+  @property(Button)
+  motoRaceButton: Button = null;
 
   private navigating = false;
   private shareInFlight = false;
@@ -68,11 +68,11 @@ export class newMainScene extends Component {
     this.puzzleButton?.node?.on(Button.EventType.CLICK, this.openPuzzle, this);
     this.penguinButton?.node?.on(Button.EventType.CLICK, this.openPenguin, this);
     this.shootingButton?.node?.on(Button.EventType.CLICK, this.openShooting, this);
-    this.archeryButton?.node?.on(Button.EventType.CLICK, this.openArchery, this);
-    this.nailHammerButton?.node?.on(Button.EventType.CLICK, this.openNailHammer, this);
-    this.balloonWheelButton?.node?.on(Button.EventType.CLICK, this.openBalloonWheel, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this);
+    this.mathExamButton?.node?.on(Button.EventType.CLICK, this.openMathExam, this);
+    this.rhythmCatButton?.node?.on(Button.EventType.CLICK, this.openRhythmCat, this);
+    this.motoRaceButton?.node?.on(Button.EventType.CLICK, this.openMotoRace, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     SidebarRewardService.addListener(this.onSidebarStateChanged);
@@ -89,6 +89,8 @@ export class newMainScene extends Component {
   }
 
   protected onDestroy(): void {
+    this.motoRaceButton?.node?.off(Button.EventType.CLICK, this.openMotoRace, this);
+    this.rhythmCatButton?.node?.off(Button.EventType.CLICK, this.openRhythmCat, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
     this.settingButton?.node?.off(Button.EventType.CLICK, this.openSettings, this);
@@ -97,11 +99,9 @@ export class newMainScene extends Component {
     this.puzzleButton?.node?.off(Button.EventType.CLICK, this.openPuzzle, this);
     this.penguinButton?.node?.off(Button.EventType.CLICK, this.openPenguin, this);
     this.shootingButton?.node?.off(Button.EventType.CLICK, this.openShooting, this);
-    this.archeryButton?.node?.off(Button.EventType.CLICK, this.openArchery, this);
-    this.nailHammerButton?.node?.off(Button.EventType.CLICK, this.openNailHammer, this);
-    this.balloonWheelButton?.node?.off(Button.EventType.CLICK, this.openBalloonWheel, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.whiteGooseButton?.node?.off(Button.EventType.CLICK, this.openWhiteGoose, this);
+    this.mathExamButton?.node?.off(Button.EventType.CLICK, this.openMathExam, this);
   }
 
   private openSettings(): void {
@@ -115,11 +115,11 @@ export class newMainScene extends Component {
   private openPuzzle(): void { void this.enterGame(GameSceneName.Game); }
   private openPenguin(): void { void this.enterGame(GameSceneName.PenguinStackFeedGame); }
   private openShooting(): void { void this.enterGame(GameSceneName.ShootingGlassBottles); }
-  private openArchery(): void { void this.enterGame(GameSceneName.ArcheryGame); }
-  private openNailHammer(): void { void this.enterGame(GameSceneName.NailHammerFeedGame); }
-  private openBalloonWheel(): void { void this.enterGame(GameSceneName.BalloonWheelFeedGame); }
   private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
   private openWhiteGoose(): void { void this.enterGame(GameSceneName.WhiteGooseFeedGame); }
+  private openRhythmCat(): void { void this.enterGame(GameSceneName.RhythmCatFeedGame); }
+  private openMathExam(): void { void this.enterGame(GameSceneName.MathExamFeedGame); }
+  private openMotoRace(): void { void this.enterGame(GameSceneName.MotoRaceGame); }
 
   private async enterGame(sceneName: GameSceneName): Promise<void> {
     if (this.navigating || GameSceneBundle.isLoadingScene) return;
@@ -149,11 +149,11 @@ export class newMainScene extends Component {
       this.puzzleButton,
       this.penguinButton,
       this.shootingButton,
-      this.archeryButton,
-      this.nailHammerButton,
-      this.balloonWheelButton,
       this.foodDeliveryButton,
       this.whiteGooseButton,
+      this.mathExamButton,
+      this.rhythmCatButton,
+      this.motoRaceButton,
     ].filter(Boolean);
   }
 

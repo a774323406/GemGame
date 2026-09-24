@@ -108,52 +108,35 @@ const expectedCards = [
   'PuzzleGameCard',
   'PenguinStackCard',
   'ShootingGlassBottlesCard',
-  'ArcheryCard',
-  'NailHammerCard',
-  'BalloonWheelCard',
   'FoodDeliveryCard',
   'WhiteGooseCard',
+  'MathExamCard',
+  'RhythmCatCard',
+  'MotoRaceCard',
 ];
 const contentChildren = content.entry._children.map(object).map(node => node._name);
 assert.deepEqual(contentChildren, expectedCards, 'game cards/order changed');
 const contentTransform = component(content.id, 'cc.UITransform');
-assert.equal(contentTransform._contentSize.height, 1182,
-  'four two-column rows must be fully scrollable');
+assert.equal(contentTransform._contentSize.height, 18 + Math.ceil(contentChildren.length / 2) * 294 - 26 + 14,
+  'all two-column rows must be fully scrollable');
 assert.deepEqual(
   [nodeByName('FoodDeliveryCard').entry._lpos.x, nodeByName('FoodDeliveryCard').entry._lpos.y],
-  [-139, -1034],
-  'the seventh card must start the fourth row',
+  [139, -446],
+  'the fourth card must complete the second row',
 );
 assert.deepEqual(
   [nodeByName('WhiteGooseCard').entry._lpos.x, nodeByName('WhiteGooseCard').entry._lpos.y],
-  [139, -1034],
-  'the eighth card must complete the fourth row',
+  [-139, -740],
+  'the fifth card must start the third row',
 );
 
 const buildSource = read('tools/build_new_main_scene.mjs');
-for (const title of ['牛来神箭', '打气球']) {
-  assert(buildSource.includes(`title: '${title}'`), `new lobby title is missing: ${title}`);
-}
 const visibleStrings = scene
   .filter(item => typeof item?._string === 'string')
   .map(item => item._string);
 for (const oldTitle of ['奶茶接接乐', '神箭手', '气球转盘']) {
   assert(!visibleStrings.includes(oldTitle) && !buildSource.includes(`title: '${oldTitle}'`),
     `old lobby title remains: ${oldTitle}`);
-}
-
-const expectedRenamedTitleFrames = {
-  ArcheryCard: '6c7a110b-ce40-473b-a49d-0b60aa513b42@f9941',
-  BalloonWheelCard: '3f6c3128-e02f-4191-8287-56f514f718e8@f9941',
-};
-for (const [cardName, frameUuid] of Object.entries(expectedRenamedTitleFrames)) {
-  const card = nodeByName(cardName);
-  const plaque = card.entry._children.map(object).find(child => child._name === 'TitlePlaque');
-  assert(plaque, `${cardName} title plaque is missing`);
-  assert.equal(component(scene.indexOf(plaque), 'cc.Sprite')._spriteFrame.__uuid__, frameUuid,
-    `${cardName} must use its flat title bitmap`);
-  assert(!plaque._children.some(child => object(child)._name === 'GameName'),
-    `${cardName} must not use the mismatched blank-plaque label`);
 }
 
 const artworkMasks = nodes.filter(({ entry }) => entry._name === 'ArtworkMask');
@@ -181,11 +164,11 @@ const buttonProperties = [
   'puzzleButton',
   'penguinButton',
   'shootingButton',
-  'archeryButton',
-  'nailHammerButton',
-  'balloonWheelButton',
   'foodDeliveryButton',
   'whiteGooseButton',
+  'mathExamButton',
+  'rhythmCatButton',
+  'motoRaceButton',
 ];
 buttonProperties.forEach((property, index) => {
   const button = object(controller[property]);
@@ -273,7 +256,7 @@ const rasterBytes = rasterFiles.reduce((total, filename) =>
 assert(rasterBytes < 1024 * 1024, `new lobby images exceed 1 MiB: ${rasterBytes}`);
 
 const previewFiles = rasterFiles.filter(filename => /^preview_.*\.jpg$/i.test(filename));
-assert.equal(previewFiles.length, 5, 'expected five extracted preview images');
+assert.equal(previewFiles.length, 3, 'expected three extracted preview images');
 for (const filename of previewFiles) {
   const meta = JSON.parse(read(`assets/res/newMain/${filename}.meta`));
   const frame = meta.subMetas.f9941.userData;

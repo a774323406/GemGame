@@ -1,0 +1,285 @@
+[
+  {
+    "file": "black-idle.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      692
+    ],
+    "sampleIndex": 116,
+    "sampleTime": 23.066666666666666,
+    "crop": [
+      76,
+      636,
+      208,
+      812
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "black-open.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      92
+    ],
+    "sampleIndex": 16,
+    "sampleTime": 3.066666666666667,
+    "crop": [
+      166,
+      636,
+      298,
+      812
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "white-idle.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      692
+    ],
+    "sampleIndex": 116,
+    "sampleTime": 23.066666666666666,
+    "crop": [
+      328,
+      636,
+      460,
+      812
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "white-open.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      392
+    ],
+    "sampleIndex": 66,
+    "sampleTime": 13.066666666666666,
+    "crop": [
+      326,
+      636,
+      458,
+      812
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "brown-pop.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      92
+    ],
+    "sampleIndex": 16,
+    "sampleTime": 3.066666666666667,
+    "crop": [
+      41,
+      299,
+      87,
+      373
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "pink-pop.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      692
+    ],
+    "sampleIndex": 116,
+    "sampleTime": 23.066666666666666,
+    "crop": [
+      340,
+      351,
+      386,
+      425
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "brown-cone.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      92
+    ],
+    "sampleIndex": 16,
+    "sampleTime": 3.066666666666667,
+    "crop": [
+      194,
+      260,
+      233,
+      317
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "pink-cone.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      692
+    ],
+    "sampleIndex": 116,
+    "sampleTime": 23.066666666666666,
+    "crop": [
+      493,
+      303,
+      532,
+      359
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "brown-scoop.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      92
+    ],
+    "sampleIndex": 16,
+    "sampleTime": 3.066666666666667,
+    "crop": [
+      45,
+      118,
+      82,
+      156
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "cream-scoop.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      92
+    ],
+    "sampleIndex": 16,
+    "sampleTime": 3.066666666666667,
+    "crop": [
+      45,
+      140,
+      82,
+      159
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "pink-scoop.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      92
+    ],
+    "sampleIndex": 16,
+    "sampleTime": 3.066666666666667,
+    "crop": [
+      343,
+      30,
+      381,
+      68
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "crumb-brown.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      92
+    ],
+    "sampleIndex": 16,
+    "sampleTime": 3.066666666666667,
+    "crop": [
+      89,
+      674,
+      102,
+      690
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "crumb-pink.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      2
+    ],
+    "sampleIndex": 1,
+    "sampleTime": 0.06666666666666667,
+    "crop": [
+      315,
+      663,
+      329,
+      678
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "heart-full.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      692
+    ],
+    "sampleIndex": 116,
+    "sampleTime": 23.066666666666666,
+    "crop": [
+      459,
+      237,
+      495,
+      270
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "heart-empty.png",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      692
+    ],
+    "sampleIndex": 116,
+    "sampleTime": 23.066666666666666,
+    "crop": [
+      414,
+      237,
+      451,
+      270
+    ],
+    "processing": "Source RGB unchanged; exterior flood-fill and largest silhouette alpha mask",
+    "gaps": []
+  },
+  {
+    "file": "background.jpg",
+    "sourceType": "video-frame",
+    "sourceFile": "reference.mp4",
+    "sourceFrames": [
+      692
+    ],
+    "sampleIndex": 116,
+    "sampleTime": 23.066666666666666,
+    "crop": null,
+    "processing": "Unobstructed source wall strip repeated; original floor and divider; gift overlay replaced with adjacent original floor",
+    "gaps": []
+  }
+]

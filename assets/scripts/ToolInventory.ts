@@ -166,6 +166,19 @@ export class ToolInventory extends Component {
     ToolInventory.save(inventory);
   }
 
+  /** 推荐流跳过前置关卡：开放道具并结清教学/首赠流程，保留已有库存。 */
+  public static completeOnboardingWithoutRewards(): void {
+    const inventory = ToolInventory.load();
+    for (const tool of ToolInventory.tools()) {
+      inventory.unlocked[tool] = true;
+      // 标记首赠已处理，防止进入后续正式关卡时补发。
+      inventory.rewardGranted[tool] = true;
+      inventory.rewardPresented[tool] = true;
+      inventory.guideDone[tool] = true;
+    }
+    ToolInventory.save(inventory);
+  }
+
   public static reset() {
     ToolInventory.save(ToolInventory.createDefaultData());
   }

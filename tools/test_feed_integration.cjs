@@ -29,7 +29,7 @@ function fixture() {
   let feedListener, firstTouches = 0;
   const animations = [];
   const game = new Emitter(), director = new Emitter();
-  let currentScene = { name: 'NailHammerFeedGameScene', isValid: true };
+  let currentScene = { name: 'PenguinStackFeedGameScene', isValid: true };
   director.getScene = () => currentScene;
   const audio = new Proxy({}, { get: () => () => {} });
   const cc = {
@@ -102,16 +102,6 @@ function fixture() {
     }
     now = end;
   }
-  function nail() {
-    const g = new (load('nailHammerFeedGameScene.ts').nailHammerFeedGameScene)();
-    g.node = { isValid: true }; g.feedMode = true; g.refreshButtons = () => {};
-    g.sceneResultOverlay = { active: false };
-    for (const key of ['sceneBackButton', 'sceneAddHammersButton', 'sceneReplayButton', 'sceneNextButton']) g[key] = { node: null };
-    g.isTouchInsideNode = () => false;
-    g.performStrike = () => {};
-    feedListener = g.onFeedStateChanged;
-    return g;
-  }
   function penguin() {
     currentScene = { name: 'PenguinStackFeedGameScene', isValid: true };
     const g = new (load('penguinStackFeedGameScene.ts').penguinStackFeedGameScene)();
@@ -127,7 +117,7 @@ function fixture() {
     return g;
   }
   return {
-    load, nail, penguin, advance, adc, game, director, animations, cc,
+    load, penguin, advance, adc, game, director, animations, cc,
     shown: () => shown, scheduled: () => scheduled, firstTouches: () => firstTouches,
     destroyScene() { currentScene = null; },
     setState(value) { state = { ...state, ...value }; },
@@ -140,10 +130,10 @@ function fixture() {
 async function main() {
   const tests = [];
   const test = (name, fn) => tests.push([name, fn]);
-  test('all eight result overlays/dims stretch to Canvas and block input', async () => {
+  test('all remaining result overlays/dims stretch to Canvas and block input', async () => {
     const { fitFeedResultOverlay, appendSceneGlobals } = await import('./feed_result_layout.mjs');
-    const names = ['ArcheryGameScene', 'BalloonWheelFeedGameScene', 'JuggleBallGameScene',
-      'FoodDeliveryFeedGameScene', 'NailHammerFeedGameScene', 'PenguinStackFeedGameScene',
+    const names = ['JuggleBallGameScene',
+      'FoodDeliveryFeedGameScene', 'PenguinStackFeedGameScene',
       'ShootingGlassBottlesGame', 'WhiteGooseFeedGameScene'];
     for (const name of names) {
       const data = JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`, 'utf8'));
@@ -179,7 +169,6 @@ async function main() {
   test('new Content IDs route to the requested games; juggle selects the correct level', () => {
     const f = fixture();
     const config = f.load('framework/Platform/FeedRevisitConfig.ts');
-    assert.equal(config.FEED_BALLOON_WHEEL_CONTENT_ID, 'CONTENT14816266754');
     assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'CONTENT14960528898');
     assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT15252968962');
     const loader = new (f.load('loadScene.ts').loadScene)();
@@ -187,13 +176,11 @@ async function main() {
     const cases = [
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
-      ['CONTENT14868790274', 'NailHammerFeedGameScene'],
-      ['CONTENT14389077506', 'ArcheryGameScene'],
       ['CONTENT14389313538', 'ShootingGlassBottlesGame'],
-      ['CONTENT14816266754', 'BalloonWheelFeedGameScene'],
       ['CONTENT14860954626', 'PenguinStackFeedGameScene'],
       ['CONTENT14960528898', 'WhiteGooseFeedGameScene'],
       ['CONTENT15252968962', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT15383195906', 'RhythmCatFeedGameScene'],
     ];
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene);
@@ -218,38 +205,6 @@ async function main() {
     const overlay = { getComponent: type => type === Sprite ? {} : null }; g.sceneResultOverlay = overlay;
     g.getGraphics = node => { assert.notEqual(node, overlay); return null; };
     g.drawSceneArtwork();
-  });
-  test('nail preview does not request an interstitial; real enter waits two seconds', () => {
-    const f = fixture(); f.nail(); f.advance(40); assert.equal(f.shown(), 0); assert.equal(f.scheduled(), 0);
-    f.enter(); f.enter(); assert.equal(f.scheduled(), 1);
-    f.advance(1.99); assert.equal(f.shown(), 0); f.advance(0.02); assert.equal(f.shown(), 1);
-  });
-  test('nail first interstitial waits for process age 31 seconds', () => {
-    const f = fixture(); f.nail(); f.enter(); f.advance(30.99); assert.equal(f.shown(), 0);
-    f.advance(0.02); assert.equal(f.shown(), 1);
-  });
-  test('nail exit cancels queued interstitial and re-entry schedules a fresh request', () => {
-    const f = fixture(); f.nail(); f.enter(); f.advance(10); f.exit(); f.advance(40); assert.equal(f.shown(), 0);
-    f.enter(); f.advance(2.01); assert.equal(f.shown(), 1);
-  });
-  test('nail fullscreen ad conflicts observe the same 60-second cooldown', () => {
-    const f = fixture(); f.nail(); f.enter(); f.busy(true); f.advance(35); assert.equal(f.shown(), 0);
-    f.busy(false); f.director.emit('ad-pause', false);
-    f.advance(59.99); assert.equal(f.shown(), 0); f.advance(0.02); assert.equal(f.shown(), 1);
-  });
-  test('backgrounding suspends the queued interstitial until foreground', () => {
-    const f = fixture(); f.nail(); f.enter(); f.game.emit('hide'); f.advance(40); assert.equal(f.shown(), 0);
-    f.game.emit('show'); f.advance(0.3); assert.equal(f.shown(), 1);
-  });
-  test('nail real canvas press recovers a missing feedEnter once', () => {
-    const f = fixture(), g = f.nail();
-    g.onGlobalTouchStart({}); g.onGlobalTouchStart({});
-    assert.equal(f.firstTouches(), 1); assert.equal(f.scheduled(), 1); assert(g.feedEntered);
-  });
-  test('ending a feed session continues global ads; destroyed/leaving scenes cannot show', () => {
-    const f = fixture(), g = f.nail(); f.enter(); g.finishFeedExperience(); f.advance(100); assert.equal(f.shown(), 2);
-    const next = fixture(), other = next.nail(); next.enter(); other.onDestroy(); next.destroyScene(); next.advance(100); assert.equal(next.shown(), 0);
-    const leaving = fixture(), third = leaving.nail(); leaving.enter(); third.roundState = 'leaving'; leaving.advance(100); assert.equal(leaving.shown(), 0);
   });
   test('penguin feed entry schedules one interstitial after the platform delay', () => {
     const f = fixture(); f.penguin(); f.advance(40);
