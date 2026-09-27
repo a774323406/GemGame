@@ -491,6 +491,9 @@ const resultActionLabel = makeLabel("ResultActionLabel", resultAction, "下一�
   outlineWidth: 3,
 }, { x: 12, width: 290, height: 65 });
 
+const resultRestart = makeSprite("ResultRestartButton", resultPanel, frames.successButton, { y: -445, width: 360, height: 112 });
+const resultRestartButton = addButton(resultRestart);
+makeLabel("RestartCaption", resultRestart, "重新开始", { fontSize: 29, lineHeight: 40, textColor: color(255,255,255) }, { width: 330, height: 80 });
 const scriptComponent = addComponent(canvas, {
   __type__: "0944aPYlMNGFKjM3TgiWahY",
   _name: "",
@@ -530,6 +533,7 @@ const scriptComponent = addComponent(canvas, {
   resultTitleLabel: ref(resultTitle.component),
   resultDetailLabel: ref(resultDetail.component),
   resultActionButton: ref(resultActionButton),
+  resultRestartButton: ref(resultRestartButton),
   resultActionLabel: ref(resultActionLabel.component),
   resultSuccessBackground: ref(resultSuccessBackground),
   resultAdBackground: ref(resultAdBackground),

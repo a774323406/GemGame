@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { SceneAuthor, compressUuid, ref, rgba } from './penguin_scene_authoring.mjs';
-import { appendSceneGlobals } from './feed_result_layout.mjs';
+import { appendSceneGlobals, fitFeedResultOverlay } from './feed_result_layout.mjs';
 import { standardizeLobbyCard } from './lobby_card_style.mjs';
 export const uuid=name=>{const h=crypto.createHash('sha256').update('GemGame/motoRace/'+name).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;};
 export const SCENE_UUID=uuid('MotoRaceGameScene');
@@ -49,7 +49,7 @@ export function buildMotoScene(){
  const home=button(a,'HomeButton',panel,'返回大厅',0,-280,440,83,31,true);
  const audio=(name,loop)=>{const n=a.node(name,root);return a.component(n,'cc.AudioSource',{_clip:{__uuid__:uuid(name+'.wav'),__expectedType__:'cc.AudioClip'},_loop:loop,_playOnAwake:false,_volume:loop?.12:.4});};
  a.component(canvas,compressUuid(uuid('motoRaceGameScene.ts')),{layoutRoot:ref(root),world:ref(world),artRoot:ref(artRoot),riderAtlas:{__uuid__:uuid('riders-atlas.png')+'@6c48a',__expectedType__:'cc.Texture2D'},hud:ref(hud),armorLabel:ref(armor.component),rankLabel:ref(rank.component),timeLabel:ref(time.component),speedLabel:ref(speed.component),distanceLabel:ref(distance.component),messageLabel:ref(message.component),countdownLabel:ref(countdown.component),steeringPad:ref(pad),steeringKnob:ref(knob),punchButton:ref(punch.component),kickButton:ref(kick.component),pauseButton:ref(pause.component),backButton:ref(back.component),overlay:ref(overlay),resultTitle:ref(title.component),resultDetail:ref(detail.component),resumeLabel:ref(resume.label),resumeButton:ref(resume.component),replayButton:ref(replay.component),homeButton:ref(home.component),engineSound:ref(audio('Engine',true)),hitSound:ref(audio('Hit',false))});
- o[1]._globals=ref(appendSceneGlobals(source,o));return o;
+ o[1]._globals=ref(appendSceneGlobals(source,o));fitFeedResultOverlay(o, 'MotoRaceGameScene');return o;
 }
 export function appendMotoCard(objects){
  const controller=objects.find(v=>v.gameList&&v.puzzleButton&&v.whiteGooseButton);if(!controller)throw Error('Missing lobby controller');

@@ -6,10 +6,15 @@ const ts = require('/Applications/Cocos/Creator/3.8.5/CocosCreator.app/Contents/
 const storage = new Map();
 const localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
 class Stub { clone() { return new Stub(); } }
+Stub.EventType={TOUCH_START:'touch-start'};
 Stub.WHITE = new Stub(); Stub.ONE = new Stub();
 const cc = new Proxy({ _decorator: { ccclass: () => c => c, property: (...args) => args.length >= 2 ? undefined : () => {} }, Component: Stub, sys: {localStorage} }, {get: (o,k) => o[k] ?? Stub});
-let state = {active:true, mode:'acquisition', contentId:'xxx', entered:false};
-const feed = {init(){}, isActive:()=>state.active, isAcquisition:()=>state.mode==='acquisition', isRevisit:()=>state.mode==='revisit', getState:()=>state, getContentId:()=>state.contentId, addListener(){}};
+let state = {active:true, mode:'acquisition', contentId:'CONTENT15319004674', entered:false};
+const feed = {init(){}, isActive:()=>state.active, isAcquisition:()=>state.mode==='acquisition', isRevisit:()=>state.mode==='revisit', getState:()=>state, getContentId:()=>state.contentId, addListener(){}, activateFromFirstTouch(){state={...state,entered:true};}};
+let scheduled = 0, cancelled = 0, validity;
+const audioCalls=[];let adBusy=false;
+const audio={pauseAll(){audioCalls.push("pause");},resumeAll(){audioCalls.push("resume");},playDefaultBgm(){audioCalls.push("bgm");},restartMusic(name){audioCalls.push("restart:"+name);}};
+const ads = {scheduleFeedEntryInterstitial(fn){scheduled++;validity=fn;},cancelFeedEntryInterstitial(){cancelled++;}};
 const cache = {};
 function load(file) {
  if(cache[file]) return cache[file];
@@ -17,6 +22,11 @@ function load(file) {
  const code = ts.transpileModule(fs.readFileSync('assets/scripts/'+file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,experimentalDecorators:true}}).outputText;
  vm.runInNewContext(code,{exports,console,require(name){
   if(name==='cc') return cc;
+  if(name.endsWith('/ADController')) return {adc:ads};
+  if(name.endsWith('/PlayData')) return {default:{Instance:{ispause:false}}};
+  if(name.endsWith('/AudioManager')) return {default:audio};
+  if(name.endsWith("/gamePrefabMgr")) return {soundName:{bgm:"bgm"}};
+  if(name.endsWith("/SdkUtils")) return {SdkUtils:{isFullscreenAdBusy:()=>adBusy}};
   if(name.endsWith('/FeedAcquisitionService')) return {FeedAcquisitionService:feed};
   for(const path of ['ToolInventory.ts','data/TutorialProgress.ts','framework/Platform/FeedRevisitConfig.ts','framework/GameSceneBundle.ts']) if(name.endsWith('/'+path.split('/').pop().replace('.ts',''))) return load(path);
   return {};
@@ -35,9 +45,23 @@ async function entry() {
  await scene.start();return scene;
 }
 (async()=>{
- assert.equal(new Loader().resolveFeedEntry().sceneName,'GameScene','xxx routes to gem game');
+ assert.equal(new Loader().resolveFeedEntry().sceneName,'GameScene','heart content ID routes to gem game');
  const scene = await entry();
  assert.equal(scene.levelIndex,8);
+ scene.node={isValid:true,on(){},off(){}};scene.feedSceneReady=true;
+ scene.syncCountdownWarningState=()=>{};
+ scene.applyFeedState(state);assert.equal(scheduled,0,'preview must not schedule an ad');assert.equal(audioCalls.length,0,'preview remains silent');
+ state={...state,entered:true};scene.applyFeedState(state);
+ assert(audioCalls.includes('bgm'),'real feed entry starts BGM');
+ scene.onFeedFallbackTouch();assert(audioCalls.includes('restart:bgm'),'first real touch recovers host-blocked music');
+ assert.equal(scheduled,1,'feed entry must join the shared interstitial scheduler');assert(validity());
+ scene.applyFeedState(state);assert.equal(scheduled,1,'duplicate feed entry must not reschedule');
+ state={...state,exited:true};scene.applyFeedState(state);assert(cancelled>0);assert(!validity());assert.equal(audioCalls.at(-1),'pause');assert.equal(scene.feedAudioTouched,false);
+ state={...state,exited:false};scene.applyFeedState(state);assert.equal(scheduled,2,'reentry schedules again');assert.equal(audioCalls.at(-1),'bgm');
+ const before=audioCalls.length;adBusy=true;scene.onFeedFallbackTouch();assert.equal(audioCalls.length,before,'touch cannot restart BGM over an ad');adBusy=false;
+ scene.destroying=true;assert(!validity(),'destroyed scene invalidates pending ad');scene.destroying=false;
+ scene.feedMode=false;assert(!validity(),'leaving feed invalidates pending ad');scene.feedMode=true;
+
  assert.equal(storage.get('gem_sort_level'),'8');
  assert(tutorial.isCoreGuideDone() && tutorial.isTrayExpandGuideDone() && tutorial.isTrayExpandUnlocked());
  for(const tool of ['magic','brush','magnet']) {

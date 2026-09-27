@@ -339,8 +339,10 @@ export class gameScene extends Component {
   private feedRevisitChallenge = false;
   private feedSceneReady = false;
   private feedHasStarted = false;
+  private feedAudioTouched = false;
   private feedGuideShown = false;
   private feedEnteredAtMs = 0;
+  private feedInterstitialScheduled = false;
   private feedPauseApplied = false;
   private inputLockedBeforeFeedPause = false;
   private timerRunningBeforeFeedPause = false;
@@ -4570,17 +4572,26 @@ export class gameScene extends Component {
 
   private onFeedStateChanged = (state: FeedAcquisitionState) => {
     this.applyFeedState(state);
-    if (state.entered) {
-      this.unbindFeedFallbackTouch();
-    } else {
-      this.bindFeedFallbackTouch();
-    }
+    this.bindFeedFallbackTouch();
   };
 
   private applyFeedState(state: FeedAcquisitionState) {
     if (!this.feedMode || !this.feedSceneReady) return;
 
+    if (!state.active || !state.entered || state.exited) {
+      this.cancelFeedInterstitial();
+    } else if (!this.feedInterstitialScheduled) {
+      this.feedInterstitialScheduled = true;
+      adc.scheduleFeedEntryInterstitial(() => {
+        const current = FeedAcquisitionService.getState();
+        return !this.destroying && !!this.node?.isValid && this.feedMode &&
+          this.feedSceneReady && current.active && current.entered && !current.exited;
+      });
+    }
+
     if (state.exited) {
+      this.feedAudioTouched = false;
+      this.unbindFeedFallbackTouch();
       if (this.feedHasStarted && !this.feedPauseApplied) {
         this.feedPauseApplied = true;
         this.inputLockedBeforeFeedPause = this.inputLocked;
@@ -4611,7 +4622,7 @@ export class gameScene extends Component {
       this.timerRunning = true;
       this.syncCountdownWarningState();
       this.showFeedAcquisitionGuide();
-      // AudioManager.playMusic(soundName.levelBgm);
+      AudioManager.playDefaultBgm();
       return;
     }
 
@@ -4620,17 +4631,18 @@ export class gameScene extends Component {
       this.timerRunning = this.timerRunningBeforeFeedPause;
       this.feedPauseApplied = false;
       AudioManager.resumeAll();
+      AudioManager.playDefaultBgm();
     } else {
       this.inputLocked = false;
       this.timerRunning = true;
-      // AudioManager.playMusic(soundName.levelBgm);
+      AudioManager.playDefaultBgm();
     }
     this.syncCountdownWarningState();
   }
 
   private bindFeedFallbackTouch() {
     const state = FeedAcquisitionService.getState();
-    if (!this.feedMode || !this.feedSceneReady || state.entered) return;
+    if (!this.feedMode || !this.feedSceneReady || state.exited || this.feedAudioTouched) return;
     this.unbindFeedFallbackTouch();
     this.node.on(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
   }
@@ -4638,6 +4650,15 @@ export class gameScene extends Component {
   private onFeedFallbackTouch() {
     this.unbindFeedFallbackTouch();
     FeedAcquisitionService.activateFromFirstTouch();
+    const state = FeedAcquisitionService.getState();
+    if (this.feedMode && state.active && state.entered && !state.exited &&
+        !this.appHidden && !this.adPaused && !SdkUtils.isFullscreenAdBusy()) {
+      this.feedAudioTouched = true;
+      this.unbindFeedFallbackTouch();
+      AudioManager.restartMusic(soundName.bgm);
+    } else {
+      this.bindFeedFallbackTouch();
+    }
   }
 
   private unbindFeedFallbackTouch() {
@@ -4651,9 +4672,16 @@ export class gameScene extends Component {
     this.tryStartTutorialForCurrentLevel();
   }
 
+  private cancelFeedInterstitial() {
+    if (!this.feedInterstitialScheduled) return;
+    this.feedInterstitialScheduled = false;
+    adc.cancelFeedEntryInterstitial();
+  }
+
   private finishFeedExperience() {
     if (!this.feedMode) return;
 
+    this.cancelFeedInterstitial();
     this.clearTutorialPresentation();
     this.feedMode = false;
     this.heartFeedMode = false;
@@ -4698,6 +4726,7 @@ export class gameScene extends Component {
 
   protected onDestroy() {
     this.destroying = true;
+    this.cancelFeedInterstitial();
     game.off(Game.EVENT_HIDE, this.onGameHide, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     director.off(SdkUtils.EVENT_AD_PAUSE_CHANGED, this.onAdPauseChanged, this);

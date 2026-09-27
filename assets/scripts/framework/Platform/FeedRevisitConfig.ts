@@ -1,8 +1,8 @@
 /** 推荐流方案管理中与实际玩法一一对应的 Content_ID。 */
 export const FEED_SHOOTING_CONTENT_ID = "CONTENT14389313538";
 
-/** 爱心第 8 关获客方案；后台 ID 确定后替换 xxx。 */
-export const FEED_HEART_CONTENT_ID: string = "xxx";
+/** 爱心第 8 关获客方案。 */
+export const FEED_HEART_CONTENT_ID: string = "CONTENT15319004674";
 export const FEED_HEART_LEVEL = 8;
 
 /**
@@ -98,3 +98,6 @@ export function createFeedRevisitExtra(readyAt: number): string {
 
 /** 节奏猫咪推荐流方案，直接进入 RhythmCatFeedGameScene。 */
 export const FEED_RHYTHM_CAT_CONTENT_ID: string = "CONTENT15383195906";
+
+/** 狂暴摩托推荐流方案。 */
+export const FEED_MOTO_RACE_CONTENT_ID = "CONTENT15218705666";

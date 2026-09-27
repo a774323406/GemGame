@@ -612,14 +612,13 @@ export class whiteGooseFeedGameScene extends Component {
     }
     if (this.sceneResultDetail?.isValid) {
       this.sceneResultDetail.string = success
-        ? "7只大鹅全部套中！"
-        : `还差 ${TARGET_GOOSE_COUNT - snapshot.caughtCount} 只，增加套圈可保留进度继续挑战`;
+        ? "全部套中，太厉害了！"
+        : "再来一局，挑战全部套中！";
     }
     if (this.sceneResultOverlay?.isValid) this.sceneResultOverlay.active = true;
     if (this.sceneResultPanel?.isValid) {
       Tween.stopAllByTarget(this.sceneResultPanel);
-      this.sceneResultPanel.setScale(0.88, 0.88, 1);
-      tween(this.sceneResultPanel).to(0.25, { scale: Vec3.ONE }, { easing: "backOut" }).start();
+      this.sceneResultPanel.setScale(1, 1, 1);
     }
     this.refreshHud();
   }

@@ -3103,6 +3103,9 @@
       },
       {
         "__id__": 81
+      },
+      {
+        "__id__": 153
       }
     ],
     "_prefab": null,
@@ -3287,10 +3290,10 @@
     "_dstBlendFactor": 4,
     "_color": {
       "__type__": "cc.Color",
-      "r": 37,
-      "g": 27,
-      "b": 19,
-      "a": 170
+      "r": 0,
+      "g": 0,
+      "b": 0,
+      "a": 145
     },
     "_spriteFrame": {
       "__uuid__": "b51f1491-eec7-5ba5-a553-4ce4db166627@f9941",
@@ -3382,6 +3385,9 @@
       },
       {
         "__id__": 88
+      },
+      {
+        "__id__": 141
       }
     ],
     "_prefab": null,
@@ -3426,8 +3432,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 610,
-      "height": 900
+      "width": 2400,
+      "height": 3000
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -3444,7 +3450,7 @@
     "node": {
       "__id__": 86
     },
-    "_enabled": true,
+    "_enabled": false,
     "__prefab": null,
     "_customMaterial": null,
     "_srcBlendFactor": 2,
@@ -3491,13 +3497,16 @@
       },
       {
         "__id__": 91
+      },
+      {
+        "__id__": 142
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 348,
+      "y": 550,
       "z": 0
     },
     "_lrot": {
@@ -3535,8 +3544,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 480,
-      "height": 46
+      "width": 640,
+      "height": 60
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -3560,33 +3569,33 @@
     "_dstBlendFactor": 4,
     "_color": {
       "__type__": "cc.Color",
-      "r": 136,
-      "g": 130,
-      "b": 114,
+      "r": 255,
+      "g": 255,
+      "b": 255,
       "a": 255
     },
-    "_string": "口 算 成 绩 单",
+    "_string": "口算大挑战",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 25,
-    "_fontSize": 25,
+    "_fontSize": 42,
     "_fontFamily": "Arial",
-    "_lineHeight": 31.25,
+    "_lineHeight": 57,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
     "_isSystemFontUsed": true,
     "_spacingX": 0,
     "_isItalic": false,
-    "_isBold": false,
+    "_isBold": true,
     "_isUnderline": false,
     "_underlineHeight": 2,
     "_cacheMode": 0,
-    "_enableOutline": false,
+    "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 67,
-      "g": 42,
+      "r": 47,
+      "g": 36,
       "b": 31,
       "a": 255
     },
@@ -3615,7 +3624,11 @@
     "_parent": {
       "__id__": 86
     },
-    "_children": [],
+    "_children": [
+      {
+        "__id__": 150
+      }
+    ],
     "_active": true,
     "_components": [
       {
@@ -3623,13 +3636,16 @@
       },
       {
         "__id__": 94
+      },
+      {
+        "__id__": 143
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 276,
+      "y": 395,
       "z": 0
     },
     "_lrot": {
@@ -3667,8 +3683,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 510,
-      "height": 68
+      "width": 620,
+      "height": 165
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -3692,18 +3708,18 @@
     "_dstBlendFactor": 4,
     "_color": {
       "__type__": "cc.Color",
-      "r": 46,
-      "g": 47,
-      "b": 43,
+      "r": 255,
+      "g": 232,
+      "b": 153,
       "a": 255
     },
     "_string": "挑战完成",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 45,
-    "_fontSize": 45,
+    "_fontSize": 104,
     "_fontFamily": "Arial",
-    "_lineHeight": 56.25,
+    "_lineHeight": 141,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
@@ -3714,11 +3730,11 @@
     "_isUnderline": false,
     "_underlineHeight": 2,
     "_cacheMode": 0,
-    "_enableOutline": false,
+    "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 67,
-      "g": 42,
+      "r": 47,
+      "g": 36,
       "b": 31,
       "a": 255
     },
@@ -3755,13 +3771,16 @@
       },
       {
         "__id__": 97
+      },
+      {
+        "__id__": 144
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 160,
+      "y": 185,
       "z": 0
     },
     "_lrot": {
@@ -3799,8 +3818,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 510,
-      "height": 152
+      "width": 630,
+      "height": 150
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -3824,18 +3843,18 @@
     "_dstBlendFactor": 4,
     "_color": {
       "__type__": "cc.Color",
-      "r": 201,
-      "g": 52,
-      "b": 43,
+      "r": 255,
+      "g": 255,
+      "b": 255,
       "a": 255
     },
     "_string": "0 分",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 102,
-    "_fontSize": 102,
+    "_fontSize": 100,
     "_fontFamily": "Arial",
-    "_lineHeight": 127.5,
+    "_lineHeight": 135,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
@@ -3846,11 +3865,11 @@
     "_isUnderline": false,
     "_underlineHeight": 2,
     "_cacheMode": 0,
-    "_enableOutline": false,
+    "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 67,
-      "g": 42,
+      "r": 47,
+      "g": 36,
       "b": 31,
       "a": 255
     },
@@ -3887,13 +3906,16 @@
       },
       {
         "__id__": 100
+      },
+      {
+        "__id__": 145
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": 52,
+      "y": 30,
       "z": 0
     },
     "_lrot": {
@@ -3931,8 +3953,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 510,
-      "height": 54
+      "width": 640,
+      "height": 100
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -3956,33 +3978,33 @@
     "_dstBlendFactor": 4,
     "_color": {
       "__type__": "cc.Color",
-      "r": 46,
-      "g": 47,
-      "b": 43,
+      "r": 255,
+      "g": 255,
+      "b": 255,
       "a": 255
     },
     "_string": "答对 0 题",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 30,
-    "_fontSize": 30,
+    "_fontSize": 42,
     "_fontFamily": "Arial",
-    "_lineHeight": 37.5,
+    "_lineHeight": 57,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
     "_isSystemFontUsed": true,
     "_spacingX": 0,
     "_isItalic": false,
-    "_isBold": false,
+    "_isBold": true,
     "_isUnderline": false,
     "_underlineHeight": 2,
     "_cacheMode": 0,
-    "_enableOutline": false,
+    "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 67,
-      "g": 42,
+      "r": 47,
+      "g": 36,
       "b": 31,
       "a": 255
     },
@@ -4019,13 +4041,16 @@
       },
       {
         "__id__": 103
+      },
+      {
+        "__id__": 146
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": -12,
+      "y": -65,
       "z": 0
     },
     "_lrot": {
@@ -4063,7 +4088,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 510,
+      "width": 640,
       "height": 50
     },
     "_anchorPoint": {
@@ -4088,33 +4113,33 @@
     "_dstBlendFactor": 4,
     "_color": {
       "__type__": "cc.Color",
-      "r": 136,
-      "g": 130,
-      "b": 114,
+      "r": 255,
+      "g": 255,
+      "b": 255,
       "a": 255
     },
     "_string": "最佳成绩  0 分",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 26,
-    "_fontSize": 26,
+    "_fontSize": 28,
     "_fontFamily": "Arial",
-    "_lineHeight": 32.5,
+    "_lineHeight": 38,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
     "_isSystemFontUsed": true,
     "_spacingX": 0,
     "_isItalic": false,
-    "_isBold": false,
+    "_isBold": true,
     "_isUnderline": false,
     "_underlineHeight": 2,
     "_cacheMode": 0,
-    "_enableOutline": false,
+    "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 67,
-      "g": 42,
+      "r": 47,
+      "g": 36,
       "b": 31,
       "a": 255
     },
@@ -4164,13 +4189,16 @@
       },
       {
         "__id__": 114
+      },
+      {
+        "__id__": 147
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": -115,
+      "y": -180,
       "z": 0
     },
     "_lrot": {
@@ -4208,8 +4236,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 360,
-      "height": 112
+      "width": 470,
+      "height": 138
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -4239,7 +4267,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "dd5b91d5-aed1-5e36-aefd-d6dc5056eaa3@f9941",
+      "__uuid__": "dcf68a09-eb3c-5def-8dba-fa59f284a184@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -4278,7 +4306,7 @@
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 18,
+      "x": 42,
       "y": 0,
       "z": 0
     },
@@ -4317,8 +4345,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 248,
-      "height": 62
+      "width": 340,
+      "height": 86
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -4351,9 +4379,9 @@
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 34,
-    "_fontSize": 34,
+    "_fontSize": 52,
     "_fontFamily": "Arial",
-    "_lineHeight": 42.5,
+    "_lineHeight": 68,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
@@ -4367,12 +4395,12 @@
     "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 117,
-      "g": 57,
-      "b": 20,
+      "r": 104,
+      "g": 44,
+      "b": 19,
       "a": 255
     },
-    "_outlineWidth": 3,
+    "_outlineWidth": 4,
     "_enableShadow": false,
     "_shadowColor": {
       "__type__": "cc.Color",
@@ -4410,7 +4438,7 @@
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": -126,
+      "x": -115,
       "y": 0,
       "z": 0
     },
@@ -4449,8 +4477,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 46,
-      "height": 46
+      "width": 72,
+      "height": 52
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -4480,7 +4508,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "cf633ac8-e94b-4433-a837-05cc338157cd@f9941",
+      "__uuid__": "60083072-9ab1-5309-af08-8c0012399e60@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -4590,13 +4618,16 @@
       },
       {
         "__id__": 122
+      },
+      {
+        "__id__": 148
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": -235,
+      "y": -345,
       "z": 0
     },
     "_lrot": {
@@ -4634,8 +4665,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 360,
-      "height": 112
+      "width": 470,
+      "height": 138
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -4665,7 +4696,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "dd5b91d5-aed1-5e36-aefd-d6dc5056eaa3@f9941",
+      "__uuid__": "dcf68a09-eb3c-5def-8dba-fa59f284a184@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -4743,8 +4774,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 336,
-      "height": 62
+      "width": 390,
+      "height": 86
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -4777,9 +4808,9 @@
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 34,
-    "_fontSize": 34,
+    "_fontSize": 52,
     "_fontFamily": "Arial",
-    "_lineHeight": 42.5,
+    "_lineHeight": 68,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
@@ -4793,12 +4824,12 @@
     "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 117,
-      "g": 57,
-      "b": 20,
+      "r": 104,
+      "g": 44,
+      "b": 19,
       "a": 255
     },
-    "_outlineWidth": 3,
+    "_outlineWidth": 4,
     "_enableShadow": false,
     "_shadowColor": {
       "__type__": "cc.Color",
@@ -4907,13 +4938,16 @@
       },
       {
         "__id__": 130
+      },
+      {
+        "__id__": 149
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": -355,
+      "y": -510,
       "z": 0
     },
     "_lrot": {
@@ -4951,8 +4985,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 360,
-      "height": 112
+      "width": 470,
+      "height": 138
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -4982,7 +5016,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "dd5b91d5-aed1-5e36-aefd-d6dc5056eaa3@f9941",
+      "__uuid__": "dcf68a09-eb3c-5def-8dba-fa59f284a184@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
@@ -5060,8 +5094,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 336,
-      "height": 62
+      "width": 390,
+      "height": 86
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -5094,9 +5128,9 @@
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
     "_actualFontSize": 34,
-    "_fontSize": 34,
+    "_fontSize": 52,
     "_fontFamily": "Arial",
-    "_lineHeight": 42.5,
+    "_lineHeight": 68,
     "_overflow": 2,
     "_enableWrapText": false,
     "_font": null,
@@ -5110,12 +5144,12 @@
     "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 117,
-      "g": 57,
-      "b": 20,
+      "r": 104,
+      "g": 44,
+      "b": 19,
       "a": 255
     },
-    "_outlineWidth": 3,
+    "_outlineWidth": 4,
     "_enableShadow": false,
     "_shadowColor": {
       "__type__": "cc.Color",
@@ -5471,5 +5505,434 @@
   {
     "__type__": "cc.PostSettingsInfo",
     "_toneMappingType": 0
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 86
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 45,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": 0,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_ResultPanel_Widget"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 89
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": 0.4122938530734633,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_ResultKicker_Position"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 92
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": 0.29610194902548725,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_ResultTitle_Position"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 95
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": 0.1386806596701649,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_ResultScore_Position"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 98
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": 0.022488755622188907,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_ResultDetail_Position"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 101
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": -0.04872563718140929,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_Best_Position"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 104
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": -0.13493253373313344,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_ReviveButton_Position"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 115
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": -0.25862068965517243,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_ReplayButton_Position"
+  },
+  {
+    "__type__": "cc.Widget",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 123
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_alignFlags": 18,
+    "_target": null,
+    "_left": 0,
+    "_right": 0,
+    "_top": 0,
+    "_bottom": 0,
+    "_horizontalCenter": 0,
+    "_verticalCenter": -0.3823088455772114,
+    "_isAbsHorizontalCenter": true,
+    "_isAbsVerticalCenter": false,
+    "_isAbsLeft": true,
+    "_isAbsRight": true,
+    "_isAbsTop": true,
+    "_isAbsBottom": true,
+    "_originalWidth": 0,
+    "_originalHeight": 0,
+    "_alignMode": 2,
+    "_lockFlags": 0,
+    "_id": "feedResult_MathExamFeedGameScene_HomeButton_Position"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "ResultHeadingArtwork",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 92
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 151
+      },
+      {
+        "__id__": 152
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_id": "feedResult_MathExamFeedGameScene_ResultHeadingArtwork_151"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 150
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 580,
+      "height": 157
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "feedResult_MathExamFeedGameScene_ccUITransform_152"
+  },
+  {
+    "__type__": "cc.Sprite",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 150
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_customMaterial": null,
+    "_srcBlendFactor": 2,
+    "_dstBlendFactor": 4,
+    "_color": {
+      "__type__": "cc.Color",
+      "r": 255,
+      "g": 255,
+      "b": 255,
+      "a": 255
+    },
+    "_spriteFrame": {
+      "__uuid__": "1af86bd8-66f3-527f-b5ed-7f69c9530c0a@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
+    "_type": 0,
+    "_fillType": 0,
+    "_sizeMode": 0,
+    "_fillCenter": {
+      "__type__": "cc.Vec2",
+      "x": 0,
+      "y": 0
+    },
+    "_fillStart": 0,
+    "_fillRange": 0,
+    "_isTrimmedMode": true,
+    "_useGrayscale": false,
+    "_atlas": null,
+    "_id": "feedResult_MathExamFeedGameScene_ccSprite_153"
+  },
+  {
+    "__type__": "f03299UeBRTpoO7jyfmXw45",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 78
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "titles": [
+      {
+        "__id__": 94
+      }
+    ],
+    "artworks": [
+      {
+        "__id__": 152
+      }
+    ],
+    "successFrame": {
+      "__uuid__": "1af86bd8-66f3-527f-b5ed-7f69c9530c0a@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
+    "failureFrame": {
+      "__uuid__": "6d21e4fe-9a04-51c4-b85e-1dfe439d15ec@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
+    "gameplayHud": [
+      {
+        "__id__": 59
+      },
+      {
+        "__id__": 62
+      },
+      {
+        "__id__": 67
+      }
+    ],
+    "_id": "feedResult_MathExamFeedGameScene_Presentation",
+    "successLift": 0.075,
+    "successButtons": [
+      {
+        "__id__": 148
+      },
+      {
+        "__id__": 149
+      }
+    ]
   }
 ]

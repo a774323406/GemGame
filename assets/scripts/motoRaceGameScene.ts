@@ -2,6 +2,8 @@ import { _decorator, AudioSource, Button, Color, Component, EventKeyboard, Event
 import { GameSceneBundle, GameSceneName } from './framework/GameSceneBundle';
 import { SdkUtils } from './framework/Platform/sdk/SdkUtils';
 import AudioManager from './framework/AudioManager';
+import { FeedAcquisitionService, FeedAcquisitionState } from './framework/Platform/FeedAcquisitionService';
+import { adc } from './framework/Platform/ADController';
 import gameStorage from './framework/gameStorage';
 import { MotoRace, MAX_SPEED, RACE_LENGTH, Attack } from './motoRaceRules';
 import { MotoRaceRenderer } from './motoRaceRenderer';
@@ -54,7 +56,38 @@ export class motoRaceGameScene extends Component {
   private hitSerial=0;
   private messageTime=0;
   private releaseMusic:(()=>void)|null=null;
+  private feedMode=false;private feedEntered=false;private feedExited=false;private feedScheduled=false;private sessionFinished=false;
+  private feedBlocked():boolean {return this.feedMode&&(!this.feedEntered||this.feedExited);}
+  private firstTouch=():void=>{
+    if(this.feedMode&&!this.feedEntered&&!this.feedExited&&!this.leaving)FeedAcquisitionService.activateFromFirstTouch();
+  };
+  private feedChanged=(state:FeedAcquisitionState):void=>{
+    if(!this.feedMode||this.sessionFinished||this.leaving)return;
+    this.feedEntered=state.active&&state.entered&&!state.exited;
+    this.feedExited=!state.active||state.exited;
+    if(this.feedBlocked()){
+      this.clearInput();this.music?.pause();adc.cancelFeedEntryInterstitial();this.feedScheduled=false;
+    }else{this.scheduleFeedAd();this.syncMusic();}
+  };
+  private scheduleFeedAd():void {
+    if(!this.feedMode||this.feedBlocked()||this.feedScheduled||this.sessionFinished)return;
+    this.feedScheduled=true;
+    adc.scheduleFeedEntryInterstitial(()=>!!this.node?.isValid&&!this.disposed&&!this.leaving&&!this.sessionFinished&&!this.feedBlocked());
+  }
+  protected start():void {
+    if(!this.feedMode)return;
+    void FeedAcquisitionService.reportSceneReadyAfterStableRender({owner:this.node,requiredVisibleNodes:[this.layoutRoot,this.world.node],stableFrameCount:3,surfaceDelayMs:180,isReady:()=>!this.leaving&&!this.disposed&&!this.feedExited});
+    this.scheduleFeedAd();
+  }
+  private finishFeed():void {
+    if(!this.feedMode||this.sessionFinished)return;
+    this.sessionFinished=true;adc.cancelFeedEntryInterstitial();FeedAcquisitionService.completeSession();
+  }
   protected onLoad():void {
+    adc.cancelFeedEntryInterstitial();FeedAcquisitionService.init();
+    const feed=FeedAcquisitionService.getState();this.feedMode=FeedAcquisitionService.isActive();
+    this.feedEntered=!this.feedMode||(feed.entered&&!feed.exited);this.feedExited=this.feedMode&&feed.exited;
+    FeedAcquisitionService.addListener(this.feedChanged);input.on(Input.EventType.TOUCH_START,this.firstTouch,this);
     view.setDesignResolutionSize(750,1624,ResolutionPolicy.FIXED_WIDTH);
     this.art=new MotoRaceArt(this.artRoot,this.riderAtlas);
     this.renderer=new MotoRaceRenderer(this.world,this.art);
@@ -77,19 +110,19 @@ export class motoRaceGameScene extends Component {
     this.restart();
   }
   private fit():void {
-    const size=view.getVisibleSize(); const s=Math.min(size.width/750,(size.height-40)/1334);
-    this.layoutRoot.setScale(s,s,1); this.clearInput();
+    const size=view.getVisibleSize(); const s=Math.min(size.width/750,(size.height-240)/1334);
+    this.layoutRoot.setScale(s,s,1); this.layoutRoot.setPosition(0,-40,0); this.clearInput();
   }
   private clearInput():void {this.keys.clear();this.fingers.clear();this.touchId=null;this.touchSteer=0;this.steeringKnob?.setPosition(0,0,0);}
   private restart():void {
     if(this.adInFlight)return;this.roundSerial++;
-    this.race=new MotoRace();this.countdown=3;this.hitSerial=0;this.messageTime=0;
+    this.race=new MotoRace();this.countdown=3;this.countdownLabel.string='3';this.hitSerial=0;this.messageTime=0;
     this.music?.stop();this.overlay.active=false;this.clearInput(); this.messageLabel.string='按住左半屏向左，右半屏向右';
     this.music?.pause();this.startSound();
     this.renderer.render(this.race);this.refreshHud();
   }
   private touchStart(e:EventTouch):void {
-    if(this.adInFlight||this.hidden||this.race.paused||this.race.status!=='racing')return;
+    if(this.feedBlocked()||SdkUtils.isFullscreenAdBusy()||this.adInFlight||this.hidden||this.race.paused||this.race.status!=='racing')return;
     this.fingers.set(e.getID(),e.getUILocation().x);this.touchId=e.getID();this.touchMove(e);this.startSound();
   }
   private touchMove(e:EventTouch):void {
@@ -105,19 +138,19 @@ export class motoRaceGameScene extends Component {
     }
   }
   private async rewardBoost():Promise<void> {
-    if(this.adInFlight||this.hidden||this.leaving||this.race.paused||this.race.fallen||this.countdown>0
+    if(this.feedBlocked()||this.adInFlight||this.hidden||this.leaving||this.race.paused||this.race.fallen||this.countdown>0
       ||this.race.status!=='racing'||this.race.boostRemaining>0||SdkUtils.isFullscreenAdBusy())return;
     const serial=this.roundSerial;this.adInFlight=true;this.clearInput();this.music?.pause();this.refreshHud();
     let rewarded=false;
     try{rewarded=await SdkUtils.showRewardedVideo();}catch(error){console.warn('[MotoRace] 加速广告失败',error);}
     if(this.disposed||serial!==this.roundSerial||this.leaving||!this.node?.isValid)return;
     this.adInFlight=false;
-    if(rewarded)this.race.activateBoost();
+    if(rewarded&&!this.feedBlocked())this.race.activateBoost();
     this.messageLabel.string=rewarded?'无敌冲刺！':'看完广告即可加速，请重试';this.messageTime=2;
-    if(this.hidden)this.pause();else this.startSound();this.refreshHud();
+    this.startSound();this.refreshHud();
   }
   private keyDown(e:EventKeyboard):void {
-    if(this.adInFlight||this.hidden)return;
+    if(this.feedBlocked()||SdkUtils.isFullscreenAdBusy()||this.adInFlight||this.hidden)return;
     const repeated=this.keys.has(e.keyCode);this.keys.add(e.keyCode);
     if(repeated)return;
     if(e.keyCode===KeyCode.KEY_J)this.punch();
@@ -129,27 +162,31 @@ export class motoRaceGameScene extends Component {
   private keyUp(e:EventKeyboard):void {this.keys.delete(e.keyCode);}
   private punch():void {this.attack('punch');}
   private kick():void {this.attack('kick');}
-  private attack(kind:Attack):void {if(this.countdown<=0&&!this.leaving&&!this.adInFlight)this.race.attack(kind);this.startSound();}
+  private attack(kind:Attack):void {if(!this.feedBlocked()&&!SdkUtils.isFullscreenAdBusy()&&this.countdown<=0&&!this.leaving&&!this.adInFlight)this.race.attack(kind);this.startSound();}
   private pause():void {
     if(this.adInFlight||this.leaving||this.race.status!=='racing')return;
     this.race.paused=true;this.clearInput();this.music?.pause();this.showOverlay();
   }
   private resume():void {if(this.adInFlight||this.hidden||this.leaving||this.race.status!=='racing')return;this.race.paused=false;this.overlay.active=false;this.clearInput();this.startSound();}
-  private hide():void {this.hidden=true;this.pause();this.music?.pause();}
+  // Platform visibility freezes update independently of the player-controlled pause menu.
+  private hide():void {this.hidden=true;this.clearInput();this.music?.pause();}
   private show():void {this.hidden=false;}
   private showOverlay():void {
     this.overlay.active=true;this.resumeButton.node.active=this.race.status==='racing';
-    this.resultTitle.string=this.race.status==='racing'?'比赛暂停':this.race.status==='finished'?'冲线完成！':'护甲耗尽';
-    this.resultDetail.string=`第 ${this.race.rank} 名 / 12\n击倒 ${this.race.knockouts} 人 · 用时 ${this.race.elapsed.toFixed(1)} 秒\n行驶 ${Math.floor(this.race.distance)} / ${RACE_LENGTH} 米`;
+    const success=this.race.status==='finished';
+    this.resultTitle.string=this.race.status==='racing'?'比赛暂停':success?'挑战成功':'挑战失败';
+    this.resultTitle.color=success?new Color(255,232,153,255):new Color(255,255,255,255);
+    const outcome=this.race.status==='racing'?'':success?'冲线完成！\n':'护甲耗尽\n';
+    this.resultDetail.string=`${outcome}第 ${this.race.rank} 名 / 12\n击倒 ${this.race.knockouts} 人 · 用时 ${this.race.elapsed.toFixed(1)} 秒\n行驶 ${Math.floor(this.race.distance)} / ${RACE_LENGTH} 米`;
     this.resumeLabel.string='继续比赛';
   }
   private async home():Promise<void> {
     if(this.leaving||this.adInFlight)return; this.leaving=true;this.race.paused=true;this.clearInput();this.music?.pause();
-    try {await GameSceneBundle.loadScene(GameSceneName.Main);} catch(error){this.leaving=false;this.showOverlay();this.resultTitle.string='返回失败，请重试';console.error('[MotoRace]',error);}
+    try {await GameSceneBundle.loadScene(GameSceneName.Main);this.finishFeed();} catch(error){this.leaving=false;this.showOverlay();this.resultTitle.string='返回失败，请重试';console.error('[MotoRace]',error);}
   }
   private syncMusic():void {
     if(!this.music)return;
-    const allowed=!this.hidden&&!this.leaving&&!this.race.paused&&!this.adInFlight
+    const allowed=!this.feedBlocked()&&!this.hidden&&!this.leaving&&!this.race.paused&&!this.adInFlight
       &&this.race.status==='racing'&&!SdkUtils.isFullscreenAdBusy()&&gameStorage.getMusic()!==1;
     if(allowed){if(!this.music.playing)this.music.play();}
     else if(this.music.playing)this.music.pause();
@@ -159,7 +196,7 @@ export class motoRaceGameScene extends Component {
   }
   protected update(dt:number):void {
     this.syncMusic();
-    if(this.hidden||this.leaving||this.race.paused||this.adInFlight||SdkUtils.isRewardedVideoBusy())return;
+    if(this.feedBlocked()||this.hidden||this.leaving||this.race.paused||this.adInFlight||SdkUtils.isFullscreenAdBusy()){this.clearInput();return;}
     if(this.race.status!=='racing')return;
     dt=Math.min(dt,.1);
     if(this.countdown>0){this.countdown=Math.max(0,this.countdown-dt);this.countdownLabel.string=this.countdown>0?String(Math.ceil(this.countdown)):'出发！';}
@@ -178,7 +215,7 @@ export class motoRaceGameScene extends Component {
   private setText(label:Label,text:string):void {if(label.string!==text)label.string=text;}
   private refreshHud():void {
     const r=this.race;
-    this.boostButton.interactable=!this.adInFlight&&!this.hidden&&!r.paused&&!r.fallen&&this.countdown===0&&r.status==='racing'&&r.boostRemaining===0;
+    this.boostButton.interactable=!this.feedBlocked()&&!SdkUtils.isFullscreenAdBusy()&&!this.adInFlight&&!this.hidden&&!r.paused&&!r.fallen&&this.countdown===0&&r.status==='racing'&&r.boostRemaining===0;
     this.setText(this.boostTitle,this.adInFlight?'稍候':r.boostRemaining>0?'冲刺':'加速');
     this.boostBadge.active=r.boostRemaining===0;
     this.boostDetail.node.active=this.adInFlight||r.boostRemaining>0;
@@ -197,6 +234,8 @@ export class motoRaceGameScene extends Component {
   }
   protected onDestroy():void {
     this.disposed=true;this.roundSerial++;
+    FeedAcquisitionService.removeListener(this.feedChanged);adc.cancelFeedEntryInterstitial();this.finishFeed();
+    input.off(Input.EventType.TOUCH_START,this.firstTouch,this);
     // Child components may be destroyed before this scene controller.
     if(this.boostButton?.node?.isValid)this.boostButton.node.off(Button.EventType.CLICK,this.rewardBoost,this);
     view.off('canvas-resize',this.fit,this); input.off(Input.EventType.KEY_DOWN,this.keyDown,this);input.off(Input.EventType.KEY_UP,this.keyUp,this);

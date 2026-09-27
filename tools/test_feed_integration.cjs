@@ -189,7 +189,7 @@ async function main() {
     f.setState({ contentId: 'unknown' }); assert.equal(loader.resolveFeedEntry().sceneName, 'ShootingGlassBottlesGame');
     f.setState({ mode: 'revisit', contentId: 'CONTENT14868790274' }); assert.equal(loader.resolveFeedEntry().sceneName, 'ShootingGlassBottlesGame');
   });
-  test('bottle popup scales only the panel, never the full-screen dim', () => {
+  test('bottle fullscreen result fades without scaling content or dim', () => {
     const f = fixture(), g = new (f.load('shootingGlassBottlesGame.ts').shootingGlassBottlesGame)();
     const panel = { isValid: true, setScale(...values) { this.scale = values; } };
     const opacity = { isValid: true, opacity: 255 };
@@ -197,7 +197,9 @@ async function main() {
     g.overlay = overlay; g.resultOverlayOpacity = opacity; g.showOverlay();
     assert.equal(overlay.scale, Vec3.ONE);
     assert(!f.animations.some(x => x.target === overlay));
-    assert(f.animations.some(x => x.target === panel && x.values.scale === Vec3.ONE));
+    assert.equal(panel.scale[0], Vec3.ONE);
+    assert(!f.animations.some(x => x.target === panel));
+    assert(f.animations.some(x => x.target === opacity && x.values.opacity === 255));
     g.hideOverlay(); assert(!overlay.active);
   });
   test('juggle sprite dim is not painted over with a fixed-size Graphics rectangle', () => {
@@ -205,6 +207,30 @@ async function main() {
     const overlay = { getComponent: type => type === Sprite ? {} : null }; g.sceneResultOverlay = overlay;
     g.getGraphics = node => { assert.notEqual(node, overlay); return null; };
     g.drawSceneArtwork();
+  });
+  test('juggle results keep fullscreen content transparent and show explicit outcomes', () => {
+    const f = fixture(), g = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)();
+    let clears = 0;
+    const panel = { setScale(...values) { this.scale = values; }, getComponent: () => ({ clear() { clears++; } }) };
+    g.sceneResultPanel = panel;
+    g.sceneResultOverlay = { active: false, getComponent: type => type === Sprite ? {} : null };
+    g.sceneResultTitle = {};
+    g.sceneResultDetail = {};
+    g.sceneResultActionLabel = {};
+    g.sceneResultHomeButton = { node: { getComponent: type => type === Sprite ? {} : null } };
+    g.getGraphics = node => { assert.notEqual(node, panel, 'result panel must never receive painted artwork'); assert.notEqual(node, g.sceneResultHomeButton.node, 'authored button artwork must not receive Graphics'); return null; };
+    g.drawSceneArtwork();
+    assert.equal(clears, 1);
+    g.score = 12;
+    g.showResult(false, '继续努力');
+    assert.equal(g.sceneResultTitle.string, '挑战失败');
+    assert.equal(g.sceneResultOverlay.active, true);
+    assert.equal(g.sceneResultHomeButton.node.active, true);
+    assert.deepEqual(panel.scale, [1, 1, 1]);
+    assert(!f.animations.some(animation => animation.target === panel));
+    g.showResult(true, '目标达成');
+    assert.equal(g.sceneResultTitle.string, '挑战成功');
+    assert.equal(g.sceneResultHomeButton.node.active, false);
   });
   test('penguin feed entry schedules one interstitial after the platform delay', () => {
     const f = fixture(); f.penguin(); f.advance(40);

@@ -2,7 +2,7 @@ import { standardizeLobbyCard } from './lobby_card_style.mjs';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {SceneAuthor,compressUuid,ref,rgba} from './penguin_scene_authoring.mjs';
-import {appendSceneGlobals} from './feed_result_layout.mjs';
+import {appendSceneGlobals, fitFeedResultOverlay} from './feed_result_layout.mjs';
 export function catUuid(name){const h=crypto.createHash('sha256').update('GemGame/rhythmCatFeed/'+name).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;}
 export const SCENE_UUID=catUuid('RhythmCatFeedGameScene');
 export const SCRIPT_UUID=catUuid('rhythmCatFeedGameScene.ts');
@@ -49,7 +49,7 @@ export function buildRhythmCatScene(){
   foodFrames:['brown-pop.png','pink-pop.png','brown-cone.png','pink-cone.png','brown-scoop.png','pink-scoop.png','cream-scoop.png'].map(asset),heartFrames:['heart-full.png','heart-empty.png'].map(asset),
   scoreLabel:ref(score.component),hintLabel:ref(hint.component),track:ref(audio),backButton:ref(back),resultOverlay:ref(overlay),resultTitle:ref(title.component),resultScore:ref(resultScore.component),replayButton:ref(replay),homeButton:ref(home),
  });
- o[1]._globals=ref(appendSceneGlobals(source,o));appendRhythmCatSlowdown(o);return o;
+ o[1]._globals=ref(appendSceneGlobals(source,o));appendRhythmCatSlowdown(o);fitFeedResultOverlay(o, 'RhythmCatFeedGameScene');return o;
 }
 /** Append only the reward controls; preserve existing editor layout and bindings. */
 export function appendRhythmCatSlowdown(objects){

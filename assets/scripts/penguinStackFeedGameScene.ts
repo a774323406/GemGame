@@ -94,10 +94,10 @@ export class penguinStackFeedGameScene extends Component {
   @property(Label) public resultDetail: Label = null;
   @property(Node) public successCat: Node = null;
   @property(Node) public failCat: Node = null;
+  @property(Button) public homeButton: Button = null;
   @property(Button) public retryButton: Button = null;
   @property(Button) public nextButton: Button = null;
   @property(Button) public reviveButton: Button = null;
-  @property(Button) public shareButton: Button = null;
 
   private round = new PenguinStackRound();
   private falling: FallingPenguin[] = [];
@@ -128,7 +128,6 @@ export class penguinStackFeedGameScene extends Component {
   private leaving = false;
   private appHidden = false;
   private adInFlight = false;
-  private shareInFlight = false;
   private feedMode = false;
   private feedEntered = false;
   private feedExited = false;
@@ -138,7 +137,6 @@ export class penguinStackFeedGameScene extends Component {
   private interstitialScheduled = false;
   private nativeTouchApi: any | null = null;
   private nativeTouchBound = false;
-  private originalPanelScale = new Vec3(1, 1, 1);
   private originalSurgeScale = new Vec3(1, 1, 1);
 
   protected onLoad(): void {
@@ -150,7 +148,6 @@ export class penguinStackFeedGameScene extends Component {
     this.feedMode = state.active;
     this.feedEntered = !state.active || state.entered;
     this.feedExited = state.active && state.exited;
-    this.originalPanelScale.set(this.resultPanel.scale);
     this.originalSurgeScale.set(this.surgePanel.scale);
     this.feedPreviewPenguinPosition.set(this.fallingPenguins[0].position);
     this.falling = this.fallingPenguins.map(node => ({
@@ -161,9 +158,9 @@ export class penguinStackFeedGameScene extends Component {
       [this.lifeButton, this.onAddLife],
       [this.slowButton, this.onSlowdown],
       [this.retryButton, this.retryRound],
+      [this.homeButton, this.returnHome],
       [this.nextButton, this.goToMainGame],
       [this.reviveButton, this.onRevive],
-      [this.shareButton, this.onShare],
     ];
     // 编辑器删除 UI 节点后可能暂时保留 node=null 的组件引用，不能让整个场景初始化中断。
     this.bindings = buttonBindings.filter(([button]) => !!button?.node?.isValid);
@@ -204,7 +201,7 @@ export class penguinStackFeedGameScene extends Component {
 
   protected update(deltaTime: number): void {
     if (this.disposed || this.leaving || this.appHidden || this.feedExited ||
-      this.adInFlight || this.shareInFlight || SdkUtils.isRewardedVideoBusy()) return;
+      this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
     // 推荐流卡片保持静态，只有正式进入后才更新物体和游戏时间。
     if (!this.isFeedInteractionEnabled()) return;
     const dt = Math.max(0, Math.min(0.06, deltaTime));
@@ -268,7 +265,7 @@ export class penguinStackFeedGameScene extends Component {
       "stageOneLabel", "stageTwoLabel", "guideNode", "feedbackLabel", "backButton",
       "lifeButton", "slowButton", "surgeOverlay", "surgePanel",
       "resultOverlay", "resultPanel", "resultTitle", "resultDetail", "successCat", "failCat",
-      "retryButton", "nextButton", "reviveButton",
+      "retryButton", "nextButton", "reviveButton", "homeButton",
     ];
     const missing = required.filter(key => !this[key]);
     if (this.stackPenguins.length !== MAX_VISIBLE_STACK || this.stackPenguins.some(node => !node)) {
@@ -284,7 +281,7 @@ export class penguinStackFeedGameScene extends Component {
   }
 
   private resetRound = (): void => {
-    if (this.disposed || this.leaving || this.adInFlight || this.shareInFlight) return;
+    if (this.disposed || this.leaving || this.adInFlight) return;
     this.roundSerial += 1;
     this.round.reset(this.stageOneTarget, this.finalTarget, this.initialLives);
     this.feedPreviewVisible = false;
@@ -309,7 +306,7 @@ export class penguinStackFeedGameScene extends Component {
     this.feedbackLabel.node.active = false;
     this.surgeOverlay.active = false;
     this.resultOverlay.active = false;
-    this.resultPanel.setScale(this.originalPanelScale);
+    this.resultPanel.setScale(1, 1, 1);
     this.resultPanel.getComponent(UIOpacity).opacity = 255;
     this.refreshHud();
     this.refreshButtons();
@@ -333,7 +330,7 @@ export class penguinStackFeedGameScene extends Component {
   private onTouchStart = (event: EventTouch): void => {
     this.activateFeedFromGesture();
     if (!this.isFeedInteractionEnabled() || this.round.status !== "playing" ||
-      this.adInFlight || this.shareInFlight || this.resultOverlay.active) return;
+      this.adInFlight || this.resultOverlay.active) return;
     if (this.isButtonTouch(event)) return;
     this.startGameplay();
     this.beginDrag(this.normalizedTouchX(event));
@@ -342,7 +339,7 @@ export class penguinStackFeedGameScene extends Component {
   private onTouchMove = (event: EventTouch): void => {
     this.activateFeedFromGesture();
     if (!this.isFeedInteractionEnabled() || this.round.status !== "playing" ||
-      this.adInFlight || this.shareInFlight || this.resultOverlay.active) return;
+      this.adInFlight || this.resultOverlay.active) return;
     this.startGameplay();
     this.continueDrag(this.normalizedTouchX(event));
   };
@@ -381,7 +378,7 @@ export class penguinStackFeedGameScene extends Component {
   }
 
   private showFeedPreview(): void {
-    if (this.feedPreviewVisible || this.disposed || this.leaving || this.adInFlight || this.shareInFlight) return;
+    if (this.feedPreviewVisible || this.disposed || this.leaving || this.adInFlight) return;
     this.resetRound();
     this.feedPreviewVisible = true;
     // 复用第一只企鹅及它在编辑器中的位置，仅展示图片，不加入下落模拟。
@@ -664,9 +661,9 @@ export class penguinStackFeedGameScene extends Component {
   }
 
   private refreshButtons(): void {
-    const enabled = !this.disposed && !this.leaving && !this.adInFlight && !this.shareInFlight;
-    for (const button of [this.backButton, this.retryButton, this.nextButton,
-      this.reviveButton, this.shareButton]) {
+    const enabled = !this.disposed && !this.leaving && !this.adInFlight;
+    for (const button of [this.backButton, this.homeButton, this.retryButton, this.nextButton,
+      this.reviveButton]) {
       if (button?.node?.isValid) button.interactable = enabled;
     }
     const rewardEnabled = enabled && this.gameStarted && this.round.status === "playing" &&
@@ -694,17 +691,17 @@ export class penguinStackFeedGameScene extends Component {
 
   private showResult(): void {
     const success = this.round.status === "success";
-    this.resultTitle.string = success ? "恭喜过关！" : "失败";
-    this.resultTitle.color = success ? new Color(213, 82, 105) : new Color(79, 70, 103);
+    this.resultTitle.string = success ? "挑战成功" : "挑战失败";
+    this.resultTitle.color = success ? new Color(255, 231, 164) : new Color(255, 255, 255);
     this.resultDetail.string = success
-      ? `企鹅全部接住，挑战成功！\n共接住 ${this.round.caught} 只企鹅`
-      : `左右滑动接住动物\n本局接住 ${this.round.caught} 只企鹅`;
+      ? `企鹅全部接住啦！\n共接住 ${this.round.caught} 只企鹅`
+      : `差一点，再试一次吧\n本局接住 ${this.round.caught} 只企鹅`;
     this.successCat.active = success;
     this.failCat.active = !success;
     this.nextButton.node.active = success;
     this.reviveButton.node.active = !success;
     this.resultOverlay.active = true;
-    this.resultPanel.setScale(this.originalPanelScale);
+    this.resultPanel.setScale(1, 1, 1);
     this.resultPanel.getComponent(UIOpacity).opacity = 255;
     this.refreshButtons();
     if (success) AudioManager.playEffect(soundName.down);
@@ -723,7 +720,7 @@ export class penguinStackFeedGameScene extends Component {
 
   private async requestReward(kind: RewardKind): Promise<void> {
     if (!this.gameStarted || !this.isFeedInteractionEnabled() || this.round.status !== "playing" ||
-      this.adInFlight || this.shareInFlight || this.resultOverlay.active) return;
+      this.adInFlight || this.resultOverlay.active) return;
     AudioManager.playEffect(soundName.buttonClick);
     const serial = this.roundSerial;
     this.adInFlight = true;
@@ -755,7 +752,7 @@ export class penguinStackFeedGameScene extends Component {
   private onRevive = (): void => { void this.reviveAfterAd(); };
 
   private async reviveAfterAd(): Promise<void> {
-    if (this.round.status !== "failed" || this.adInFlight || this.shareInFlight) return;
+    if (this.round.status !== "failed" || this.adInFlight) return;
     AudioManager.playEffect(soundName.buttonClick);
     const serial = this.roundSerial;
     this.adInFlight = true;
@@ -778,20 +775,6 @@ export class penguinStackFeedGameScene extends Component {
     this.refreshButtons();
   }
 
-  private onShare = (): void => { void this.shareForHelp(); };
-
-  private async shareForHelp(): Promise<void> {
-    if (this.shareInFlight || this.adInFlight || this.leaving) return;
-    AudioManager.playEffect(soundName.buttonClick);
-    this.shareInFlight = true;
-    this.refreshButtons();
-    const shared = await SdkUtils.share({ title: "企鹅叠叠乐，看看你能接住多少只！" });
-    if (this.disposed || !this.node?.isValid || this.leaving) return;
-    this.shareInFlight = false;
-    if (!shared) this.toast("分享未完成");
-    this.refreshButtons();
-  }
-
   private returnHome = (): void => {
     AudioManager.playEffect(soundName.buttonClick);
     void this.navigate(GameSceneName.Main);
@@ -804,7 +787,7 @@ export class penguinStackFeedGameScene extends Component {
   };
 
   private async navigate(scene: GameSceneName): Promise<void> {
-    if (this.disposed || this.leaving || this.adInFlight || this.shareInFlight) return;
+    if (this.disposed || this.leaving || this.adInFlight) return;
     this.leaving = true;
     this.refreshButtons();
     this.finishFeed();
@@ -844,7 +827,7 @@ export class penguinStackFeedGameScene extends Component {
       this.resetRound();
     }
     // 展示阶段也播放 BGM，玩法交互和插屏仍等待正式进入。
-    if (!this.appHidden && !this.adInFlight && !this.shareInFlight && !SdkUtils.isRewardedVideoBusy()) {
+    if (!this.appHidden && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
       if (!this.feedAudioForeground) {
         this.feedAudioForeground = true;
         AudioManager.restartMusic(soundName.getUserBgm);
@@ -903,7 +886,7 @@ export class penguinStackFeedGameScene extends Component {
 
   private onShow = (): void => {
     this.appHidden = false;
-    if (!this.disposed && !this.leaving && !this.adInFlight && !this.shareInFlight && !SdkUtils.isRewardedVideoBusy()) {
+    if (!this.disposed && !this.leaving && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
       this.feedAudioForeground = true;
       AudioManager.restartMusic(soundName.getUserBgm);
     }
@@ -948,7 +931,7 @@ export class penguinStackFeedGameScene extends Component {
     const enteringFeed = feedState.active && !feedState.entered;
     this.activateFeedFromGesture();
     if (!this.isFeedInteractionEnabled() || this.round.status !== "playing" ||
-      this.adInFlight || this.shareInFlight || this.resultOverlay.active) return;
+      this.adInFlight || this.resultOverlay.active) return;
     this.startGameplay();
     // 推荐流“立即去玩”的点击只负责进入；普通入口与已进入状态立即开始拖动。
     if (!enteringFeed) this.beginNativeDrag(event);
@@ -957,7 +940,7 @@ export class penguinStackFeedGameScene extends Component {
   private readonly onNativeTouchMove = (event: any): void => {
     this.activateFeedFromGesture();
     if (!this.isFeedInteractionEnabled() || this.round.status !== "playing" ||
-      this.adInFlight || this.shareInFlight || this.resultOverlay.active) return;
+      this.adInFlight || this.resultOverlay.active) return;
     this.startGameplay();
     this.continueNativeDrag(event);
   };

@@ -1,4 +1,4 @@
-import { _decorator, AudioClip, AudioSource, Button, Component, director, EventTouch, game, Game, Label, Node, ResolutionPolicy, Sprite, SpriteFrame, UITransform, Vec3, view } from 'cc';
+import { _decorator, AudioClip, AudioSource, Button, Color, Component, director, EventTouch, game, Game, Label, Node, ResolutionPolicy, Sprite, SpriteFrame, UITransform, Vec3, view } from 'cc';
 import AudioManager from './framework/AudioManager';
 import gameStorage from './framework/gameStorage';
 import { GameSceneBundle, GameSceneName } from './framework/GameSceneBundle';
@@ -231,8 +231,10 @@ export class rhythmCatFeedGameScene extends Component {
   }
   private finishRound():void {
     this.timeline.setPaused('result',true);this.fingers.clear();
-    this.resultTitle.string=this.round.status==='success'?'完美收工！':'再来一首吧';
-    this.resultScore.string=`接住了 ${this.round.score} 份冰淇淋`;
+    const success=this.round.status==='success';
+    this.resultTitle.string=success?'挑战成功':'挑战失败';
+    this.resultTitle.color=success?new Color(255,232,153,255):new Color(255,255,255,255);
+    this.resultScore.string=`${success?'完美收工！':'再来一首吧'}\n接住了 ${this.round.score} 份冰淇淋`;
     this.resultOverlay.active=true;
     this.refreshSlowdown();
   }

@@ -166,11 +166,11 @@ function resultButton(name, label, x, y, sprite, width = 270) {
   a.label('Caption', node, label, { w: width - 24, h: 55, size: 31, outlineWidth: 3 });
   return { node, button: a.button(node) };
 }
+const home = resultButton('HomeButton', '返回主页', 0, -535, art.orange, 270);
 const retry = resultButton('RetryButton', '再来一局', -146, -205, art.blue, 270);
 const next = resultButton('NextButton', '下一关', 146, -205, art.green, 270);
 const revive = resultButton('ReviveButton', '复活', 146, -205, art.orange, 270);
 a.sprite('VideoBadge', revive.node, art.videoBadge, { x: -76, w: 48, h: 34 });
-const share = resultButton('ShareButton', '喊人', 0, -292, art.purple, 250);
 
 a.component(canvas, compressUuid(SCRIPT_UUID), {
   stageOneTarget: 10,
@@ -204,10 +204,10 @@ a.component(canvas, compressUuid(SCRIPT_UUID), {
   resultDetail: ref(resultDetail.component),
   successCat: ref(successCat),
   failCat: ref(failCat),
+  homeButton: ref(home.button),
   retryButton: ref(retry.button),
   nextButton: ref(next.button),
   reviveButton: ref(revive.button),
-  shareButton: ref(share.button),
 });
 
 o[1]._globals = ref(appendSceneGlobals(source, o));

@@ -1,4 +1,4 @@
-import { _decorator, Button, Component, game, Game, Node, ScrollView } from "cc";
+import { _decorator, Button, Component, game, Game, Node, ScrollView, view, ResolutionPolicy } from "cc";
 import AudioManager from "./framework/AudioManager";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 import { SidebarRewardService, SidebarRewardState } from "./framework/Platform/SidebarRewardService";
@@ -62,6 +62,9 @@ export class newMainScene extends Component {
   private shareInFlight = false;
 
   protected onLoad(): void {
+    // The lobby must not inherit the startup or previous game resolution policy.
+    // Keep cards at the same width; shorter screens scroll instead of shrinking.
+    view.setDesignResolutionSize(750, 1624, ResolutionPolicy.FIXED_WIDTH);
     this.settingButton?.node?.on(Button.EventType.CLICK, this.openSettings, this);
     this.shareButton?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
     this.sidebarButton?.node?.on(Button.EventType.CLICK, this.openSidebarReward, this);

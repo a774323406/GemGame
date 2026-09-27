@@ -2,7 +2,7 @@ import { standardizeLobbyCard } from './lobby_card_style.mjs';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { SceneAuthor, compressUuid, ref, rgba, vec } from './penguin_scene_authoring.mjs';
-import { appendSceneGlobals } from './feed_result_layout.mjs';
+import { appendSceneGlobals, fitFeedResultOverlay } from './feed_result_layout.mjs';
 
 export function mathUuid(name) {
   const h = crypto.createHash('sha256').update(`GemGame/mathExam/${name}`).digest('hex');
@@ -126,6 +126,7 @@ export function buildMathExamScene() {
     replayButton: ref(replay), homeButton: ref(home), addTimeButton: ref(addTime), reviveButton: ref(revive),
   });
   o[1]._globals = ref(appendSceneGlobals(source, o));
+  fitFeedResultOverlay(o, 'MathExamFeedGameScene');
   return o;
 }
 

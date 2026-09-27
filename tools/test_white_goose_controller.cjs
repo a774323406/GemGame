@@ -369,4 +369,14 @@ function makePlayableController(fixture) {
   );
 }
 
+{
+  const fixture = createFixture();
+  const controller = makePlayableController(fixture);
+  const panel = new fixture.Node('ResultPanel');
+  controller.sceneResultPanel = panel;
+  controller.finishRound(false);
+  assert.equal(panel.scale.x, 1, 'fullscreen result content must not start at popup scale');
+  assert.equal(panel.scale.y, 1);
+}
+
 console.log('White goose controller tests passed');

@@ -76,8 +76,8 @@ assert(nodeByName('FieldTouchArea'));
 const overlay = nodeByName('ResultOverlay');
 assert(overlay, 'ResultOverlay is missing');
 assert(component(overlay.id, 'cc.BlockInputEvents'));
-assert.equal(overlay.entry._active, true,
-  'the result UI should remain visible and editable in Creator; resetRound hides it at runtime');
+assert.equal(overlay.entry._active, false,
+  'the result overlay should be hidden until an outcome is shown');
 const resultDim = nodeByName('Mask');
 assert(resultDim, 'the delivery-style full-screen result mask is missing');
 assert.equal(component(resultDim.id, 'cc.Widget')._alignFlags, 45);
@@ -86,7 +86,7 @@ for (const side of ['_left', '_right', '_top', '_bottom']) {
 }
 assert.deepEqual(component(resultDim.id, 'cc.Sprite')._color,
   { __type__: 'cc.Color', r: 0, g: 0, b: 0, a: 255 });
-assert.equal(component(resultDim.id, 'cc.UIOpacity')._opacity, 200);
+assert.equal(component(resultDim.id, 'cc.UIOpacity')._opacity, 145);
 
 const resultPanel = nodeByName('ResultPanel');
 const resultPanelSize = component(resultPanel.id, 'cc.UITransform')._contentSize;
@@ -105,11 +105,11 @@ assert.equal(component(nodeByName('FailureTitle').id, 'cc.Label')._string, 'æŒ‘æ
 
 assert.equal(nodeByName('NextButton'), undefined,
   'the success result must not offer navigation into the puzzle game');
-const sharedActionButtonFrame = 'dd5b91d5-aed1-5e36-aefd-d6dc5056eaa3@f9941';
+const sharedActionButtonFrame = 'dcf68a09-eb3c-5def-8dba-fa59f284a184@f9941';
 for (const name of ['ReplayButton', 'RestartButton', 'ReviveButton', 'HomeButton']) {
   const node = nodeByName(name);
   const size = component(node.id, 'cc.UITransform')._contentSize;
-  assert.deepEqual([size.width, size.height], [360, 112],
+  assert.deepEqual([size.width, size.height], [470, 138],
     `${name} must use the same proportions as the food-delivery result buttons`);
   assert.equal(component(node.id, 'cc.Sprite')._spriteFrame.__uuid__, sharedActionButtonFrame,
     `${name} must use the food-delivery result button artwork`);

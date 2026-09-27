@@ -316,30 +316,31 @@ export class juggleBallGameScene extends Component {
     this.sceneSlowdownButton = this.createRewardImageButton("SlowdownButton", root, -100, -555, "降速");
     this.sceneExtraChanceButton = this.createRewardImageButton("ExtraChanceButton", root, 100, -555, "次数+3");
 
-    this.sceneResultOverlay = this.createVisualNode("ResultOverlay", root, 0, 0, 750, 1334, true);
+    const resultSize = view.getVisibleSize();
+    this.sceneResultOverlay = this.createVisualNode("ResultOverlay", root, 0, 0, resultSize.width, resultSize.height, true);
     const overlayGraphics = this.sceneResultOverlay.getComponent(Graphics);
     if (overlayGraphics) {
       overlayGraphics.fillColor = new Color(13, 50, 78, 175);
-      overlayGraphics.rect(-375, -667, 750, 1334);
+      overlayGraphics.rect(-resultSize.width / 2, -resultSize.height / 2, resultSize.width, resultSize.height);
       overlayGraphics.fill();
     }
-    this.sceneResultPanel = this.createVisualNode("ResultPanel", this.sceneResultOverlay, 0, 0, 536, 440, true);
-    this.sceneResultTitle = this.createLabel("ResultTitle", this.sceneResultPanel, 0, 112, 470, 80, 58, new Color(115, 69, 29, 255), "挑战成功");
+    this.sceneResultPanel = this.createVisualNode("ResultPanel", this.sceneResultOverlay, 0, 0, resultSize.width, resultSize.height, false);
+    this.sceneResultTitle = this.createLabel("ResultTitle", this.sceneResultPanel, 0, 400, 650, 110, 76, new Color(255, 235, 155, 255), "挑战成功");
     this.sceneResultDetail = this.createLabel(
       "ResultDetail",
       this.sceneResultPanel,
       0,
-      18,
-      470,
-      130,
-      31,
-      new Color(115, 69, 29, 255),
+      150,
+      650,
+      160,
+      36,
+      new Color(255, 255, 255, 255),
       `目标达成\n本次颠球：${LEVEL_TARGET_SCORES[1]}`,
     );
-    const resultAction = this.createActionButton("ResultActionButton", this.sceneResultPanel, 128, -142, 180, 86, "再玩一次", 31);
+    const resultAction = this.createActionButton("ResultActionButton", this.sceneResultPanel, 0, -445, 340, 94, "再玩一次", 31);
     this.sceneResultActionButton = resultAction.button;
     this.sceneResultActionLabel = resultAction.label;
-    this.sceneResultHomeButton = this.createActionButton("ResultHomeButton", this.sceneResultPanel, -128, -142, 180, 86, "复活", 31).button;
+    this.sceneResultHomeButton = this.createActionButton("ResultHomeButton", this.sceneResultPanel, 0, -300, 340, 94, "复活", 31).button;
   }
 
   /** 兼容旧场景资源；正式节点已经固化在编辑器场景中。 */
@@ -921,13 +922,12 @@ export class juggleBallGameScene extends Component {
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = true;
     if (this.sceneResultHomeButton?.node) this.sceneResultHomeButton.node.active = !success;
     if (this.sceneResultPanel) {
-      this.sceneResultPanel.setScale(0.7, 0.7, 1);
-      tween(this.sceneResultPanel)
-        .to(0.22, { scale: new Vec3(1.05, 1.05, 1) }, { easing: "backOut" })
-        .to(0.08, { scale: Vec3.ONE })
-        .start();
+      this.sceneResultPanel.setScale(1, 1, 1);
     }
-    if (this.sceneResultTitle) this.sceneResultTitle.string = success ? "挑战成功" : "挑战结束";
+    if (this.sceneResultTitle) {
+      this.sceneResultTitle.string = success ? "挑战成功" : "挑战失败";
+      this.sceneResultTitle.color = success ? new Color(255, 232, 153, 255) : new Color(255, 255, 255, 255);
+    }
     if (this.sceneResultDetail) this.sceneResultDetail.string = `${detail}\n本次颠球：${this.score}`;
     if (this.sceneResultActionLabel) {
       this.sceneResultActionLabel.string =
@@ -1051,9 +1051,13 @@ export class juggleBallGameScene extends Component {
     this.drawBall(this.getGraphics(this.sceneBall));
     this.drawTrail(this.getGraphics(this.sceneBallTrail));
 
-    this.drawButton(this.getGraphics(this.sceneResultActionButton?.node), new Color(255, 194, 53, 255));
-    this.drawButton(this.getGraphics(this.sceneResultHomeButton?.node), new Color(255, 194, 53, 255));
-    this.drawResultPanel(this.getGraphics(this.sceneResultPanel));
+    for (const button of [this.sceneResultActionButton, this.sceneResultHomeButton]) {
+      if (!button?.node?.getComponent(Sprite)) {
+        this.drawButton(this.getGraphics(button?.node), new Color(255, 194, 53, 255));
+      }
+    }
+    // Result content stays transparent over the full-screen dim layer.
+    this.sceneResultPanel?.getComponent(Graphics)?.clear();
   }
 
   private getGraphics(node: Node | null | undefined): Graphics | null {
@@ -1122,17 +1126,6 @@ export class juggleBallGameScene extends Component {
     graphics.fill();
     graphics.fillColor = new Color(255, 234, 137, 255);
     graphics.roundRect(-59, 8, 118, 25, 11);
-    graphics.fill();
-  }
-
-  private drawResultPanel(graphics: Graphics | null): void {
-    if (!graphics) return;
-    graphics.clear();
-    graphics.fillColor = new Color(111, 70, 33, 255);
-    graphics.roundRect(-268, -220, 536, 440, 42);
-    graphics.fill();
-    graphics.fillColor = new Color(255, 235, 155, 255);
-    graphics.roundRect(-257, -209, 514, 418, 34);
     graphics.fill();
   }
 

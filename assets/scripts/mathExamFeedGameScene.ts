@@ -143,10 +143,9 @@ export class mathExamFeedGameScene extends Component {
   private fitLayout = (): void => {
     this.stopEraserDrag();
     const visible = view.getVisibleSize();
-    const scale = Math.min(visible.width / 592, visible.height / 1280);
+    const scale = Math.min(visible.width / 592, (visible.height - 128) / 1280);
     this.layoutRoot.setScale(scale, scale, 1);
-    const resultScale = Math.min(1, (visible.width - 64) / 610, (visible.height - 120) / 900);
-    this.resultPanel.setScale(resultScale, resultScale, 1);
+    this.resultPanel.setScale(1, 1, 1);
   };
 
   private isPaused(): boolean {
@@ -404,16 +403,18 @@ export class mathExamFeedGameScene extends Component {
     this.feedbackLabel.string = '';
     this.questionRoot.setPosition(0, 0, 0);
     this.refreshQuestions();
-    this.resultTitle.string = this.round.score >= EXAM_TARGET ? '口算高手！' : '时间到，交卷啦！';
+    const success = this.round.score >= EXAM_TARGET;
+    this.resultTitle.string = success ? '挑战成功' : '挑战失败';
+    this.resultTitle.color = success ? new Color(255, 232, 153, 255) : new Color(255, 255, 255, 255);
     this.resultScore.string = `${this.round.score} 分`;
-    this.resultDetail.string = `答对 ${this.round.correct} 题 · ${this.round.score >= EXAM_TARGET ? '挑战成功' : `目标 ${EXAM_TARGET} 分`}`;
+    this.resultDetail.string = success ? '口算高手！' : '时间到，交卷啦！';
     let best = this.round.score;
     try {
       const stored = Number(sys.localStorage.getItem(BEST_KEY));
       if (Number.isFinite(stored)) best = Math.max(best, stored);
       sys.localStorage.setItem(BEST_KEY, String(best));
     } catch { /* Storage may be unavailable in preview/private browsing. */ }
-    this.bestLabel.string = `最佳成绩  ${best} 分`;
+    this.bestLabel.string = `答对 ${this.round.correct} 题 · 最佳成绩 ${best} 分`;
     this.resultOverlay.active = true;
     this.refreshRewardButtons();
   }
@@ -428,8 +429,7 @@ export class mathExamFeedGameScene extends Component {
     this.backButton.interactable = !this.adInFlight;
     this.replayButton.interactable = !this.adInFlight;
     this.homeButton.interactable = !this.adInFlight;
-    this.replayButton.node.setPosition(0, failed ? -235 : -154, 0);
-    this.homeButton.node.setPosition(0, failed ? -355 : -274, 0);
+    // Result button positions belong to the responsive scene Widgets.
   }
 
   private onAddTime = async (): Promise<void> => {

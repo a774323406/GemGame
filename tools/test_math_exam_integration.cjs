@@ -23,6 +23,8 @@ const loader=new Loader();loader.warnUnknownFeedContentId=()=>{};
 assert.equal(loader.resolveFeedEntry().sceneName,'ShootingGlassBottlesGame','empty unconfigured content ID must preserve fallback');
 state.contentId='CONTENT15271990018';
 assert.equal(loader.resolveFeedEntry().sceneName,'MathExamFeedGameScene','the actual acquisition ID must enter math exam using project configuration');
+state.contentId='CONTENT15218705666';
+assert.equal(loader.resolveFeedEntry().sceneName,'MotoRaceGameScene','motorcycle acquisition ID routes directly to its scene');
 state.mode='revisit';
 assert.equal(loader.resolveFeedEntry().sceneName,'ShootingGlassBottlesGame','existing revisit route must be retained');
 const Main=load('newMainScene').newMainScene;

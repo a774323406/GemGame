@@ -235,6 +235,7 @@ assert(bundleSource.includes(
 assert(!bundleSource.includes('LegacyMain'));
 
 const controllerSource = read('assets/scripts/newMainScene.ts');
+assert(controllerSource.includes('view.setDesignResolutionSize(750, 1624, ResolutionPolicy.FIXED_WIDTH)'), 'Lobby must reset fixed-width policy on cold start and return');
 assert(controllerSource.includes('whiteGooseButton: Button = null'));
 assert(controllerSource.includes(
   'this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this)',

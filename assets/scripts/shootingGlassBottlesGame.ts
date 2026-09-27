@@ -916,8 +916,8 @@ export class shootingGlassBottlesGame extends Component {
     if (this.overlayTitle) {
       this.overlayTitle.string = success ? "挑战成功" : "挑战失败";
       this.overlayTitle.color = success
-        ? new Color(220, 87, 29, 255)
-        : new Color(211, 49, 89, 255);
+        ? new Color(255, 231, 164, 255)
+        : new Color(255, 255, 255, 255);
     }
     if (this.overlayDetail) {
       const failureMessage = this.failureReason === "ammo"
@@ -1114,8 +1114,7 @@ export class shootingGlassBottlesGame extends Component {
     const panel = overlay.getChildByName("CuteResultPanel");
     if (panel?.isValid) {
       Tween.stopAllByTarget(panel);
-      panel.setScale(0.9, 0.9, 1);
-      tween(panel).to(0.22, { scale: Vec3.ONE }, { easing: "backOut" }).start();
+      panel.setScale(Vec3.ONE);
     }
   }
 

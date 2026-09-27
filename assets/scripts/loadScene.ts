@@ -7,6 +7,8 @@ import {
   Node,
   ProgressBar,
   UITransform,
+  view,
+  ResolutionPolicy,
 } from "cc";
 import AudioManager from "./framework/AudioManager";
 import gamePrefabMgr from "./gamePrefabMgr";
@@ -24,6 +26,7 @@ import {
   FEED_WHITE_GOOSE_CONTENT_ID,
   FEED_MATH_EXAM_CONTENT_ID,
   FEED_RHYTHM_CAT_CONTENT_ID,
+  FEED_MOTO_RACE_CONTENT_ID,
   FEED_HEART_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -42,6 +45,12 @@ export class loadScene extends Component {
   private hasEnteredNextScene: boolean = false;
   private isLoading: boolean = false;
   private loadErrorNode: Node | null = null;
+
+  protected onLoad(): void {
+    // Match the lobby before loading the first frame; short screens crop the
+    // background vertically instead of shrinking the entire loading page.
+    view.setDesignResolutionSize(750, 1624, ResolutionPolicy.FIXED_WIDTH);
+  }
 
   start() {
     SdkUtils.requireSDK();
@@ -186,6 +195,10 @@ export class loadScene extends Component {
 
     if (contentId === FEED_HEART_CONTENT_ID) {
       return { sceneName: GameSceneName.Game, reason: `推荐流爱心第 8 关（${contentId}）` };
+    }
+
+    if (contentId === FEED_MOTO_RACE_CONTENT_ID) {
+      return { sceneName: GameSceneName.MotoRaceGame, reason: `推荐流狂暴摩托（${contentId}）` };
     }
 
     if (FEED_RHYTHM_CAT_CONTENT_ID && contentId === FEED_RHYTHM_CAT_CONTENT_ID) {

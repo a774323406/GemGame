@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');const {loadTs}=require('./rhythm_cat_test_helpers.cjs');
 class Node {static EventType={TOUCH_START:'start',TOUCH_MOVE:'move',TOUCH_END:'end',TOUCH_CANCEL:'cancel'};constructor(){this.isValid=true;this.active=true;this.position={x:0,y:0,z:0};}on(){}off(){}setScale(...v){this.scale=v}setPosition(x,y,z){this.position={x,y,z}}getComponent(){return{convertToNodeSpaceAR:p=>p,setContentSize(){}}}}
 class Component{constructor(){this.node=new Node}}class Vec3{constructor(x,y,z){Object.assign(this,{x,y,z})}}
-const cc={_decorator:{ccclass:()=>v=>v,property:(...args)=>args.length>=2?undefined:()=>{}},Component,Node,Vec3,Button:class{static EventType={CLICK:'click'}},AudioSource:class{},Sprite:class{},SpriteFrame:class{},Label:class{},UITransform:class{},EventTouch:class{},ResolutionPolicy:{FIXED_WIDTH:1},view:{setDesignResolutionSize(){},getVisibleSize:()=>({width:750,height:1334}),on(){},off(){}},game:{on(){},off(){}},Game:{EVENT_HIDE:'hide',EVENT_SHOW:'show'},director:{on(){},off(){}}};
+const cc={Color:class{constructor(...values){this.values=values}},_decorator:{ccclass:()=>v=>v,property:(...args)=>args.length>=2?undefined:()=>{}},Component,Node,Vec3,Button:class{static EventType={CLICK:'click'}},AudioSource:class{},Sprite:class{},SpriteFrame:class{},Label:class{},UITransform:class{},EventTouch:class{},ResolutionPolicy:{FIXED_WIDTH:1},view:{setDesignResolutionSize(){},getVisibleSize:()=>({width:750,height:1334}),on(){},off(){}},game:{on(){},off(){}},Game:{EVENT_HIDE:'hide',EVENT_SHOW:'show'},director:{on(){},off(){}}};
 let state={active:true,entered:false,exited:false},listener,busy=false,interstitialBusy=false,fail=false,completed=0,released=0,scheduled=0,rewardCalls=0,rewardRequest=()=>Promise.resolve(true);
 const chart=loadTs('assets/scripts/rhythmCatChart.ts');
 const feed={getState:()=>state,addListener(fn){listener=fn;fn(state)},removeListener(){},reportSceneReadyAfterStableRender:async()=>{},activateFromFirstTouch(){state={...state,entered:true,exited:false};listener(state)},completeSession(){completed++}};
@@ -77,4 +77,14 @@ async function verifyInterstitialDoesNotPause(){
   c.round.lives=0;c.update(.01);c.onReplay();assert.equal(c.round.lives,3);assert.equal(c.round.time,0,'interstitial must not lock replay');
   await c.returnHome();assert(c.leaving,'interstitial must not lock navigation');c.onDestroy();interstitialBusy=false;
   console.log('rhythm cat interstitial: clock, music, drag, close, replay and navigation remain active; background/reward pauses preserved');
+}
+
+for(const status of ['success','failed']) {
+  const c=fixture();c.timeline={setPaused(){}};c.refreshSlowdown=()=>{};
+  c.round.status=status;c.finishRound();
+  assert.equal(c.resultTitle.string,status==='success'?'挑战成功':'挑战失败');
+  assert.deepEqual(c.resultTitle.color.values,status==='success'?[255,232,153,255]:[255,255,255,255]);
+  assert(c.replayButton.node.active&&c.homeButton.node.active);
+  assert.match(c.resultScore.string,/冰淇淋/);
+  if(status==='success')assert.match(c.resultScore.string,/完美收工/);
 }

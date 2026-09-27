@@ -70,6 +70,7 @@ function fixture() {
 }
 (async()=>{
   const c=fixture(); c.onLoad(); c.start();
+  assert.equal(c.resultPanel.scale.x,1,'fullscreen results keep authored scale');
   const previewCalls=adCalls; await c.onAddTime(); await c.onRevive();
   assert.equal(adCalls,previewCalls,'preview cannot start reward ads before gameplay');
   c.update(8); assert.equal(c.round.remaining,60,'preview must not consume time');
@@ -276,6 +277,10 @@ function fixture() {
   }
   c.round.remaining=0.1; c.update(0.2);
   assert.equal(c.reviveButton.node.active,true,'failure offers revival');
+  assert.equal(c.resultTitle.string,'挑战失败');
+  assert.deepEqual(c.resultTitle.color.values,[255,255,255,255]);
+  assert.equal(c.replayButton.node.position.y,0);
+  assert.equal(c.homeButton.node.position.y,0);
   assert.equal(c.addTimeButton.node.active,false,'add-time is hidden behind the result');
   pending=c.onRevive(); rewardResolve(false); await pending;
   assert.equal(c.phase,'result'); assert.equal(c.round.remaining,0);
@@ -285,6 +290,10 @@ function fixture() {
   assert.equal(c.strokes,open4,'revive retains unfinished ink on the current question');
   c.round.score=100; c.round.remaining=0.1; c.update(0.2);
   assert.equal(c.reviveButton.node.active,false,'successful results do not offer revival');
+  assert.equal(c.resultTitle.string,'挑战成功');
+  assert.deepEqual(c.resultTitle.color.values,[255,232,153,255]);
+  assert.equal(c.replayButton.node.position.y,0);
+  assert.equal(c.homeButton.node.position.y,0);
   const callsBeforeSuccess=adCalls; await c.onRevive(); assert.equal(adCalls,callsBeforeSuccess);
   c.onReplay(); pending=c.onAddTime(); c.resetRound(true);
   rewardResolve(true); await pending;
