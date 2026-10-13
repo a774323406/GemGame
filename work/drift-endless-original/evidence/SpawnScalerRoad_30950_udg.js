@@ -1,0 +1,1 @@
+function udg(d,e,f){d=d|0;e=e|0;f=f|0;var g=0,h=0,i=0;i=l;l=l+64|0;e=i;h=d+216|0;b[h>>1]=b[h>>1]|4;if(!(a[d+33>>0]|0)){l=i;return}xdg(d);f=d;while(1){g=c[f+300>>2]|0;if(!g)break;else f=g}f$a(e,hta(c[f+28>>2]|0,22016)|0);g=d+112|0;f=g+64|0;do{c[g>>2]=c[e>>2];g=g+4|0;e=e+4|0}while((g|0)<(f|0));b[h>>1]=b[h>>1]|6;l=i;return}

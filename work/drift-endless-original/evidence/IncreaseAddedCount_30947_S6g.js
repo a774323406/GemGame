@@ -1,0 +1,1 @@
+function S6g(a){a=a|0;vgt(c[c[a+4>>2]>>2]|0,0);return}

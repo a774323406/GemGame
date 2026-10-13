@@ -1,0 +1,1 @@
+function OTG(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;return ETG(0,b,-1,(c|0)==1,0,0)|0}

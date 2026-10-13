@@ -1,0 +1,50 @@
+{
+  "report": [
+    {
+      "height": 1334,
+      "buttons": [
+        {
+          "name": "ReviveButton",
+          "bottom": 417.99999999999994
+        },
+        {
+          "name": "RetryButton",
+          "bottom": 253
+        },
+        {
+          "name": "HomeButton",
+          "bottom": 88
+        }
+      ],
+      "hud": false,
+      "car": true,
+      "overlay": true
+    },
+    {
+      "height": 1624,
+      "buttons": [
+        {
+          "name": "ReviveButton",
+          "bottom": 523.8695652173913
+        },
+        {
+          "name": "RetryButton",
+          "bottom": 323.00000000000006
+        },
+        {
+          "name": "HomeButton",
+          "bottom": 122.13043478260875
+        }
+      ],
+      "hud": false,
+      "car": true,
+      "overlay": true
+    }
+  ],
+  "errors": [],
+  "checks": [
+    "crashed car retained",
+    "revive exhausted button hidden",
+    "pause resume restores HUD"
+  ]
+}

@@ -1,0 +1,1 @@
+function aBg(a){a=a|0;xzu(c[c[a+4>>2]>>2]|0,1,0);return}

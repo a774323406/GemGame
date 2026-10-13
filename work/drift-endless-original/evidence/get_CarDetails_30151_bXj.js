@@ -1,0 +1,1 @@
+function bXj(a,b){a=a|0;b=b|0;return cXj(a)|0}

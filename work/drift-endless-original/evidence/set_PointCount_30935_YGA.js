@@ -1,0 +1,1 @@
+function YGA(a,b){a=a|0;b=b|0;return nVq(ATj(9,a)|0,0)|0}

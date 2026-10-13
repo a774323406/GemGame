@@ -1,0 +1,1 @@
+function cHz(a,b,d,e){a=a|0;b=b|0;d=d|0;e=e|0;var f=0;f=l;l=l+16|0;e=f;c[e>>2]=0;e=$pl(a,e,b,d)|0;l=f;return e|0}

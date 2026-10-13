@@ -1,0 +1,2 @@
+const assert=require('node:assert/strict'),{load}=require('./drift_feed_test_helpers.cjs');
+const {DriftParticles}=load('assets/scripts/drift/driftParticles.ts');const p=new DriftParticles();p.crash(12,25);assert(p.items.length>=30);assert(p.items.length<=100);for(let i=0;i<120;i++)p.update(1/60);assert.equal(p.items.length,0);for(let i=0;i<500;i++)p.trail(1,2,0,false);assert(p.items.length<=160);p.reset();assert.equal(p.items.length,0);console.log('PASS drift particles: finite explosion, bounded trail pool, reset');

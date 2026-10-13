@@ -1,0 +1,1 @@
+function u4i(a,b,d,e){a=a|0;b=b|0;d=d|0;e=e|0;var f=0,g=0,h=0,i=0,j=0,k=0;f=l;l=l+16|0;g=f+8|0;i=f;h=c[e>>2]|0;k=c[e+4>>2]|0;j=c[k+4>>2]|0;e=i;c[e>>2]=c[k>>2];c[e+4>>2]=j;c[g>>2]=c[i>>2];c[g+4>>2]=c[i+4>>2];e=Lq[a&8191](d,h,g,b)|0;l=f;return e|0}

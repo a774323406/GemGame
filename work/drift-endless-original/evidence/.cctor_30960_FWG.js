@@ -1,0 +1,1 @@
+function FWG(b,e,f,g){b=b|0;e=e|0;f=f|0;g=g|0;var h=0;h=l;l=l+16|0;g=h;if(!(a[3275529]|0)){oNi(c[200024]|0);a[3275529]=1}if(pWG(0,e,f,0)|0)g=1;else{f=IXz(b,0)|0;c[g>>2]=e;g=tNi(c[746531]|0,g)|0;g=cvz(0,c[764817]|0,f,g,0)|0;e=c[746436]|0;f=e+193|0;if((d[f>>0]|d[f+1>>0]<<8)&256?(c[e+112>>2]|0)==0:0)yJI(e);eMz(0,g,b,0);g=0}l=h;return g|0}

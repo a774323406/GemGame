@@ -1,0 +1,1 @@
+function vru(a,b){a=a|0;b=b|0;do if(PRz(aLz(a,0)|0,0)|0){if(!(hju(a)|0)?!(HZG(ciu(a)|0,0)|0):0)break;$lu(a,T(czy(a,0)));RXj(114,a);Zhu(a,1)}while(0);return}

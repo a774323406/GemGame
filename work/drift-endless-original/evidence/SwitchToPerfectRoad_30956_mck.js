@@ -1,0 +1,1 @@
+function mck(a,b){a=a|0;b=b|0;return yUj(a)|0}

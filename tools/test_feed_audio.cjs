@@ -20,7 +20,6 @@ class Node {
 
 const scenes = [
   ['penguinStackFeedGameScene', 'getUserBgm', 'onFeedStateChanged', 'onHide', 'onShow', 'isFeedInteractionEnabled'],
-  ['shootingGlassBottlesGame', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
   ['juggleBallGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
 ];
 

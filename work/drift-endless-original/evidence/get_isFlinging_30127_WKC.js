@@ -1,0 +1,1 @@
+function WKC(a,b,c){a=a|0;b=b|0;c=c|0;VKC(a,b);return}

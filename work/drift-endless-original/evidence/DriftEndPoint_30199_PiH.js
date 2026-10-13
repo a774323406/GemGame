@@ -1,0 +1,1 @@
+function PiH(a,b,d){a=a|0;b=b|0;d=d|0;RiH(a,b,0);if(!(SiH(a,c[b>>2]|0,0)|0))c[b>>2]=TiH(a,c[b>>2]|0,0)|0;return}

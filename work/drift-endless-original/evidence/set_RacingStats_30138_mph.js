@@ -1,0 +1,1 @@
+function mph(a){a=a|0;var b=0;a=a+4|0;b=c[c[a>>2]>>2]|0;pJA(b,nNi(2490625)|0,0);yJA(c[(c[a>>2]|0)+4>>2]|0,0,0);return}

@@ -1,0 +1,1 @@
+function FZj(a,b){a=a|0;b=b|0;X7H(CZj(a)|0,0);Y7H(tXj(a)|0,1,1,0);dWj(a,T(1.0));eWj(a,T(2.0));return}

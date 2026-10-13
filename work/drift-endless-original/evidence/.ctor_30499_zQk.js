@@ -1,0 +1,1 @@
+function zQk(a,b){a=a|0;b=b|0;X_j(a,T(1.0));ESj(a,T(1.0));FSj(a,T(5.0));iTj(a,10);c$j(a,T(10.0));FQk(a,86400,0);Dok(a,1500);S_j(a,900);dak(a,T(8.0));ghk(a,T(50.0));fak(a,T(.5));hak(a,T(1.0));lhk(a,T(2.0));$gk(a,T(5.0));mhk(a,T(2.0));nhk(a,T(1.0));ohk(a,T(2.0));RQk(a,20);SQk(a,4);bnk(a,2);UQk(a,T(.5));Hpk(a,T(.5));jqk(a,T(1.0));XQk(a,20);YQk(a,5);fUG(a,0);return}

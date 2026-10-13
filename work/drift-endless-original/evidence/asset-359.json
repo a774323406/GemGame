@@ -1,0 +1,25 @@
+{
+  "m_Name": "RoadCreator",
+  "m_ExecutionOrder": 0,
+  "m_PropertiesHash": {
+    "bytes[0]": 32,
+    "bytes[1]": 178,
+    "bytes[2]": 212,
+    "bytes[3]": 53,
+    "bytes[4]": 151,
+    "bytes[5]": 89,
+    "bytes[6]": 87,
+    "bytes[7]": 152,
+    "bytes[8]": 184,
+    "bytes[9]": 224,
+    "bytes[10]": 230,
+    "bytes[11]": 70,
+    "bytes[12]": 122,
+    "bytes[13]": 230,
+    "bytes[14]": 210,
+    "bytes[15]": 36
+  },
+  "m_ClassName": "RoadCreator",
+  "m_Namespace": "",
+  "m_AssemblyName": "Assembly-CSharp.dll"
+}

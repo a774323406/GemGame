@@ -1,0 +1,1 @@
+function HAA(a,b){a=a|0;b=b|0;LTj(a,0);return}

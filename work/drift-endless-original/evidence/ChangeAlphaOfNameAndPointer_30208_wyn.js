@@ -1,0 +1,1 @@
+function wyn(a,b){a=a|0;b=b|0;return T(zxk(a+8|0,0))}

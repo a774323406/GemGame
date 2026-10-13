@@ -1,0 +1,1 @@
+function L7k(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;l7k(a,b,0);M7k(a,c,0);return yUj(a)|0}

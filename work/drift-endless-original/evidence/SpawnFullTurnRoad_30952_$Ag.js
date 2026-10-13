@@ -1,0 +1,1 @@
+function $Ag(a){a=a|0;HAA(c[c[a+4>>2]>>2]|0,0);return}

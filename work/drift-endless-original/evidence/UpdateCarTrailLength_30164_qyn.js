@@ -1,0 +1,1 @@
+function qyn(a,b){a=a|0;b=b|0;return T(gbk(a+8|0,0))}

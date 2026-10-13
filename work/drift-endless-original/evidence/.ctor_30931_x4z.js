@@ -1,0 +1,1 @@
+function x4z(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;var e=fp;e=T(v3z(b,0));if((e==T(v3z(c,0))?(e=T(A3z(b,0)),e==T(A3z(c,0))):0)?(e=T(gbk(b,0)),e==T(gbk(c,0))):0){e=T(zxk(b,0));a=e==T(zxk(c,0))}else a=0;return a|0}

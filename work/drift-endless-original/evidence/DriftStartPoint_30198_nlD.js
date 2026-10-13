@@ -1,0 +1,1 @@
+function nlD(a,b){a=a|0;b=b|0;olD(a,0,0);return}

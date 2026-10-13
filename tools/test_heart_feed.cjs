@@ -84,6 +84,6 @@ async function entry() {
  veteran.checkWin();assert.equal(storage.get('gem_sort_level'),'20');
  storage.clear();state={active:false,mode:'none',contentId:''};
  const normal=await entry();assert.equal(normal.levelIndex,1);assert(!tutorial.isCoreGuideDone());assert(!inventory.isUnlocked('magic'));
- state={active:true,mode:'acquisition',contentId:'unknown'};assert.equal(new Loader().resolveFeedEntry().sceneName,'ShootingGlassBottlesGame');
+ state={active:true,mode:'acquisition',contentId:'unknown'};assert.equal(new Loader().resolveFeedEntry().sceneName,'NewMainScene');
  console.log('heart feed: routing, level 8, skipped tutorials, zero gifts, later levels, repeat entry, existing inventory/progress and normal entry passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});

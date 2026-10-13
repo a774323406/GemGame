@@ -1,0 +1,1 @@
+function M_q(a,b){a=a|0;b=b|0;b=0;while(1){if((b|0)>=(c[(WSj(a)|0)+12>>2]|0)){b=1;break}if((ATj(7,vKs(f1j(WSj(a)|0,b)|0,0)|0)|0)==1){b=0;break}b=lUj(b,1)|0}return b|0}

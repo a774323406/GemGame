@@ -1,0 +1,1 @@
+function nWj(a,b){a=a|0;b=b|0;return T(tTj(T(oWj(a)),T(1.0)))}

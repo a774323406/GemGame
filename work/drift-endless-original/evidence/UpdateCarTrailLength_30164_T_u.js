@@ -1,0 +1,1 @@
+function T_u(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;d=FDk(a)|0;M_u(0,-2,d,EfA(a)|0,0);d=FDk(a)|0;M_u(0,-1,d,EfA(a)|0,0);d=FDk(a)|0;M_u(0,b,d,EfA(a)|0,0);d=FDk(a)|0;M_u(0,c,d,EfA(a)|0,0);if(WfH(a)|0){d=T9j(a)|0;M_u(0,2,d,NzA(a)|0,0)}d=rak(a)|0;M_u(0,2,d,OzA(a)|0,0);return}

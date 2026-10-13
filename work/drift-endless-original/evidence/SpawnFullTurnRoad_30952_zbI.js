@@ -1,0 +1,1 @@
+function zbI(a,b,d){a=a|0;b=b|0;d=d|0;var e=0;d=l;l=l+16|0;e=d;c[e>>2]=0;c[e+4>>2]=0;c[e+8>>2]=0;c[e+12>>2]=0;AbI(b,e,0);c[a>>2]=c[e>>2];c[a+4>>2]=c[e+4>>2];c[a+8>>2]=c[e+8>>2];c[a+12>>2]=c[e+12>>2];l=d;return}

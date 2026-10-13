@@ -80,18 +80,24 @@ async function main() {
   const tests = [];
   const test = (name, run) => tests.push([name, run]);
 
+  test('interstitial shown notification occurs once only after native presentation', () => {
+    const f=fixture();f.sdk.showInterstitialAd();assert.deepEqual(f.lifecycleEvents,[]);
+    f.interstitialRequests[0].fail();f.interstitialRequests[0].shown();assert.deepEqual(f.lifecycleEvents,[]);
+    f.sdk.showInterstitialAd();const request=f.interstitialRequests[1];request.shown();request.shown();
+    assert.deepEqual(f.lifecycleEvents,[[f.sdk.EVENT_INTERSTITIAL_SHOWN]]);
+    request.close();assert.deepEqual(f.lifecycleEvents,[[f.sdk.EVENT_INTERSTITIAL_SHOWN],[f.sdk.EVENT_INTERSTITIAL_ENDED]]);
+  });
   test('every current scene reports its gameplay name for both ad types', () => {
     const f = fixture();
     const cases = {
-      NewMainScene: '玩法大厅', GameScene: '拼豆排序',
-      ShootingGlassBottlesGame: '打瓶子',
+      NewMainScene: '玩法大厅', GameScene: '拼豆排序', DriftFeedGameScene: '漂移',
       JuggleBallGameScene: '乒乓球第一关',
       PenguinStackFeedGameScene: '企鹅叠叠乐',
       FoodDeliveryFeedGameScene: '外卖精准投送',
       WhiteGooseFeedGameScene: '套大鹅',
       MathExamFeedGameScene: '口算大挑战',
-      RhythmCatFeedGameScene: '节奏猫咪',
       MotoRaceGameScene: '狂暴摩托',
+      ClayPigeonGameScene: '飞碟射击',
     };
     const sceneNames = Object.values(f.load('framework/GameSceneBundle.ts').GameSceneName);
     assert.deepEqual(sceneNames.sort(), Object.keys(cases).sort(), 'new scenes need an analytics name');
@@ -207,7 +213,7 @@ async function main() {
       }
       assert.equal(f.audioCalls.length, 0);
       assert.equal(f.overlays.length, 0);
-      assert.deepEqual(f.lifecycleEvents, Array.from({ length: 3 }, () => [f.sdk.EVENT_INTERSTITIAL_ENDED]));
+      assert.deepEqual(f.lifecycleEvents, Array.from({ length: 3 }, () => [[f.sdk.EVENT_INTERSTITIAL_SHOWN],[f.sdk.EVENT_INTERSTITIAL_ENDED]]).flat());
     }
   });
 
@@ -248,7 +254,7 @@ async function main() {
     assert.equal(ads[1].destroyed, 1); assert.equal(f.sdk.isFullscreenAdBusy(), false);
     ads[1].resolveShow(); await Promise.resolve(); await Promise.resolve();
     assert.equal(f.playData.ispause, false); assert.equal(f.events.length, 1);
-    assert.deepEqual(f.lifecycleEvents, [[f.sdk.EVENT_INTERSTITIAL_ENDED]]);
+    assert.deepEqual(f.lifecycleEvents, [[f.sdk.EVENT_INTERSTITIAL_SHOWN],[f.sdk.EVENT_INTERSTITIAL_ENDED]]);
   });
 
   for (const [name, run] of tests) { await run(); console.log('PASS ' + name); }

@@ -1,0 +1,1 @@
+function qLH(a,b){a=a|0;b=b|0;OTj(a,lCq(0,(AUj(a)|0)>>3,0)|0);return}

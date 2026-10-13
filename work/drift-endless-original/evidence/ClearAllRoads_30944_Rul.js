@@ -1,0 +1,1 @@
+function Rul(b,d){b=b|0;d=d|0;var e=0;if(!(a[3259241]|0)){oNi(c[197489]|0);a[3259241]=1}if(MUk(b,0)|0){d=MUk(b,0)|0;d=V0j(d,c[749848]|0)|0;while(1){d=t4j(d,1)|0;e=MUk(b,0)|0;if((d|0)<0)break;Jml($hz(0,e,d,c[747483]|0)|0,0)}G1j(e,c[753266]|0)}return}

@@ -1,0 +1,1 @@
+function ZGA(a,b){a=a|0;b=b|0;return HGA(a,0)|0}

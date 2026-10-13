@@ -1,0 +1,1 @@
+function XKE(b,d,e,f,g,h,i,j){b=b|0;d=d|0;e=e|0;f=f|0;g=g|0;h=h|0;i=i|0;j=j|0;var k=0;k=l;l=l+32|0;j=k;if(!(a[3274317]|0)){oNi(c[192436]|0);a[3274317]=1}c[j+16>>2]=0;c[j>>2]=d;c[j+4>>2]=tNi(c[747462]|0,e)|0;c[j+8>>2]=f;c[j+12>>2]=g;i=$pl(b,j,h,i)|0;l=k;return i|0}

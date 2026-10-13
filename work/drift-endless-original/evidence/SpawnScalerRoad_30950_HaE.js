@@ -1,0 +1,1 @@
+function HaE(a,b){a=a|0;b=b|0;IaE(a+8|0,b);return}

@@ -1,0 +1,1 @@
+function LBG(b,d){b=b|0;d=d|0;var e=0;if(!(a[3275309]|0)){oNi(c[196628]|0);a[3275309]=1}if(MBG(b)|0){e=NAA(0,c[756893]|0,0)|0;d=NTj(c[744265]|0)|0;pgt(d,e,0);pTj(d,0,c[749489]|0)}if(ffs(b)|0){b=JyG(fVj(b)|0,0)|0;d=b&7;if(d)b=lUj(b,t4j(8,d)|0)|0}else b=obk(b,0)|0;return b|0}

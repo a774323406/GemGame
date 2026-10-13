@@ -1,0 +1,1 @@
+function aJr(a,b){a=a|0;b=b|0;return ATj(32,AUj(a)|0)|0}

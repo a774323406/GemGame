@@ -1,0 +1,1 @@
+function sIk(b,d,e){b=b|0;d=d|0;e=e|0;if(!(a[3258643]|0)){oNi(c[192644]|0);a[3258643]=1}PVj(kUj(c[747281]|0)|0,d);return}

@@ -1,0 +1,1 @@
+function wru(a,b){a=a|0;b=b|0;if(PRz(aLz(a,0)|0,0)|0){if(!(!(hju(a)|0)?!(HZG(ciu(a)|0,0)|0):0)){amu(a,T(Jzy(a,0)));RXj(114,a);Zhu(a,1)}sju(a,0)}return}

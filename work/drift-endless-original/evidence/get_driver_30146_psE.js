@@ -1,0 +1,1 @@
+function psE(a,b){a=a|0;b=b|0;qsE(a+8|0,b);return}

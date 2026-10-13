@@ -1,0 +1,1 @@
+function d9D(a,b){a=a|0;b=b|0;e9D(a+8|0,b);return}

@@ -1,0 +1,1 @@
+function iRa(a){a=a|0;return 22400}

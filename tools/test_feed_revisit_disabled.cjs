@@ -6,12 +6,12 @@ const vm = require('node:vm');
 const ts = require(process.env.NAIL_TEST_TYPESCRIPT_PATH ||
   '/Applications/Cocos/Creator/3.8.5/CocosCreator.app/Contents/Resources/app.asar.unpacked/node_modules/typescript');
 
-function fixture(enabledOverride) {
+function fixture(enabledOverride, contentIdOverride) {
   const calls = [], warnings = [], storage = new Map(), cache = {};
   const noop = () => {};
   const cc = {
     _decorator: { ccclass: () => type => type, property: () => noop },
-    Component: class {},
+    Component: class { scheduleOnce(callback) { callback(); } },
     Button: class { static EventType = { CLICK: 'click' }; },
     Node: class { static EventType = { TOUCH_END: 'touch-end' }; },
     game: { on: noop }, Game: { EVENT_SHOW: 'show' },
@@ -52,6 +52,8 @@ function fixture(enabledOverride) {
         if (name === 'cc') return cc;
         if (name.endsWith('EnvTool')) return { EnvTool: env };
         if (name.endsWith('FeedRevisitConfig')) return load('framework/Platform/FeedRevisitConfig.ts');
+        if (name.endsWith('FeedAcquisitionService')) return load('framework/Platform/FeedAcquisitionService.ts');
+        if (name.endsWith('AudioManager')) return { default: { setSoundEvent: noop, playDefaultBgm: noop } };
         if (name.endsWith('FeedRevisitService')) return load('framework/Platform/FeedRevisitService.ts');
         if (name.endsWith('SidebarRewardService')) return { SidebarRewardService: {
           addListener: noop, init: noop, checkAvailability: noop,
@@ -62,6 +64,7 @@ function fixture(enabledOverride) {
     });
     if (file.endsWith('FeedRevisitConfig.ts') && enabledOverride !== undefined) {
       exports.FEED_REVISIT_ENABLED = enabledOverride;
+      if (contentIdOverride !== undefined) exports.FEED_REVISIT_CONTENT_ID = contentIdOverride;
     }
     return exports;
   }
@@ -74,7 +77,8 @@ async function main() {
   test('checked-in configuration disables revisit without changing acquisition IDs', () => {
     const f = fixture(), config = f.load('framework/Platform/FeedRevisitConfig.ts');
     assert.equal(config.FEED_REVISIT_ENABLED, false);
-    assert.equal(config.FEED_SHOOTING_CONTENT_ID, 'CONTENT14389313538');
+    assert.equal(config.FEED_SHOOTING_CONTENT_ID, undefined, 'retired bottle feed must not be registered');
+    assert.equal(config.FEED_REVISIT_CONTENT_ID, '', 'retired revisit ID must be cleared');
     assert.equal(config.FEED_NAIL_HAMMER_CONTENT_ID, undefined, 'retired nail feed must not be registered');
     assert.equal(config.FEED_JUGGLE_CONTENT_ID, 'CONTENT14893670402');
     assert.equal(config.FEED_JUGGLE_LEVEL2_CONTENT_ID, 'CONTENT14759731202');
@@ -116,13 +120,19 @@ async function main() {
     assert.deepEqual(f.calls.filter(Array.isArray), [['reportScene', 7001]]);
     assert.deepEqual(f.warnings, []);
   });
-  test('retained revisit implementation can still initialize when explicitly re-enabled', async () => {
-    const f = fixture(true), service = f.load('framework/Platform/FeedRevisitService.ts').FeedRevisitService;
+  test('fallback lobby reports ready once for retired feed entries', () => {
+    const f = fixture(), Main = f.load('newMainScene.ts').newMainScene;
+    new Main().start();
+    new Main().start();
+    assert.deepEqual(f.calls.filter(Array.isArray), [['reportScene', 7001]]);
+  });
+  test('retained revisit implementation requires an explicitly configured new ID to initialize', async () => {
+    const f = fixture(true, 'CONTENT99999999999'), service = f.load('framework/Platform/FeedRevisitService.ts').FeedRevisitService;
     const result = await service.initialize();
     await Promise.resolve();
     assert.equal(result.available, true); assert.equal(result.shouldShowSubscribeEntry, true);
     assert(f.calls.includes('login')); assert(f.calls.includes('checkFeedSubscribeStatus'));
-    assert.deepEqual(f.calls.filter(Array.isArray), [['storeFeedData', 'CONTENT14389313538']]);
+    assert.deepEqual(f.calls.filter(Array.isArray), [['storeFeedData', 'CONTENT99999999999']]);
     assert.deepEqual(f.warnings, []);
   });
   for (const [name, run] of tests) { await run(); console.log('PASS ' + name); }

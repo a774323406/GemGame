@@ -1,0 +1,1 @@
+function lRa(a){a=a|0;return 22448}

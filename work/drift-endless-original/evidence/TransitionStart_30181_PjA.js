@@ -1,0 +1,1 @@
+function PjA(a,b){a=a|0;b=b|0;bAA(a,1);RXj(29,a);return}

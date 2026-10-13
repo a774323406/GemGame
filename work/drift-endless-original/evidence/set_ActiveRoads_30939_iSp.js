@@ -1,0 +1,1 @@
+function iSp(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;if((b|0)==0|(iqG(c,0)|0)!=0)a=iqG(c,0)|0;else a=VVr(b,0)|0;return a|0}

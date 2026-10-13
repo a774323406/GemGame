@@ -1,0 +1,1 @@
+function muy(a,b){a=a|0;b=b|0;OjA(a,0);return}

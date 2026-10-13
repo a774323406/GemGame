@@ -1,0 +1,1 @@
+function xis(a,b){a=a|0;b=b|0;return ATj(25,AUj(a)|0)|0}

@@ -1,0 +1,1 @@
+function gAG(a,b){a=a|0;b=b|0;if(!(HUj(a)|0))a=0;else a=c[(HUj(a)|0)+12>>2]|0;return a|0}

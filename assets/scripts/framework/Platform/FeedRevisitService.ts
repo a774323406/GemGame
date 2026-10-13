@@ -217,7 +217,7 @@ export class FeedRevisitService {
     const requestedContentId = String(contentId || "").trim();
     if (requestedContentId && requestedContentId !== FEED_REVISIT_CONTENT_ID) {
       console.warn(
-        `[FeedRevisit] 忽略旧复访 Content_ID ${requestedContentId}，改用打瓶子方案 ${FEED_REVISIT_CONTENT_ID}`,
+        `[FeedRevisit] 忽略旧复访 Content_ID ${requestedContentId}，改用当前配置方案 ${FEED_REVISIT_CONTENT_ID}`,
       );
     }
     const resolvedContentId = FEED_REVISIT_CONTENT_ID;
@@ -317,7 +317,7 @@ export class FeedRevisitService {
             sys.localStorage.setItem(STORAGE_CONTENT_ID_KEY, contentId);
             sys.localStorage.setItem(STORAGE_READY_AT_KEY, String(readyAt));
             console.log(
-              `[FeedRevisit] 打瓶子挑战已排期: ${new Date(readyAt).toISOString()}`,
+              `[FeedRevisit] 挑战已排期: ${new Date(readyAt).toISOString()}`,
             );
             resolve(true);
           },

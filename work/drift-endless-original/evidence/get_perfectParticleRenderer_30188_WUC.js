@@ -1,0 +1,1 @@
+function WUC(a,b,d){a=a|0;b=b|0;d=d|0;b=HUj(a)|0;d=c[(c[(c[d+12>>2]|0)+96>>2]|0)+8>>2]|0;os[c[d>>2]&8191](a,b,d);return}

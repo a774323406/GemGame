@@ -1,0 +1,1 @@
+function xXj(b,e){b=b|0;e=e|0;var f=0,g=0;if(!(a[3258223]|0)){oNi(c[188556]|0);a[3258223]=1}e=TWj(b,0)|0;f=c[746455]|0;g=f+193|0;if((d[g>>0]|d[g+1>>0]<<8)&256?(c[f+112>>2]|0)==0:0)yJI(f);if(M_z(0,e,0)|0)e=CXj(TWj(b,0)|0)|0;else e=0;return e|0}

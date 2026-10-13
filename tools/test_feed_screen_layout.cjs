@@ -1,5 +1,5 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
-for(const name of ['MotoRace','PenguinStackFeed','WhiteGooseFeed','FoodDeliveryFeed','MathExamFeed','RhythmCatFeed']) {
+for(const name of ['MotoRace','PenguinStackFeed','WhiteGooseFeed','FoodDeliveryFeed','MathExamFeed']) {
  const o=JSON.parse(fs.readFileSync(`assets/gamescene/${name}GameScene.scene`));
  const node=n=>o.find(v=>v.__type__==='cc.Node'&&v._name===n),comp=(n,t)=>n._components.map(r=>o[r.__id__]).find(v=>v.__type__===t);
  for(const height of [1334,1624]) {

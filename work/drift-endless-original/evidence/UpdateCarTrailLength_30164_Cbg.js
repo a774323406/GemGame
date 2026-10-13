@@ -1,0 +1,1 @@
+function Cbg(a,b){a=a|0;b=b|0;zNa(a,b);return}

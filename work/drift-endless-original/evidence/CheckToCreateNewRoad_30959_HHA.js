@@ -1,0 +1,1 @@
+function HHA(a,b){a=a|0;b=b|0;return iwu(FDk(a)|0,0)|0}

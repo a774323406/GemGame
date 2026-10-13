@@ -1,0 +1,1 @@
+function VUj(a,b,d){a=a|0;b=b|0;d=d|0;var e=0;d=l;l=l+16|0;e=d;c[e>>2]=c[b>>2];c[e+4>>2]=c[b+4>>2];c[e+8>>2]=c[b+8>>2];c[e+12>>2]=c[b+12>>2];WUj(a,e);l=d;return}

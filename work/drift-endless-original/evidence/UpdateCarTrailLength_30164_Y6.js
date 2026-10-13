@@ -1,0 +1,1 @@
+function Y6(a){a=a|0;c[a>>2]=33220;_$(a);return}

@@ -1,0 +1,1 @@
+function VWJ(a){a=a|0;U(19);return fp}

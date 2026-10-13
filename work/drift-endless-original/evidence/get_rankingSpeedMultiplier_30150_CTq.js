@@ -1,0 +1,1 @@
+function CTq(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;Ttz(a,b,c,0);yxs(a,-2147024809,0);return}

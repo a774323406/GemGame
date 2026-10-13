@@ -1,0 +1,39 @@
+{
+  "stage": {
+    "startS": 17397.344572538565,
+    "midS": 20997.344572538565,
+    "endS": 22797.344572538565,
+    "theme": 1
+  },
+  "boost": {
+    "phase": "driving",
+    "target": 2331.1186440677966,
+    "actual": 2067.3163995691234,
+    "angle": 0,
+    "scale": 1,
+    "particles": 57
+  },
+  "bridge": {
+    "tile": {
+      "id": 104,
+      "prefabName": "road_straight_600",
+      "startS": 59178.3170235003,
+      "endS": 59778.3170235003,
+      "x": 24000,
+      "y": -6300,
+      "heading": -4.71238898038469,
+      "scaleX": 1,
+      "layer": 1
+    },
+    "upper": 5,
+    "carIndex": 7,
+    "bridgeIndex": 3,
+    "spriteRenderer": true
+  },
+  "shaken": {
+    "x": 5.79438126902096,
+    "y": 4.0362951978941055
+  },
+  "settled": 0,
+  "errors": []
+}

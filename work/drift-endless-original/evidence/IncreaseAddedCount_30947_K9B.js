@@ -1,0 +1,1 @@
+function K9B(a,c,d){a=a|0;c=c|0;d=d|0;a=l;l=l+16|0;d=a;b[d>>1]=c;d=t3s(d,0)|0;l=a;return d|0}

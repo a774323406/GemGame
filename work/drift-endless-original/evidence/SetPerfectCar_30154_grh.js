@@ -1,0 +1,1 @@
+function grh(a){a=a|0;a=c[c[a+4>>2]>>2]|0;pJA(a,nNi(2490160)|0,0);return}

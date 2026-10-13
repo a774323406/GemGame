@@ -1,0 +1,1 @@
+function emk(a,b){a=a|0;b=b|0;OVj(a,1);iTj(a,-1);return}

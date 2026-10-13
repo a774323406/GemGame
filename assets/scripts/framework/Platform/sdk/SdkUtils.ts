@@ -19,18 +19,19 @@ import { GlobalTool } from "./GlobalTool";
 const AD_FEED_TYPES: Readonly<Record<string, string>> = {
   NewMainScene: "玩法大厅",
   GameScene: "拼豆排序",
-  ShootingGlassBottlesGame: "打瓶子",
   JuggleBallGameScene: "乒乓球第一关",
   PenguinStackFeedGameScene: "企鹅叠叠乐",
   FoodDeliveryFeedGameScene: "外卖精准投送",
   WhiteGooseFeedGameScene: "套大鹅",
-  RhythmCatFeedGameScene: "节奏猫咪",
   MathExamFeedGameScene: "口算大挑战",
   MotoRaceGameScene: "狂暴摩托",
+  DriftFeedGameScene: "漂移",
+  ClayPigeonGameScene: "飞碟射击",
 };
 
 export class SdkUtils {
   static readonly EVENT_AD_PAUSE_CHANGED = "sdk_rewarded_video_pause_changed";
+  static readonly EVENT_INTERSTITIAL_SHOWN = "sdk_interstitial_shown";
   static readonly EVENT_INTERSTITIAL_ENDED = "sdk_interstitial_ended";
   static sdk: BaseSDK = null;
   private static adPauseCount: number = 0;
@@ -181,6 +182,7 @@ export class SdkUtils {
     const onAdShown = () => {
       if (finished || adShown) return;
       adShown = true;
+      director.emit(SdkUtils.EVENT_INTERSTITIAL_SHOWN);
       SdkUtils.reportAdAnalytics("interAdType", feedType);
       shownCB && shownCB();
     };

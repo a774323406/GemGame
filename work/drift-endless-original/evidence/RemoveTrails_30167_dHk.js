@@ -1,0 +1,1 @@
+function dHk(b,d,e){b=b|0;d=d|0;e=e|0;var f=0;f=l;l=l+16|0;b=f+4|0;e=f;if(!(a[3258631]|0)){oNi(c[192488]|0);a[3258631]=1}c[b>>2]=0;c[e>>2]=0;switch(d|0){case 1:{c[b>>2]=1;e=tNi(c[747277]|0,b)|0;d=ATj(3,e)|0;c[b>>2]=c[(eHk(e)|0)>>2];fHk(0,d,0);break}case 2:{c[e>>2]=2;b=tNi(c[747277]|0,e)|0;d=ATj(3,b)|0;c[e>>2]=c[(eHk(b)|0)>>2];fHk(0,d,0);break}default:{}}l=f;return}

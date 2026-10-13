@@ -1,0 +1,1 @@
+function CCt(a,b){a=a|0;b=b|0;DCt(a,0);return dVj(a)|0}

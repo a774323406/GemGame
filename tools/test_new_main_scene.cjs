@@ -107,12 +107,12 @@ assert.equal(layout._constraintNum, 2);
 const expectedCards = [
   'PuzzleGameCard',
   'PenguinStackCard',
-  'ShootingGlassBottlesCard',
   'FoodDeliveryCard',
   'WhiteGooseCard',
   'MathExamCard',
-  'RhythmCatCard',
   'MotoRaceCard',
+  'ClayPigeonCard',
+  'DriftCard',
 ];
 const contentChildren = content.entry._children.map(object).map(node => node._name);
 assert.deepEqual(contentChildren, expectedCards, 'game cards/order changed');
@@ -121,13 +121,13 @@ assert.equal(contentTransform._contentSize.height, 18 + Math.ceil(contentChildre
   'all two-column rows must be fully scrollable');
 assert.deepEqual(
   [nodeByName('FoodDeliveryCard').entry._lpos.x, nodeByName('FoodDeliveryCard').entry._lpos.y],
-  [139, -446],
-  'the fourth card must complete the second row',
+  [-139, -446],
+  'the third card must start the second row',
 );
 assert.deepEqual(
   [nodeByName('WhiteGooseCard').entry._lpos.x, nodeByName('WhiteGooseCard').entry._lpos.y],
-  [-139, -740],
-  'the fifth card must start the third row',
+  [139, -446],
+  'the fourth card must complete the second row',
 );
 
 const buildSource = read('tools/build_new_main_scene.mjs');
@@ -163,12 +163,12 @@ for (const { id } of artworkOutlines) {
 const buttonProperties = [
   'puzzleButton',
   'penguinButton',
-  'shootingButton',
   'foodDeliveryButton',
   'whiteGooseButton',
   'mathExamButton',
-  'rhythmCatButton',
   'motoRaceButton',
+  'clayPigeonButton',
+  'driftButton',
 ];
 buttonProperties.forEach((property, index) => {
   const button = object(controller[property]);
@@ -257,7 +257,7 @@ const rasterBytes = rasterFiles.reduce((total, filename) =>
 assert(rasterBytes < 1024 * 1024, `new lobby images exceed 1 MiB: ${rasterBytes}`);
 
 const previewFiles = rasterFiles.filter(filename => /^preview_.*\.jpg$/i.test(filename));
-assert.equal(previewFiles.length, 3, 'expected three extracted preview images');
+assert.equal(previewFiles.length, 2, 'expected two retained extracted preview images');
 for (const filename of previewFiles) {
   const meta = JSON.parse(read(`assets/res/newMain/${filename}.meta`));
   const frame = meta.subMetas.f9941.userData;

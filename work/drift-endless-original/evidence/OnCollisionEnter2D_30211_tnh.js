@@ -1,0 +1,1 @@
+function tnh(a){a=a|0;a=c[c[a+4>>2]>>2]|0;pJA(a,nNi(2490572)|0,0);hMk(a,nNi(2490575)|0,0);return}

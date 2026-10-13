@@ -1,0 +1,1 @@
+function N8f(a,d,e){a=a|0;d=d|0;e=e|0;var f=0;f=c[a+112>>2]|0;e=0-f|0;b[a+156>>1]=e;e=P(e,b[d>>1]|0)|0;d=a+148|0;c[d>>2]=e;if((f|0)<=0)return;c[d>>2]=(P((c[a+104>>2]|0)+-1|0,f)|0)+e;return}

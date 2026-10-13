@@ -1,0 +1,1 @@
+function SAG(b,d){b=b|0;d=d|0;if(!(a[3275294]|0)){oNi(c[191501]|0);a[3275294]=1}if(!(HUj(b)|0)){d=moB(0,0)|0;CUj(b,qNi(c[744251]|0,8)|0);EXj(6,d,HUj(b)|0)}d=n0A(HUj(b)|0,0)|0;return Wbl(d,c[744251]|0)|0}

@@ -1,0 +1,1 @@
+function qUr(b,d){b=b|0;d=d|0;var e=0,f=0;if(!(a[3264056]|0)){oNi(c[190963]|0);a[3264056]=1}f=FDk(b)|0;f=sUr(f,c[747820]|0)|0;e=FDk(b)|0;e=c6k(f,tUr(e,c[749745]|0)|0)|0;f=FDk(b)|0;f=sUr(f,c[747820]|0)|0;d=FDk(b)|0;d=c6k(f,lUj(tUr(d,c[749745]|0)|0,1)|0)|0;return (lUj(u4j(e&255,256)|0,d&255)|0)&65535|0}

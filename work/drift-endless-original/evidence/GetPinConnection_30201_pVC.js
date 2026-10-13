@@ -1,0 +1,1 @@
+function pVC(a,b,d){a=a|0;b=b|0;d=d|0;if(ANz(0,AUj(a)|0,0)|0){a=AUj(a)|0;d=c[(c[(c[d+12>>2]|0)+96>>2]|0)+24>>2]|0;os[c[d>>2]&8191](a,b,d)}return}

@@ -1,0 +1,1 @@
+function Taa(){var a=0,b=0,d=0,e=0;a=l;l=l+16|0;b=a+4|0;e=a;c[731470]=0;c[731509]=0;c[731518]=0;d=aza()|0;c[e>>2]=27;c[b>>2]=c[e>>2];Cia(d,b);W$c(0);l=a;return}

@@ -1,0 +1,1 @@
+function G1k(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;return (obk(e0k(o0y(b,0)|0,0)|0,0)|0)<<16|c|0}

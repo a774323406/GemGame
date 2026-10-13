@@ -1,0 +1,1 @@
+function q1p(b,d,e,f){b=b|0;d=d|0;e=e|0;f=f|0;if(!(a[3262467]|0)){oNi(c[203196]|0);a[3262467]=1}if(obk(e,0)|0)d=cqz(0,e,c[757429]|0,d,0)|0;return d|0}

@@ -1,0 +1,1 @@
+function z4b(b,d){b=b|0;d=d|0;b=c[b+15640>>2]|0;if(!b){d=0;return d|0}d=(a[b+316+d>>0]|0)!=0;return d|0}

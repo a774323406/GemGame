@@ -1,0 +1,1 @@
+function $$k(a,b,d,e){a=a|0;b=b|0;d=d|0;e=e|0;var f=0,g=0,h=0;g=l;l=l+16|0;f=g;e=c[b>>2]|0;c[f>>2]=e;a=c[d>>2]|0;while(1){if(n0k(o0y(e,a)|0,0)|0){h=3;break}a=p0k(o0y(c[f>>2]|0,a)|0,f,0)|0;if(!a){a=0;break}e=c[f>>2]|0}if((h|0)==3){h=c[f>>2]|0;c[b>>2]=h;LTj(b,h);c[d>>2]=o0k(o0y(c[f>>2]|0,a)|0,b,0)|0;a=1}l=g;return a|0}

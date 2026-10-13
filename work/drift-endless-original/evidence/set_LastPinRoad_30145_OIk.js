@@ -1,0 +1,1 @@
+function OIk(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;lHF(a,b,c,d);return}

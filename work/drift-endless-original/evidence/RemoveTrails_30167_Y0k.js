@@ -1,0 +1,1 @@
+function Y0k(a,b,d,e){a=a|0;b=b|0;d=d|0;e=e|0;var f=0;f=l;l=l+16|0;a=f;e=c[b>>2]|0;c[a>>2]=e;e=p0k(o0y(e,c[d>>2]|0)|0,a,0)|0;if(!e)a=0;else{a=c[a>>2]|0;c[b>>2]=a;LTj(b,a);c[d>>2]=e;a=1}l=f;return a|0}

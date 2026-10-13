@@ -1,0 +1,1 @@
+function q8a(a){a=a|0;return 49320}

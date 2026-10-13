@@ -1,0 +1,1 @@
+function AYj(b,d){b=b|0;d=d|0;if(!(a[3258235]|0)){oNi(c[188579]|0);a[3258235]=1}d=NTj(c[747186]|0)|0;LTj(d,0);PTj(d,b);return d|0}

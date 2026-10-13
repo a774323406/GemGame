@@ -1,0 +1,1 @@
+function fBG(b,d){b=b|0;d=d|0;if(!(a[3275299]|0)){oNi(c[196298]|0);a[3275299]=1}if(!(ASj(b)|0))b=0;else{b=n0A(ASj(b)|0,0)|0;b=Wbl(b,c[744251]|0)|0}return b|0}

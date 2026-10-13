@@ -1,0 +1,1 @@
+function jBq(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;psz(a,b,0);Efk(a,c);yxs(a,-2147024809,0);return}

@@ -1,0 +1,1 @@
+function bfa(b){b=b|0;var d=0,e=0,f=0,g=0;g=l;l=l+16|0;e=g+4|0;f=g;c[b>>2]=35584;d=b+1104|0;if(a[b+12>>0]|0)Msa(d)|0;Qsa(d);msa(b+44|0);d=c[b+16>>2]|0;if(!d){Rja(b);l=g;return}if(!(c[b+20>>2]|0)){Rja(b);l=g;return}c[f>>2]=c[b+40>>2];c[e>>2]=c[f>>2];Cia(d,e);Rja(b);l=g;return}

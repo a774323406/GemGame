@@ -1,0 +1,1 @@
+function sYj(b,e,f,g){b=b|0;e=e|0;f=f|0;g=g|0;var h=0;if(!(a[3258240]|0)){oNi(c[188572]|0);a[3258240]=1}g=c[747176]|0;h=g+193|0;if((d[h>>0]|d[h+1>>0]<<8)&256?(c[g+112>>2]|0)==0:0)yJI(g);if(yul(RUj(0,c[755597]|0)|0,0)|0?!(lXj(b)|0):0){h=NTj(c[747185]|0)|0;LTj(h,0);mZj(h,e);nZj(h,f);ESj(h,T(tTj(T(mXG(0,0)),T(1.0e3))));IWj(b,h,0)}return}

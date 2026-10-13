@@ -1,0 +1,1 @@
+function DQC(a,b,c){a=a|0;b=b|0;c=c|0;Euy(a+8|0,b,c);return}

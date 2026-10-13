@@ -1,0 +1,1 @@
+function wmh(a){a=a|0;UKA(c[c[a+4>>2]>>2]|0,1,0);return}

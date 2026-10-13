@@ -1,0 +1,1 @@
+function HGA(a,b){a=a|0;b=b|0;return c[(ATj(9,a)|0)+12>>2]|0}

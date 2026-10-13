@@ -1,0 +1,1 @@
+function cZi(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;var e=0;e=l;l=l+16|0;d=e;os[a&8191](d,c,b);d=tNi(BSj(ASj(b)|0)|0,d)|0;l=e;return d|0}

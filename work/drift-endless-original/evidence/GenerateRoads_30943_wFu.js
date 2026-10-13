@@ -1,0 +1,1 @@
+function wFu(b,c,d){b=b|0;c=c|0;d=d|0;b=l;l=l+16|0;d=b;a[d>>0]=c;d=_xu(d,0)|0;l=b;return d|0}

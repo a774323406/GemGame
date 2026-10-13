@@ -1,0 +1,1 @@
+function g8a(a){a=a|0;return c[(Wna()|0)+996>>2]|0}

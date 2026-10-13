@@ -1,0 +1,1 @@
+function MUj(a,b){a=a|0;b=b|0;rUj(a,0);return}

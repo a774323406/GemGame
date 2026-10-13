@@ -1,0 +1,1 @@
+function qWj(a,b){a=a|0;b=b|0;return rWj(a)|0}

@@ -1,0 +1,1 @@
+function adg(a,d,e){a=a|0;d=d|0;e=e|0;e=a+134|0;b[e>>1]=b[e>>1]|2176;e=$bg()|0;Ocg(e,c[a+160>>2]|0,a);return}

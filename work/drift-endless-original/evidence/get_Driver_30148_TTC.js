@@ -1,0 +1,1 @@
+function TTC(a,b,d){a=a|0;b=b|0;d=d|0;var e=0,f=0,g=0;e=l;l=l+16|0;f=e+4|0;g=e;c[g>>2]=c[b>>2];c[f>>2]=c[g>>2];UTC(a+8|0,f,d);l=e;return}

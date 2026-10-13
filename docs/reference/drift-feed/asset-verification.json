@@ -1,0 +1,35 @@
+{
+  "scope": "Asset preparation only; gameplay scene not integrated",
+  "generator": "built-in image_gen",
+  "car": {
+    "file": "assets/res/driftFeed/car/player-car.png",
+    "size": [
+      911,
+      1726
+    ],
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      96,
+      174,
+      815,
+      1532
+    ],
+    "front": "up",
+    "pixelEdits": false
+  },
+  "reusedRoads": [
+    "road_straight_600",
+    "road_left_90_r300",
+    "road_180_r300"
+  ],
+  "visualCheck": "Inspected browser-rendered road composite at 0, 30, 90, 180 degrees across four environment colors",
+  "preview": "docs/reference/drift-feed/asset-preview.png",
+  "notes": [
+    "Collision bounds must exclude transparent padding.",
+    "Speed arrow prefab and its dependencies have not yet been migrated.",
+    "Audio, explosion and gameplay integration remain in the implementation plan."
+  ]
+}

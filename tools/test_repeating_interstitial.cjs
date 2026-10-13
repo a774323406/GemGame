@@ -25,9 +25,9 @@ function fixture() {
   // The scheduler must never pause the engine or install touch interception.
   director.pause = director.resume = () => assert.fail('interstitial must not change engine pause');
   const sceneNames = Object.fromEntries([
-    'NewMainScene', 'GameScene', 'JuggleBallGameScene', 'ShootingGlassBottlesGame',
+    'NewMainScene', 'GameScene', 'JuggleBallGameScene',
     'PenguinStackFeedGameScene', 'FoodDeliveryFeedGameScene',
-    'WhiteGooseFeedGameScene',
+    'WhiteGooseFeedGameScene', 'DriftFeedGameScene',
   ].map(name => [name, name]));
   const sdk = {
     EVENT_AD_PAUSE_CHANGED: 'rewarded-pause', EVENT_INTERSTITIAL_ENDED: 'interstitial-ended',
@@ -89,6 +89,16 @@ function fixture() {
 }
 const tests = [];
 const test = (name, run) => tests.push([name, run]);
+test('drift CONTENT15441408514 preview/entry, repeat and exit use shared interstitial timing', () => {
+  const f=fixture();f.scene({name:'DriftFeedGameScene',isValid:true});
+  Object.assign(f.feed,{active:true,contentId:'CONTENT15441408514'});
+  f.advance(90_000);assert.equal(f.requests.length,0);
+  f.enter();f.advance(1_999);assert.equal(f.requests.length,0);
+  f.advance(1);assert.equal(f.requests.length,1);f.requests[0].show();f.requests[0].close();
+  f.advance(59_999);assert.equal(f.requests.length,1);f.advance(1);assert.equal(f.requests.length,2);
+  f.exit();f.requests[1].show();assert.equal(f.requests[1].shown,false);
+  f.advance(90_000);assert.equal(f.requests.length,2);
+});
 test('normal entry repeats within two minutes, then keeps repeating after close +60s', () => {
   const f = fixture(), start = f.now();
   f.advance(30_999); assert.equal(f.requests.length, 0);
@@ -132,14 +142,13 @@ test('all games, home and result pages share cooldown; feed completion does not 
   const f = fixture(); f.enter(); f.advance(31_000); f.requests[0].show(); f.requests[0].close();
   f.adc.cancelFeedEntryInterstitial(); f.feed.active = false;
   for (const name of ['NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'ShootingGlassBottlesGame',
     'PenguinStackFeedGameScene',
     'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene']) {
     f.scene({ name, isValid: true }); f.adc.onLevelResult(1, 'pass', { eligible: false });
     f.advance(1_000);
   }
   assert.equal(f.requests.length, 1);
-  f.advance(53_000); assert.equal(f.requests.length, 2);
+  f.advance(54_000); assert.equal(f.requests.length, 2);
 });
 test('background stops timer and invalidates asynchronous native presentation', () => {
   const f = fixture(); f.advance(31_000);

@@ -1,0 +1,1 @@
+function G2x(a,b,d,e){a=a|0;b=b|0;d=d|0;e=e|0;var f=0,g=0,h=0;g=l;l=l+16|0;e=g;c[e>>2]=0;NVj(e,4);while(1){f=WSj(a)|0;Sim();if(f&d|0){e=0;break}h=sak(a)|0;Sim();if((jUx(0,h,f|b,f,0)|0)==(f|0)){e=1;break}GTx(e,0)}l=g;return e|0}

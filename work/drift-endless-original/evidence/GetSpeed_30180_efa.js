@@ -1,0 +1,1 @@
+function efa(b){b=b|0;var d=0;if(a[b+12>>0]|0)Msa(b+1104|0)|0;a[b+4>>0]=1;a[b+5>>0]=0;d=c[b+8>>2]|0;if(!d)return;Yr[c[c[d>>2]>>2]&16383](d,b);return}

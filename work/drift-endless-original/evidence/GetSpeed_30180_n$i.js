@@ -1,0 +1,1 @@
+function n$i(a,b,d,e){a=a|0;b=b|0;d=d|0;e=e|0;Bs[a&8191](d,c[c[e>>2]>>2]|0,c[e+4>>2]|0,b);return 0}

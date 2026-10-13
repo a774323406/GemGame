@@ -1,0 +1,1 @@
+function pit(a,b,c,d,e){a=a|0;b=b|0;c=c|0;d=d|0;e=e|0;nit(a+8|0,b,c,d,0);return}

@@ -134,7 +134,7 @@ async function main() {
     const { fitFeedResultOverlay, appendSceneGlobals } = await import('./feed_result_layout.mjs');
     const names = ['JuggleBallGameScene',
       'FoodDeliveryFeedGameScene', 'PenguinStackFeedGameScene',
-      'ShootingGlassBottlesGame', 'WhiteGooseFeedGameScene'];
+      'WhiteGooseFeedGameScene'];
     for (const name of names) {
       const data = JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`, 'utf8'));
       const component = (node, type) => node._components.map(ref => data[ref.__id__]).find(x => x.__type__ === type);
@@ -176,31 +176,17 @@ async function main() {
     const cases = [
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
-      ['CONTENT14389313538', 'ShootingGlassBottlesGame'],
       ['CONTENT14860954626', 'PenguinStackFeedGameScene'],
       ['CONTENT14960528898', 'WhiteGooseFeedGameScene'],
       ['CONTENT15252968962', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT15383195906', 'RhythmCatFeedGameScene'],
+      ['CONTENT15383250178', 'ClayPigeonGameScene'],
     ];
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene);
       if (level) assert.equal(juggle.resolveEntryLevel(), level);
     }
-    f.setState({ contentId: 'unknown' }); assert.equal(loader.resolveFeedEntry().sceneName, 'ShootingGlassBottlesGame');
-    f.setState({ mode: 'revisit', contentId: 'CONTENT14868790274' }); assert.equal(loader.resolveFeedEntry().sceneName, 'ShootingGlassBottlesGame');
-  });
-  test('bottle fullscreen result fades without scaling content or dim', () => {
-    const f = fixture(), g = new (f.load('shootingGlassBottlesGame.ts').shootingGlassBottlesGame)();
-    const panel = { isValid: true, setScale(...values) { this.scale = values; } };
-    const opacity = { isValid: true, opacity: 255 };
-    const overlay = { isValid: true, active: false, getChildByName: () => panel, setScale(value) { this.scale = value; } };
-    g.overlay = overlay; g.resultOverlayOpacity = opacity; g.showOverlay();
-    assert.equal(overlay.scale, Vec3.ONE);
-    assert(!f.animations.some(x => x.target === overlay));
-    assert.equal(panel.scale[0], Vec3.ONE);
-    assert(!f.animations.some(x => x.target === panel));
-    assert(f.animations.some(x => x.target === opacity && x.values.opacity === 255));
-    g.hideOverlay(); assert(!overlay.active);
+    f.setState({ contentId: 'unknown' }); assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene');
+    f.setState({ mode: 'revisit', contentId: 'CONTENT14868790274' }); assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene');
   });
   test('juggle sprite dim is not painted over with a fixed-size Graphics rectangle', () => {
     const f = fixture(), g = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)();

@@ -1,0 +1,1 @@
+function GZj(a,b){a=a|0;b=b|0;eWj(a,T(1.0));DZj(a,0);return}

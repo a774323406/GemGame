@@ -1,0 +1,1 @@
+function QBg(a){a=a|0;mpp(c[c[a+4>>2]>>2]|0,3,2,0);return}

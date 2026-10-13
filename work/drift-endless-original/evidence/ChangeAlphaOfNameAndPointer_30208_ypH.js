@@ -1,0 +1,1 @@
+function ypH(a,b,c,d,e,f,g,h){a=a|0;b=b|0;c=c|0;d=d|0;e=e|0;f=f|0;g=g|0;h=h|0;ByH(h);return 0}

@@ -19,20 +19,20 @@ if(!c.boostButton){
  // Controls stay behind the existing pause/result overlay.
  o[root]._children=o[root]._children.filter(r=>r.__id__!==n);o[root]._children.splice(o[root]._children.findIndex(r=>r.__id__===c.overlay.__id__),0,ref(n));
 }
-// Match the cat game's illustrated reward button; all layout stays scene-authored.
+// Reuse the delivery game's illustrated reward button; all layout stays scene-authored.
 if(!c.boostBadge){
  a.serial=o.length;
- const source=JSON.parse(fs.readFileSync('assets/gamescene/RhythmCatFeedGameScene.scene'));
- const sc=source.find(v=>v.slowdownButton&&v.slowdownBadge);
+ const source=JSON.parse(fs.readFileSync('assets/gamescene/FoodDeliveryFeedGameScene.scene'));
+ const sc=source.find(v=>v.slowdownButton);
  const component=(list,n,type)=>list[list[n]._components.find(r=>list[r.__id__].__type__===type).__id__];
  const copy=(target,original)=>Object.assign(target,structuredClone(original),{_id:target._id,node:target.node});
  const n=o[c.boostButton.__id__].node.__id__,sn=source[sc.slowdownButton.__id__].node.__id__;
  for(const type of ['cc.UITransform','cc.Sprite'])copy(component(o,n,type),component(source,sn,type));
- const title=o[c.boostTitle.__id__].node.__id__,st=source[sc.slowdownTitle.__id__].node.__id__;
+ const title=o[c.boostTitle.__id__].node.__id__,st=source[sn]._children.find(r=>source[r.__id__]._name==='Label').__id__;
  o[title]._lpos=structuredClone(source[st]._lpos);
  copy(component(o,title,'cc.UITransform'),component(source,st,'cc.UITransform'));
- copy(o[c.boostTitle.__id__],source[sc.slowdownTitle.__id__]);o[c.boostTitle.__id__]._string='加速';
- const badge=a.node('BoostAdBadge',n),sb=sc.slowdownBadge.__id__;
+ copy(o[c.boostTitle.__id__],component(source,st,'cc.Label'));o[c.boostTitle.__id__]._string='加速';
+ const badge=a.node('BoostAdBadge',n),sb=source[sn]._children.find(r=>source[r.__id__]._name==='SlowdownAdBadge').__id__;
  o[badge]._lpos=structuredClone(source[sb]._lpos);
  copy(component(o,badge,'cc.UITransform'),component(source,sb,'cc.UITransform'));
  const sprite=a.component(badge,'cc.Sprite');copy(o[sprite],component(source,sb,'cc.Sprite'));

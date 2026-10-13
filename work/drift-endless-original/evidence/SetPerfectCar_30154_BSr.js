@@ -1,0 +1,1 @@
+function BSr(b,d){b=b|0;d=d|0;if(!(a[3264031]|0)){oNi(c[188362]|0);a[3264031]=1}d=NTj(c[745932]|0)|0;LTj(d,0);return d|0}

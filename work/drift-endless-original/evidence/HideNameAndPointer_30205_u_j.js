@@ -1,0 +1,1 @@
+function u_j(a,b){a=a|0;b=b|0;NRz(aLz(s_j(a)|0,0)|0,0,0);NRz(aLz(r_j(a)|0,0)|0,0,0);return}

@@ -1,4 +1,5 @@
-import { appendRhythmCatCard } from './rhythm_cat_authoring.mjs';
+import { appendDriftCard } from './drift_feed_authoring.mjs';
+import { appendClayPigeonCard } from './clay_pigeon_authoring.mjs';
 import { appendMotoCard } from './moto_race_authoring.mjs';
 // Offline scene authoring for the replacement lobby. Fixed UI is serialized
 // into NewMainScene.scene so it remains editable in Cocos Creator.
@@ -27,10 +28,8 @@ const NEW_MAIN_ASSETS = [
   { name: 'card_title_blank.png', uuid: 'e625bd7b-cbf1-4b43-9552-b13edb0bc4f4', width: 300, height: 63, alpha: true },
   { name: 'preview_puzzle.jpg', uuid: 'bb2e83a4-eb22-435c-bb35-3a3256985701', width: 246, height: 198, alpha: false },
   { name: 'preview_penguin.jpg', uuid: '9ded1a28-be90-404f-84e3-7060e6f70b6a', width: 246, height: 198, alpha: false },
-  { name: 'preview_shooting.jpg', uuid: '0026ad32-f309-4aee-89cb-c8c0fdc0a8a5', width: 246, height: 198, alpha: false },
   { name: 'title_puzzle.jpg', uuid: '4d694c49-116b-4d23-a8ef-75cfb0c2a3e9', width: 268, height: 57, alpha: false },
   { name: 'title_penguin.jpg', uuid: 'a9b70d4b-74b0-491d-9570-f94539bc5110', width: 268, height: 57, alpha: false },
-  { name: 'title_shooting.jpg', uuid: 'ac2d12f2-8c40-4fa0-8795-8e810a4939c8', width: 268, height: 57, alpha: false },
   { name: 'title_food_delivery.jpg', uuid: 'a21b33ea-e748-44dd-a2af-092a25be28fa', width: 268, height: 57, alpha: false },
   { name: 'title_white_goose.jpg', uuid: '8ef97696-879e-43df-b9dc-42991bd5fedf', width: 268, height: 57, alpha: false },
   { name: 'preview_border.png', uuid: '75720185-3cba-42e9-bfa6-155295a8045a', width: 10, height: 10, alpha: true },
@@ -57,10 +56,8 @@ const art = {
   blankCardTitle: newMainFrame('card_title_blank.png'),
   previewPuzzle: newMainFrame('preview_puzzle.jpg'),
   previewPenguin: newMainFrame('preview_penguin.jpg'),
-  previewShooting: newMainFrame('preview_shooting.jpg'),
   titlePuzzle: newMainFrame('title_puzzle.jpg'),
   titlePenguin: newMainFrame('title_penguin.jpg'),
-  titleShooting: newMainFrame('title_shooting.jpg'),
   titleFoodDelivery: newMainFrame('title_food_delivery.jpg'),
   titleWhiteGoose: newMainFrame('title_white_goose.jpg'),
   previewBorder: newMainFrame('preview_border.png'),
@@ -399,12 +396,6 @@ cards.push(addCard({
   titleArt: art.titlePenguin,
   preview: mask => fullArtwork(mask, art.previewPenguin),
 }));
-cards.push(addCard({
-  nodeName: 'ShootingGlassBottlesCard',
-  title: '射击玻璃瓶',
-  titleArt: art.titleShooting,
-  preview: mask => fullArtwork(mask, art.previewShooting),
-}));
 
 // Seed the exact editor positions as well as Layout settings. Creator can
 // immediately display the intended grid before or after Layout recalculation.
@@ -444,7 +435,6 @@ a.component(canvas, compressUuid(SCRIPT_UUID), {
   gameList: ref(gameList),
   puzzleButton: ref(cards[0].button),
   penguinButton: ref(cards[1].button),
-  shootingButton: ref(cards[2].button),
 });
 
 objects[1]._globals = ref(appendSceneGlobals(sourceScene, objects));
@@ -560,8 +550,9 @@ if (process.argv.includes('--write')) {
   appendFoodDeliveryCard(outputObjects);
   appendWhiteGooseCard(outputObjects);
   appendMathExamCard(outputObjects);
-  appendRhythmCatCard(outputObjects);
   appendMotoCard(outputObjects);
+  appendClayPigeonCard(outputObjects);
+  appendDriftCard(outputObjects);
   writeJson(SCENE_FILE, outputObjects);
   if (!fs.existsSync(`${SCENE_FILE}.meta`)) {
     writeJson(`${SCENE_FILE}.meta`, {

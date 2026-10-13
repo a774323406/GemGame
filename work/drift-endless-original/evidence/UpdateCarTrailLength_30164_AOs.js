@@ -1,0 +1,1 @@
+function AOs(a,b,c,d,e,f){a=a|0;b=b|0;c=c|0;d=d|0;e=e|0;f=f|0;if(((!(EOs(0,b,0)|0)?!(EOs(0,c,0)|0):0)?!(EOs(0,d,0)|0):0)?!(EOs(0,e,0)|0):0)f=0;else f=32;if(((!(DOs(0,b,0)|0)?!(DOs(0,c,0)|0):0)?!(DOs(0,d,0)|0):0)?!(DOs(0,e,0)|0):0)a=0;else a=4;return a|f|0}

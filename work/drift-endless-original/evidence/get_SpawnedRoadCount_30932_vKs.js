@@ -1,0 +1,1 @@
+function vKs(a,b){a=a|0;b=b|0;return VVj(a)|0}

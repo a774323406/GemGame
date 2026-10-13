@@ -1,0 +1,1 @@
+function sWj(a,b){a=a|0;b=b|0;return tWj(a)|0}

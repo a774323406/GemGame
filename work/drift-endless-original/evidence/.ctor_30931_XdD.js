@@ -1,0 +1,1 @@
+function XdD(a,b,d){a=a|0;b=b|0;d=d|0;d=c[c[(c[d+12>>2]|0)+96>>2]>>2]|0;Bs[c[d>>2]&8191](a,b,0,d);return}

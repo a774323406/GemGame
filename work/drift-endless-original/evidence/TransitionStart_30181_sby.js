@@ -1,0 +1,1 @@
+function sby(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;OYx(0,b,c,0,0,0)|0;return 1}

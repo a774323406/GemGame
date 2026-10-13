@@ -1,0 +1,1 @@
+function esu(a,b){a=a|0;b=b|0;Ciu(a,1);Cru(a,0);return}

@@ -40,7 +40,7 @@ const art = {
   orange: frame('action-orange.png'),
   purple: frame('action-purple.png'),
   back: existing('assets/res/juggleBallGame/back-button.png'),
-  dim: existing('assets/res/shootingGlassBottles/dim.png'),
+  dim: existing('assets/res/foodDeliveryFeed/white.png'),
 };
 
 const source = JSON.parse(fs.readFileSync('assets/gamescene/JuggleBallGameScene.scene', 'utf8'));

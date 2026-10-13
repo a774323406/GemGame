@@ -1,0 +1,1 @@
+function hXj(a,b){a=a|0;b=b|0;b=Gnl(a,0)|0;JVG(b,iXj(a)|0,0);return}

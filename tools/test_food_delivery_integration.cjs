@@ -46,6 +46,8 @@ function fixture() {
     SceneAsset: class {}, Component, Button, Node, ScrollView,
     Label: class {}, ProgressBar: class {}, UITransform: class {}, Color: class {},
     HorizontalTextAlignment: { CENTER: 1 },
+    view: { setDesignResolutionSize() {} },
+    ResolutionPolicy: { FIXED_WIDTH: 1 },
     game,
     Game: { EVENT_SHOW: 'show' },
   };
@@ -119,8 +121,8 @@ async function main() {
   f.feed.state.contentId = 'CONTENT15252968962';
   assert.equal(loader.resolveFeedEntry().sceneName, 'FoodDeliveryFeedGameScene');
   f.feed.state.contentId = 'UNKNOWN_CONTENT_ID';
-  assert.equal(loader.resolveFeedEntry().sceneName, 'ShootingGlassBottlesGame',
-    'an unknown Content ID must keep the existing shooting-game fallback');
+  assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene',
+    'an unknown Content ID must return to the lobby');
 
   const { appendFoodDeliveryCard } = await import('./food_delivery_authoring.mjs');
   const serializedMenu = JSON.parse(fs.readFileSync(
@@ -136,7 +138,7 @@ async function main() {
     .map(reference => reference.__id__)
     .find(id => menuScene[id].__type__ === 'cc.UITransform');
   const controllerId = menuScene.findIndex(item =>
-    item?.puzzleButton && item?.shootingButton && item?.gameList);
+    item?.puzzleButton && item?.penguinButton && item?.gameList);
   content._children = content._children.filter(reference => reference.__id__ < serializedFoodCardId);
   menuScene[transformId]._contentSize.height = 888;
   delete menuScene[controllerId].foodDeliveryButton;
@@ -148,13 +150,13 @@ async function main() {
   const buttonId = appendFoodDeliveryCard(menuScene);
   assert(buttonId >= originalLength, 'homepage append must return the new serialized Button index');
   assert.equal(menuScene[buttonId].__type__, 'cc.Button');
-  assert.equal(content._children.length, 4);
+  assert.equal(content._children.length, 3);
   const cardId = content._children.at(-1).__id__;
   assert.equal(menuScene[cardId]._name, 'FoodDeliveryCard');
   assert.deepEqual(
     [menuScene[cardId]._lpos.x, menuScene[cardId]._lpos.y],
-    [139, -446],
-    'the fourth card must complete the second row without moving existing cards',
+    [-139, -446],
+    'the third card must start the second row without moving existing cards',
   );
   assert.equal(menuScene[transformId]._contentSize.height, 594);
   assert.equal(menuScene[controllerId].foodDeliveryButton.__id__, buttonId);

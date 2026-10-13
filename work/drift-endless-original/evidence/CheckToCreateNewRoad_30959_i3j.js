@@ -1,0 +1,1 @@
+function i3j(a,b){a=a|0;b=b|0;j3j(a,1);K2j(a,-1);return}

@@ -1,0 +1,1 @@
+function INa(a,b){a=a|0;b=b|0;LTj(a,b);if(c[b>>2]&16384|0)return;KNa(a+28|0,b);return}

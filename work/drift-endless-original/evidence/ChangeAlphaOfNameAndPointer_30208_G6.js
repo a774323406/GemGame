@@ -1,0 +1,1 @@
+function G6(a,b){a=a|0;b=b|0;nNa(b,2154415,c[7901]|0,a,0);qNa(a,b);oNa(b);return}

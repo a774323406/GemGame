@@ -1,6 +1,3 @@
-/** 推荐流方案管理中与实际玩法一一对应的 Content_ID。 */
-export const FEED_SHOOTING_CONTENT_ID = "CONTENT14389313538";
-
 /** 爱心第 8 关获客方案。 */
 export const FEED_HEART_CONTENT_ID: string = "CONTENT15319004674";
 export const FEED_HEART_LEVEL = 8;
@@ -36,16 +33,16 @@ export const FEED_REVISIT_ENABLED = false;
  * 抖音推荐流直玩复访版配置。
  *
  * 恢复前须核对后台实际复访 Content_ID，不能直接复用获客 ID。
- * 复访固定使用打瓶子方案。后台路径：运营 -> 能力中心 ->
+ * 原方案随玩法删除而清空。后台路径：运营 -> 能力中心 ->
  * 推荐流直玩游戏能力 -> 复访能力。该方案必须处于已上线状态才能承接正式流量。
  */
-export const FEED_REVISIT_CONTENT_ID = FEED_SHOOTING_CONTENT_ID;
+export const FEED_REVISIT_CONTENT_ID: string = "";
 
 /** 抖音固定场景：3 = 重要事件掉落。 */
 export const FEED_REVISIT_SCENE = 3;
 
-/** 新版复访统一进入打瓶子小游戏，不再携带随机关卡。 */
-export const FEED_REVISIT_EVENT = "shooting_bottle_challenge";
+/** 为后续重新配置的复访保留通用事件标识；当前复访停用。 */
+export const FEED_REVISIT_EVENT = "game_challenge";
 
 /** 以下随机关卡配置仅用于兼容改版前已经投放的复访 extra。 */
 export const FEED_REVISIT_CHALLENGE_MIN_SECONDS = 120;
@@ -96,8 +93,11 @@ export function createFeedRevisitExtra(readyAt: number): string {
   });
 }
 
-/** 节奏猫咪推荐流方案，直接进入 RhythmCatFeedGameScene。 */
-export const FEED_RHYTHM_CAT_CONTENT_ID: string = "CONTENT15383195906";
-
 /** 狂暴摩托推荐流方案。 */
 export const FEED_MOTO_RACE_CONTENT_ID = "CONTENT15218705666";
+
+/** 飞碟射击推荐流方案，直接进入 ClayPigeonGameScene。 */
+export const FEED_CLAY_PIGEON_CONTENT_ID: string = "CONTENT15383250178";
+
+/** 漂移推荐流获客方案。 */
+export const FEED_DRIFT_CONTENT_ID: string = "CONTENT15441408514";

@@ -1,0 +1,1 @@
+function pph(a){a=a|0;a=c[c[a+4>>2]>>2]|0;pJA(a,nNi(2490607)|0,0);return}

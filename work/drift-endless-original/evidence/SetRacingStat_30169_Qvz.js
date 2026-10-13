@@ -1,0 +1,1 @@
+function Qvz(a,b){a=a|0;b=b|0;OTj(a,0);PTj(a,HUj(a)|0);o2j(a,WSj(a)|0);W5j(a,0);q$j(a,0);return}

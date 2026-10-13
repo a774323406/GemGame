@@ -1,0 +1,1 @@
+function fDh(a){a=a|0;a=a+4|0;HAA(c[c[a>>2]>>2]|0,0);svu(c[(c[a>>2]|0)+4>>2]|0,64,0);return}

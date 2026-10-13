@@ -1,0 +1,1 @@
+function uMa(){var a=0,b=0,d=0,e=0,f=0;f=l;l=l+16|0;a=f+8|0;b=f+4|0;d=f;e=soa(2230467,2127147,2127432)|0;c[737793]=e;if(!e){l=f;return}c[d>>2]=e;c[a>>2]=c[d>>2];c[b>>2]=IGa(a,4,0)|0;c[a>>2]=c[b>>2];JGa(2951176,a);l=f;return}

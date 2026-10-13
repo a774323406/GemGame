@@ -1,0 +1,1 @@
+function R8G(a,b){a=a|0;b=b|0;return ATj(23,AUj(a)|0)|0}

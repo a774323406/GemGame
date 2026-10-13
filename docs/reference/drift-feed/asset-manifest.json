@@ -1,0 +1,47 @@
+[
+  {
+    "file": "assets/res/driftFeed/road/speed-arrow.png",
+    "uuid": "739999e1-059e-575e-aac6-025d208b6205",
+    "width": 202,
+    "height": 123,
+    "origin": "original drift arrow; copied unchanged",
+    "source": "../cocosProject/drift/assets/res/texture/common/hspyjiantou1.png",
+    "sha256": "4b6aa1f05f356806ba39deb87d443da1f64ff486ebc0af70bcc0b0eac6a50e18"
+  },
+  {
+    "file": "assets/res/driftFeed/road/road_straight_600.png",
+    "uuid": "9901be07-9cbc-5afb-a480-ce48e17af08e",
+    "width": 600,
+    "height": 600,
+    "origin": "existing drift road; copied unchanged",
+    "source": "../cocosProject/drift/assets/res/texture/road/road_straight_600.png",
+    "sha256": "92cf207b4e990201444a6e4fd553ec460eef620491881f58b9bf6e91b7b5a44c"
+  },
+  {
+    "file": "assets/res/driftFeed/road/road_left_90_r300.png",
+    "uuid": "a567d552-31b0-510f-a720-cec5fb69a896",
+    "width": 600,
+    "height": 600,
+    "origin": "existing drift road; copied unchanged",
+    "source": "../cocosProject/drift/assets/res/texture/road/road_left_90_r300.png",
+    "sha256": "66f23e3b540de7db90d6c67ff130174a6f8d11ebd6b38b89bf4ae21f61598fdb"
+  },
+  {
+    "file": "assets/res/driftFeed/road/road_180_r300.png",
+    "uuid": "e94c4b35-29da-57a1-aa83-3937a87c7eb4",
+    "width": 1200,
+    "height": 600,
+    "origin": "existing drift road; copied unchanged",
+    "source": "../cocosProject/drift/assets/res/texture/road/road_180_r300.png",
+    "sha256": "930ad9d1f124e4c8a3785e623754f2ec298d6ca9adcd02db8da302e511dbbbe3"
+  },
+  {
+    "file": "assets/res/driftFeed/car/player-car.png",
+    "uuid": "e249c188-81ea-5b37-ab69-beee557e803a",
+    "width": 911,
+    "height": 1726,
+    "origin": "new built-in image_gen generation; original alpha preserved",
+    "source": "docs/reference/drift-feed/player-car-original.png",
+    "sha256": "bb661ef17c4f543d436cb32f378345e75e473344f12020d8258343074126a94e"
+  }
+]

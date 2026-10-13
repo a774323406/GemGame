@@ -1,0 +1,1 @@
+function rwl(a,b,c){a=a|0;b=T(b);c=c|0;hak(a,b);return}

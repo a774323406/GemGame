@@ -1,0 +1,3 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');
+for(const n of ['engine','drift','attach','score','boost','crash']){const f=`assets/res/driftFeed/audio/${n}.wav`;assert(fs.existsSync(f),n+' audio exists');const b=fs.readFileSync(f);assert.equal(b.toString('ascii',0,4),'RIFF');assert.equal(b.readUInt32LE(24),22050);let peak=0;for(let i=44;i<b.length;i+=2)peak=Math.max(peak,Math.abs(b.readInt16LE(i)));assert(peak>1000&&peak<32760);if(['engine','drift'].includes(n))assert(Math.abs(b.readInt16LE(44)-b.readInt16LE(b.length-2))<150);}
+console.log('PASS drift audio: six PCM assets, signal, headroom, loop boundaries');

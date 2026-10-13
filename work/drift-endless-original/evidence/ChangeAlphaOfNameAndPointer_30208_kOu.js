@@ -1,0 +1,1 @@
+function kOu(b,d,e,f,g){b=b|0;d=d|0;e=e|0;f=f|0;g=g|0;var h=0,i=0;i=l;l=l+16|0;g=i+8|0;h=i;c[g>>2]=d;if(!(a[3266617]|0)){oNi(c[202033]|0);a[3266617]=1}d=h;c[d>>2]=0;c[d+4>>2]=0;c[h>>2]=tNi(c[744239]|0,g)|0;f=$pl(b,h,e,f)|0;l=i;return f|0}

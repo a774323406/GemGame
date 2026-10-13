@@ -1,0 +1,1 @@
+function eMp(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;d=rfA(b,0)|0;return Wdr(0,d,rfA(c,0)|0,0)|0}

@@ -1,0 +1,1 @@
+function x$x(a,b,c,d){a=a|0;b=b|0;c=c|0;d=d|0;xoy(a,b,c,d);return}

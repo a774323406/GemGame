@@ -119,7 +119,7 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
   const asset = name => JSON.parse(fs.readFileSync(new URL('../assets/res/feedResult/'+name+'.png.meta', import.meta.url))).uuid + '@f9941';
   const whiteFrame=JSON.parse(fs.readFileSync(new URL('../assets/res/foodDeliveryFeed/white.png.meta',import.meta.url))).uuid+'@f9941';
   const videoFrame=JSON.parse(fs.readFileSync(new URL('../assets/res/penguinStackFeed/video-badge.png.meta',import.meta.url))).uuid+'@f9941';
-  const buttonFrame = name => asset(sceneName === 'PenguinStackFeedGameScene' ? (name === 'RetryButton' ? 'button-blue' : name === 'NextButton' ? 'button-green' : 'button-orange') : sceneName === 'RhythmCatFeedGameScene' && name === 'ReplayButton' ? 'button-pink' : 'button-orange');
+  const buttonFrame = name => asset(sceneName === 'PenguinStackFeedGameScene' ? (name === 'RetryButton' ? 'button-blue' : name === 'NextButton' ? 'button-green' : 'button-orange') : 'button-orange');
   for(const id of descendants) {
     const n=objects[id], name=n._name;
     if(["ResultPanel","CuteResultPanel","Panel","SuccessActions","FailureActions"].includes(name)) {
@@ -160,16 +160,13 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     }
   }
   const layouts = {
+    DriftFeedGameScene: [["Kicker",550,640,60,42],["ResultTitle",400,620,165,104],["ResultDetail",145,660,240,42],["ReviveButton",-180,470,138],["RetryButton",-345,470,138],["HomeButton",-510,470,138]],
+    ClayPigeonGameScene: [["Kicker",550,640,60,42],["ResultTitle",420,620,165,104],["ResultDetail",140,660,310,42],["ResumeButton",-170,470,138],["ReplayButton",-335,470,138],["HomeButton",-500,470,138]],
     PenguinStackFeedGameScene: [
       ["ResultTitle",395,620,165,104],["ResultDetail",225,650,160,42],
       ["NextButton",-180,470,138],["ReviveButton",-180,470,138],["RetryButton",-345,470,138],["HomeButton",-510,470,138]],
-    ShootingGlassBottlesGame: [["ResultTitleLabel",395,620,165,104],["ResultDetailLabel",180,640,245,42],
-      ["ResultActionButton",-300,470,138],["ResultRestartButton",-465,470,138]],
     MotoRaceGameScene: [["Kicker",550,640,60,42],["ResultTitle",420,620,165,104],
       ["ResultDetail",140,660,310,42],["ResumeButton",-170,470,138],["ReplayButton",-335,470,138],["HomeButton",-500,470,138]],
-    RhythmCatFeedGameScene: [["ResultTitle",395,620,165,104],["ResultScore",170,650,170,44],
-      ["BlackCat",-550,150,200,null,-215],["WhiteCat",-550,150,200,null,215],
-      ["ReplayButton",-165,470,138],["HomeButton",-330,470,138]],
     MathExamFeedGameScene: [["ResultKicker",550,640,60,42],["ResultTitle",395,620,165,104],
       ["ResultScore",185,630,150,100],["ResultDetail",30,640,100,42],["Best",-65,640,50,28],
       ["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
@@ -225,7 +222,7 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     objects[overlayId]._children=[ref(dimId),...objects[overlayId]._children.filter(r=>r.__id__!==dimId)];
   }
   const panelId=find('ResultPanel') ?? find('CuteResultPanel') ?? find('Panel');
-  const gameTitles={PenguinStackFeedGameScene:'企鹅叠叠乐',ShootingGlassBottlesGame:'打瓶子挑战',RhythmCatFeedGameScene:'节奏猫咪',JuggleBallGameScene:'乒乓球挑战'};
+  const gameTitles={PenguinStackFeedGameScene:'企鹅叠叠乐',JuggleBallGameScene:'乒乓球挑战'};
   if(gameTitles[sceneName]) {
     let id=find('ResultGameKicker');
     if(id===undefined) {const created=author.label('ResultGameKicker',panelId,gameTitles[sceneName],{w:650,h:65,size:42,bold:true,outline:true,outlineWidth:3});id=created.node;descendants.push(id);}
@@ -233,10 +230,6 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     component(id,'cc.Label')._outlineColor=color(47,36,31);
   }
   if(sceneName==='MathExamFeedGameScene')component(find('ResultKicker'),'cc.Label')._string='口算大挑战';
-  if(sceneName==='RhythmCatFeedGameScene')for(const [name,file] of [['BlackCat','black-idle'],['WhiteCat','white-idle']]) {
-    const id=find(name),frame=JSON.parse(fs.readFileSync(new URL('../assets/res/rhythmCatFeed/'+file+'.png.meta',import.meta.url))).uuid+'@f9941';
-    component(id,'cc.Sprite')._spriteFrame={__uuid__:frame,__expectedType__:'cc.SpriteFrame'};
-  }
   const titleIds=['ResultTitle','ResultTitleLabel','SuccessTitle','FailureTitle'].map(find).filter(id=>id!==undefined);
   const artworks=[];
   for(const id of titleIds) {
@@ -245,9 +238,9 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     artworks.push(ref(objects[artworkId]._components.find(r=>objects[r.__id__].__type__==='cc.Sprite').__id__));
   }
   const hudNames={
+    DriftFeedGameScene:["HUD","Guide","Message"],
+    ClayPigeonGameScene:["TopHUD","BottomHUD","RoundTip"],
     PenguinStackFeedGameScene:['TopHUD','BottomHUD','CaughtLabel','MoveGuide','CatchFeedback'],
-    ShootingGlassBottlesGame:['TopHUD','RewardControls'],
-    RhythmCatFeedGameScene:[...Array.from({length:96},(_,i)=>'Food'+i),'BlackCat','WhiteCat','Score','Heart0','Heart1','Heart2','Instruction','BackButton','SlowdownButton','SlowdownDetail','CatchFeedback0','CatchFeedback1'],
     MathExamFeedGameScene:['BackButton','AddTimeButton','CorrectionFluid'],
     MotoRaceGameScene:['HudShapes','Armor','RankPanel','Rank','Time','PauseButton','BackButton','Speed','SpeedUnit','PunchButton','KickButton','Message','Countdown','BoostButton','SteeringPad'],
     JuggleBallGameScene:['HeaderPanel','GoalPanel','LevelLabel','GoalLabel','ChanceLabel','BackButton','ScoreLabel','StatusLabel','ReadyArrow','MoveHint','SlowdownButton','ExtraChanceButton'],

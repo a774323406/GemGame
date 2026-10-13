@@ -1,0 +1,1 @@
+function GUj(a,b){a=a|0;b=b|0;return HUj(a)|0}

@@ -1,0 +1,1 @@
+function oay(a,b,d,e){a=a|0;b=b|0;d=d|0;e=e|0;var f=0;if(d?!(pay(0,b,0)|0):0)b=0;else{p=0;b=wb(1915,b|0,0,0)|0;f=p;p=0;do if(f&1){b=sf(3424)|0;f=A;if((f|0)==(Qn(3424)|0)){e=c[(of(b|0)|0)>>2]|0;pf();b=0;f=-1;break}else Bf(b|0)}else{e=0;f=35}while(0);if(d)RXj(7,a);if(!((f|0)==35|(e|0)==0))pTj(e,0,0)}return b|0}

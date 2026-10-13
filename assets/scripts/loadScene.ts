@@ -22,11 +22,11 @@ import {
   FEED_JUGGLE_CONTENT_ID,
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
   FEED_PENGUIN_STACK_CONTENT_ID,
-  FEED_SHOOTING_CONTENT_ID,
   FEED_WHITE_GOOSE_CONTENT_ID,
   FEED_MATH_EXAM_CONTENT_ID,
-  FEED_RHYTHM_CAT_CONTENT_ID,
   FEED_MOTO_RACE_CONTENT_ID,
+  FEED_CLAY_PIGEON_CONTENT_ID,
+  FEED_DRIFT_CONTENT_ID,
   FEED_HEART_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -181,15 +181,15 @@ export class loadScene extends Component {
     }
   }
 
-  /** 推荐流按 Content_ID 进入对应玩法；复访与未知 ID 仍使用打瓶子兜底。 */
+  /** 推荐流按 Content_ID 进入对应玩法；已停用复访与未知 ID 返回大厅。 */
   private resolveFeedEntry(): { sceneName: GameSceneName; reason: string } {
     const state = FeedAcquisitionService.getState();
     const contentId = String(state.contentId || "").trim();
 
     if (state.mode === "revisit") {
       return {
-        sceneName: GameSceneName.ShootingGlassBottles,
-        reason: `推荐流复访打瓶子（${contentId || "无 Content_ID"}）`,
+        sceneName: GameSceneName.Main,
+        reason: `推荐流旧复访返回大厅（${contentId || "无 Content_ID"}）`,
       };
     }
 
@@ -197,12 +197,16 @@ export class loadScene extends Component {
       return { sceneName: GameSceneName.Game, reason: `推荐流爱心第 8 关（${contentId}）` };
     }
 
-    if (contentId === FEED_MOTO_RACE_CONTENT_ID) {
-      return { sceneName: GameSceneName.MotoRaceGame, reason: `推荐流狂暴摩托（${contentId}）` };
+    if (FEED_DRIFT_CONTENT_ID && contentId === FEED_DRIFT_CONTENT_ID) {
+      return { sceneName: GameSceneName.DriftFeedGame, reason: `推荐流漂移（${contentId}）` };
     }
 
-    if (FEED_RHYTHM_CAT_CONTENT_ID && contentId === FEED_RHYTHM_CAT_CONTENT_ID) {
-      return { sceneName: GameSceneName.RhythmCatFeedGame, reason: `推荐流节奏猫咪（${contentId}）` };
+    if (FEED_CLAY_PIGEON_CONTENT_ID && contentId === FEED_CLAY_PIGEON_CONTENT_ID) {
+      return { sceneName: GameSceneName.ClayPigeonGame, reason: `推荐流飞碟射击（${contentId}）` };
+    }
+
+    if (contentId === FEED_MOTO_RACE_CONTENT_ID) {
+      return { sceneName: GameSceneName.MotoRaceGame, reason: `推荐流狂暴摩托（${contentId}）` };
     }
 
     if (contentId === FEED_JUGGLE_CONTENT_ID) {
@@ -226,13 +230,6 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.PenguinStackFeedGame,
         reason: `推荐流企鹅叠叠乐方案（${contentId}）`,
-      };
-    }
-
-    if (contentId === FEED_SHOOTING_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.ShootingGlassBottles,
-        reason: `推荐流打瓶子方案（${contentId}）`,
       };
     }
 
@@ -262,14 +259,14 @@ export class loadScene extends Component {
 
     this.warnUnknownFeedContentId(state.mode, contentId);
     return {
-      sceneName: GameSceneName.ShootingGlassBottles,
-      reason: `推荐流未知方案兜底打瓶子（${contentId || "无 Content_ID"}）`,
+      sceneName: GameSceneName.Main,
+      reason: `推荐流未知方案返回大厅（${contentId || "无 Content_ID"}）`,
     };
   }
 
   private warnUnknownFeedContentId(mode: FeedDirectPlayMode, contentId: string): void {
     console.warn(
-      `[loadScene] 未配置推荐流 Content_ID 映射，使用打瓶子兜底: mode=${mode}, contentId=${contentId || "empty"}`,
+      `[loadScene] 未配置推荐流 Content_ID 映射，返回大厅: mode=${mode}, contentId=${contentId || "empty"}`,
     );
   }
 

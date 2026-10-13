@@ -1,0 +1,1 @@
+function gdg(a,b,d){a=a|0;b=b|0;d=d|0;var e=0,f=0;f=l;l=l+16|0;e=f;if(!($p[c[(c[a>>2]|0)+108>>2]&2047](a)|0)){l=f;return}b=a+28|0;d=c[b>>2]|0;if(!d){l=f;return}if(!(cta(d)|0)){l=f;return}a=hta(c[b>>2]|0,22016)|0;c[e>>2]=0;c[e+4>>2]=0;c[e+8>>2]=0;Oxb(a,2971632,e);l=f;return}

@@ -1,0 +1,1 @@
+function nrh(a){a=a|0;a=c[c[a+4>>2]>>2]|0;dtG(a,nNi(2490082)|0,0);itG(a,nNi(2474671)|0,0);return}

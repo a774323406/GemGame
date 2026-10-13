@@ -3,6 +3,7 @@ import AudioManager from "./framework/AudioManager";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
 import { SidebarRewardService, SidebarRewardState } from "./framework/Platform/SidebarRewardService";
 import { ShareRewardService } from "./framework/Platform/ShareRewardService";
+import { FeedAcquisitionService } from "./framework/Platform/FeedAcquisitionService";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import UIManager from "./framework/ui/UIManager";
 import { GameConfig } from "./GameConfig";
@@ -41,9 +42,6 @@ export class newMainScene extends Component {
   penguinButton: Button = null;
 
   @property(Button)
-  shootingButton: Button = null;
-
-  @property(Button)
   foodDeliveryButton: Button = null;
 
   @property(Button)
@@ -53,10 +51,13 @@ export class newMainScene extends Component {
   mathExamButton: Button = null;
 
   @property(Button)
-  rhythmCatButton: Button = null;
+  motoRaceButton: Button = null;
 
   @property(Button)
-  motoRaceButton: Button = null;
+  clayPigeonButton: Button = null;
+
+  @property(Button)
+  driftButton: Button = null;
 
   private navigating = false;
   private shareInFlight = false;
@@ -70,11 +71,11 @@ export class newMainScene extends Component {
     this.sidebarButton?.node?.on(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.on(Button.EventType.CLICK, this.openPuzzle, this);
     this.penguinButton?.node?.on(Button.EventType.CLICK, this.openPenguin, this);
-    this.shootingButton?.node?.on(Button.EventType.CLICK, this.openShooting, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this);
     this.mathExamButton?.node?.on(Button.EventType.CLICK, this.openMathExam, this);
-    this.rhythmCatButton?.node?.on(Button.EventType.CLICK, this.openRhythmCat, this);
+    this.driftButton?.node?.on(Button.EventType.CLICK, this.openDrift, this);
+    this.clayPigeonButton?.node?.on(Button.EventType.CLICK, this.openClayPigeon, this);
     this.motoRaceButton?.node?.on(Button.EventType.CLICK, this.openMotoRace, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
@@ -89,11 +90,14 @@ export class newMainScene extends Component {
     AudioManager.setSoundEvent();
     AudioManager.playDefaultBgm();
     this.scheduleOnce(() => this.gameList?.scrollToTop(0), 0);
+    // Retired or unknown feed links now land here; release the host's loading state.
+    FeedAcquisitionService.reportSceneReady();
   }
 
   protected onDestroy(): void {
+    this.driftButton?.node?.off(Button.EventType.CLICK, this.openDrift, this);
+    this.clayPigeonButton?.node?.off(Button.EventType.CLICK, this.openClayPigeon, this);
     this.motoRaceButton?.node?.off(Button.EventType.CLICK, this.openMotoRace, this);
-    this.rhythmCatButton?.node?.off(Button.EventType.CLICK, this.openRhythmCat, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
     this.settingButton?.node?.off(Button.EventType.CLICK, this.openSettings, this);
@@ -101,7 +105,6 @@ export class newMainScene extends Component {
     this.sidebarButton?.node?.off(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.off(Button.EventType.CLICK, this.openPuzzle, this);
     this.penguinButton?.node?.off(Button.EventType.CLICK, this.openPenguin, this);
-    this.shootingButton?.node?.off(Button.EventType.CLICK, this.openShooting, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.whiteGooseButton?.node?.off(Button.EventType.CLICK, this.openWhiteGoose, this);
     this.mathExamButton?.node?.off(Button.EventType.CLICK, this.openMathExam, this);
@@ -117,11 +120,11 @@ export class newMainScene extends Component {
 
   private openPuzzle(): void { void this.enterGame(GameSceneName.Game); }
   private openPenguin(): void { void this.enterGame(GameSceneName.PenguinStackFeedGame); }
-  private openShooting(): void { void this.enterGame(GameSceneName.ShootingGlassBottles); }
   private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
   private openWhiteGoose(): void { void this.enterGame(GameSceneName.WhiteGooseFeedGame); }
-  private openRhythmCat(): void { void this.enterGame(GameSceneName.RhythmCatFeedGame); }
   private openMathExam(): void { void this.enterGame(GameSceneName.MathExamFeedGame); }
+  private openDrift(): void { void this.enterGame(GameSceneName.DriftFeedGame); }
+  private openClayPigeon(): void { void this.enterGame(GameSceneName.ClayPigeonGame); }
   private openMotoRace(): void { void this.enterGame(GameSceneName.MotoRaceGame); }
 
   private async enterGame(sceneName: GameSceneName): Promise<void> {
@@ -151,12 +154,12 @@ export class newMainScene extends Component {
     return [
       this.puzzleButton,
       this.penguinButton,
-      this.shootingButton,
       this.foodDeliveryButton,
       this.whiteGooseButton,
       this.mathExamButton,
-      this.rhythmCatButton,
       this.motoRaceButton,
+      this.clayPigeonButton,
+      this.driftButton,
     ].filter(Boolean);
   }
 

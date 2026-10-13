@@ -1,0 +1,1 @@
+function Nlu(a,b){a=a|0;b=b|0;RXj(114,a);RXj(28,a);RXj(27,a);return}

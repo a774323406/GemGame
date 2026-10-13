@@ -1,0 +1,1 @@
+function aWj(b,d){b=b|0;d=d|0;if(!(a[3258218]|0)){oNi(c[188583]|0);a[3258218]=1}bWj(b,T(5.0));cWj(b,T(5.0));dWj(b,T(1.0));eWj(b,T(1.0));fWj(b,T(1.0));gWj(b,qNi(c[747180]|0,1)|0);MUj(b,0);return}
