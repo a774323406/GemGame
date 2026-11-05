@@ -201,6 +201,7 @@ export class juggleBallGameScene extends Component {
       AudioManager.playMusic(soundName.getUserBgm);
     }
     this.startChallenge();
+    void this.artworkReadyPromise.then(() => adc.onEnterGame(this.node));
     if (this.feedMode) {
       void this.reportFeedSceneAfterArtworkReady();
     }

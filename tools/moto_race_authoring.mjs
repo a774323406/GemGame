@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { SceneAuthor, compressUuid, ref, rgba } from './penguin_scene_authoring.mjs';
+import { SceneAuthor, compressUuid, ref, rgba } from './feed_scene_authoring.mjs';
 import { appendSceneGlobals, fitFeedResultOverlay } from './feed_result_layout.mjs';
 import { standardizeLobbyCard } from './lobby_card_style.mjs';
 export const uuid=name=>{const h=crypto.createHash('sha256').update('GemGame/motoRace/'+name).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;};

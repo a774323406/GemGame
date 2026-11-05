@@ -19,7 +19,6 @@ class Node {
 }
 
 const scenes = [
-  ['penguinStackFeedGameScene', 'getUserBgm', 'onFeedStateChanged', 'onHide', 'onShow', 'isFeedInteractionEnabled'],
   ['juggleBallGameScene', 'getUserBgm', 'onFeedStateChanged', 'onGameHide', 'onGameShow', 'isFeedInteractionEnabled'],
 ];
 
@@ -51,11 +50,10 @@ async function fixture(descriptor, active = true) {
         if (path.endsWith('AudioManager')) return { default: audio };
         if (path.endsWith('FeedAcquisitionService')) return { FeedAcquisitionService: feed };
         if (path.endsWith('ADController')) return { adc: {
-          cancelFeedEntryInterstitial() {}, scheduleFeedEntryInterstitial() { scheduled++; },
+          onEnterGame() {}, cancelFeedEntryInterstitial() {}, scheduleFeedEntryInterstitial() { scheduled++; },
         } };
         if (path.endsWith('SdkUtils')) return { SdkUtils: { isRewardedVideoBusy: () => rewardedBusy } };
         if (path.endsWith('gamePrefabMgr')) return { soundName: { getUserBgm: 'getUserBgm' } };
-        if (path.endsWith('penguinStackRules')) return load('penguinStackRules.ts');
         return {};
       },
     }, { filename: file });
@@ -63,6 +61,7 @@ async function fixture(descriptor, active = true) {
   }
   const controller = new (load(name + '.ts')[name])();
   controller.node = new Node();
+  controller.artworkReadyPromise = Promise.resolve();
   controller.feedMode = active;
   // Leave start and all audio/feed lifecycle handlers real; stub only rendering/resource work.
   for (const method of ['refreshButtons', 'bindNativeFeedTouchFallback', 'bindNativeTouchFallback',

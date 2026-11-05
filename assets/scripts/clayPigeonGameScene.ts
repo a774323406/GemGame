@@ -48,9 +48,9 @@ export class clayPigeonGameScene extends Component {
   this.resumeButton.node.on(Button.EventType.CLICK,this.resume,this);this.replayButton.node.on(Button.EventType.CLICK,this.restart,this);this.homeButton.node.on(Button.EventType.CLICK,this.home,this);
   game.on(Game.EVENT_HIDE,this.hide,this);game.on(Game.EVENT_SHOW,this.show,this);this.refresh();this.draw();
  }
- protected start(){if(this.feed){void FeedAcquisitionService.reportSceneReadyAfterStableRender({owner:this.node,requiredVisibleNodes:[this.layoutRoot,this.gun],stableFrameCount:3,surfaceDelayMs:180,isReady:()=>!this.disposed&&!this.leaving&&!this.exited});this.scheduleAd();}}
+ protected start(){adc.onEnterGame(this.node);if(this.feed){void FeedAcquisitionService.reportSceneReadyAfterStableRender({owner:this.node,requiredVisibleNodes:[this.layoutRoot,this.gun],stableFrameCount:3,surfaceDelayMs:180,isReady:()=>!this.disposed&&!this.leaving&&!this.exited});this.scheduleAd();}}
  private fit=()=>{const s=view.getVisibleSize();const scale=Math.min(s.width/750,s.height/1334);this.layoutRoot.setScale(scale,scale,1);this.gunScale=Math.max(1,s.height/1334);this.gun.setScale(this.gunScale,this.gunScale,1);};
- private blocked(){return this.disposed||this.leaving||this.hidden||this.paused||(this.feed&&(!this.entered||this.exited))||SdkUtils.isFullscreenAdBusy();}
+ private blocked(){return this.disposed||this.leaving||this.hidden||this.paused||(this.feed&&(!this.entered||this.exited))||(SdkUtils.isFullscreenAdBusy()&&!SdkUtils.isInterstitialBusy());}
  private feedChanged=(s:FeedAcquisitionState)=>{if(!this.feed)return;this.entered=s.entered;this.exited=s.exited;if(!s.entered||s.exited){adc.cancelFeedEntryInterstitial();this.adScheduled=false;this.touchId=null;this.shotAudio.stop();this.hitAudio.stop();}else this.scheduleAd();};
  private scheduleAd(){if(!this.feed||!this.entered||this.exited||this.adScheduled||this.complete)return;this.adScheduled=true;adc.scheduleFeedEntryInterstitial(()=>!this.disposed&&!this.leaving&&this.feed&&this.entered&&!this.exited);}
  private finishFeed(){if(!this.feed||this.complete)return;this.complete=true;this.feed=false;this.entered=true;this.exited=false;adc.cancelFeedEntryInterstitial();FeedAcquisitionService.completeSession();}

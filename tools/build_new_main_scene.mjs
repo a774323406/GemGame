@@ -1,3 +1,5 @@
+import { appendBrickChopCard } from './brick_chop_authoring.mjs';
+import {replaceLobbyCard} from "./duck_grab_authoring.mjs";
 import { appendDriftCard } from './drift_feed_authoring.mjs';
 import { appendClayPigeonCard } from './clay_pigeon_authoring.mjs';
 import { appendMotoCard } from './moto_race_authoring.mjs';
@@ -11,7 +13,7 @@ import {
   ref,
   rgba,
   vec,
-} from './penguin_scene_authoring.mjs';
+} from './feed_scene_authoring.mjs';
 import { appendSceneGlobals } from './feed_result_layout.mjs';
 import { appendFoodDeliveryCard } from './food_delivery_authoring.mjs';
 import { appendWhiteGooseCard } from './white_goose_main_card.mjs';
@@ -27,9 +29,7 @@ const NEW_MAIN_ASSETS = [
   { name: 'title_select_game.png', uuid: 'fd89cd19-2298-4adb-becf-feea6cc2d5af', width: 512, height: 187, alpha: true },
   { name: 'card_title_blank.png', uuid: 'e625bd7b-cbf1-4b43-9552-b13edb0bc4f4', width: 300, height: 63, alpha: true },
   { name: 'preview_puzzle.jpg', uuid: 'bb2e83a4-eb22-435c-bb35-3a3256985701', width: 246, height: 198, alpha: false },
-  { name: 'preview_penguin.jpg', uuid: '9ded1a28-be90-404f-84e3-7060e6f70b6a', width: 246, height: 198, alpha: false },
   { name: 'title_puzzle.jpg', uuid: '4d694c49-116b-4d23-a8ef-75cfb0c2a3e9', width: 268, height: 57, alpha: false },
-  { name: 'title_penguin.jpg', uuid: 'a9b70d4b-74b0-491d-9570-f94539bc5110', width: 268, height: 57, alpha: false },
   { name: 'title_food_delivery.jpg', uuid: 'a21b33ea-e748-44dd-a2af-092a25be28fa', width: 268, height: 57, alpha: false },
   { name: 'title_white_goose.jpg', uuid: '8ef97696-879e-43df-b9dc-42991bd5fedf', width: 268, height: 57, alpha: false },
   { name: 'preview_border.png', uuid: '75720185-3cba-42e9-bfa6-155295a8045a', width: 10, height: 10, alpha: true },
@@ -55,9 +55,7 @@ const art = {
   title: newMainFrame('title_select_game.png'),
   blankCardTitle: newMainFrame('card_title_blank.png'),
   previewPuzzle: newMainFrame('preview_puzzle.jpg'),
-  previewPenguin: newMainFrame('preview_penguin.jpg'),
   titlePuzzle: newMainFrame('title_puzzle.jpg'),
-  titlePenguin: newMainFrame('title_penguin.jpg'),
   titleFoodDelivery: newMainFrame('title_food_delivery.jpg'),
   titleWhiteGoose: newMainFrame('title_white_goose.jpg'),
   previewBorder: newMainFrame('preview_border.png'),
@@ -391,10 +389,10 @@ cards.push(addCard({
   preview: mask => fullArtwork(mask, art.previewPuzzle),
 }));
 cards.push(addCard({
-  nodeName: 'PenguinStackCard',
-  title: '企鹅叠叠乐',
-  titleArt: art.titlePenguin,
-  preview: mask => fullArtwork(mask, art.previewPenguin),
+  nodeName: 'DuckGrabCard',
+  title: '抓鸭子挑战',
+  titleArt: null,
+  preview: mask => fullArtwork(mask, JSON.parse(fs.readFileSync('assets/res/duckGrabFeed/meadow.jpg.meta')).uuid+'@f9941'),
 }));
 
 // Seed the exact editor positions as well as Layout settings. Creator can
@@ -434,7 +432,7 @@ a.component(canvas, compressUuid(SCRIPT_UUID), {
   shareRedDot: ref(shareRedDot),
   gameList: ref(gameList),
   puzzleButton: ref(cards[0].button),
-  penguinButton: ref(cards[1].button),
+  duckGrabButton: ref(cards[1].button),
 });
 
 objects[1]._globals = ref(appendSceneGlobals(sourceScene, objects));
@@ -547,12 +545,14 @@ if (process.argv.includes('--write')) {
   const outputObjects = fs.existsSync(SCENE_FILE)
     ? JSON.parse(fs.readFileSync(SCENE_FILE, 'utf8'))
     : objects;
+  replaceLobbyCard(outputObjects);
   appendFoodDeliveryCard(outputObjects);
   appendWhiteGooseCard(outputObjects);
   appendMathExamCard(outputObjects);
   appendMotoCard(outputObjects);
   appendClayPigeonCard(outputObjects);
   appendDriftCard(outputObjects);
+  appendBrickChopCard(outputObjects);
   writeJson(SCENE_FILE, outputObjects);
   if (!fs.existsSync(`${SCENE_FILE}.meta`)) {
     writeJson(`${SCENE_FILE}.meta`, {

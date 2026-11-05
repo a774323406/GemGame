@@ -17,18 +17,19 @@ class Emitter {
 }
 function fixture() {
   let now = 1_700_000_000_000, serial = 0, timers = [], busy = false;
-  let scene = { name: 'NewMainScene', isValid: true };
+  let scene = { name: 'DuckGrabFeedGameScene', isValid: true };
   const requests = [], game = new Emitter(), director = new Emitter();
-  const feed = { active: false, entered: false, exited: false, mode: 'acquisition', contentId: '' };
+  const feed = { active: false, entered: false, exited: false, mode: 'acquisition', contentId: '', sceneReadyReported: true };
   const config = { showAd: true }, bundle = { isLoadingScene: false };
   director.getScene = () => scene;
   // The scheduler must never pause the engine or install touch interception.
   director.pause = director.resume = () => assert.fail('interstitial must not change engine pause');
   const sceneNames = Object.fromEntries([
     'NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'PenguinStackFeedGameScene', 'FoodDeliveryFeedGameScene',
-    'WhiteGooseFeedGameScene', 'DriftFeedGameScene',
+    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'FoodDeliveryFeedGameScene',
+    'WhiteGooseFeedGameScene', 'DriftFeedGameScene', 'MathExamFeedGameScene', 'MotoRaceGameScene', 'ClayPigeonGameScene',
   ].map(name => [name, name]));
+  sceneNames.Main = 'NewMainScene';
   const sdk = {
     EVENT_AD_PAUSE_CHANGED: 'rewarded-pause', EVENT_INTERSTITIAL_ENDED: 'interstitial-ended',
     isFullscreenAdBusy: () => busy,
@@ -69,11 +70,12 @@ function fixture() {
       throw Error(name);
     },
   });
-  const adc = exports.adc; adc.initialize();
+  const adc = exports.adc; adc.initialize(); adc.onEnterGame({ isValid: true, scene });
   return {
     adc, game, director, feed, bundle, requests, config,
     now: () => now, timers: () => timers.length, busy(value) { busy = value; },
-    scene(value) { scene = value; director.emit('scene-launched'); },
+    scene(value, ready = true) { scene = value; director.emit('scene-launched'); if (ready && scene) adc.onEnterGame({ isValid: true, scene }); },
+    ready() { adc.onEnterGame({ isValid: true, scene }); },
     enter() { Object.assign(feed, { active: true, entered: true, exited: false }); adc.scheduleFeedEntryInterstitial(); },
     exit() { Object.assign(feed, { entered: false, exited: true }); adc.cancelFeedEntryInterstitial(); },
     advance(ms) {
@@ -98,6 +100,20 @@ test('drift CONTENT15441408514 preview/entry, repeat and exit use shared interst
   f.advance(59_999);assert.equal(f.requests.length,1);f.advance(1);assert.equal(f.requests.length,2);
   f.exit();f.requests[1].show();assert.equal(f.requests[1].shown,false);
   f.advance(90_000);assert.equal(f.requests.length,2);
+});
+test('brick CONTENT15740674562 waits for readiness, repeats, retries after 60s and stops on exit', () => {
+  const f=fixture();f.scene({name:'BrickChopFeedGameScene',isValid:true});
+  Object.assign(f.feed,{active:true,contentId:'CONTENT15740674562',sceneReadyReported:false});
+  f.advance(90_000);assert.equal(f.requests.length,0,'preview never requests');
+  f.enter();f.advance(5_000);assert.equal(f.requests.length,0,'wait for rendered readiness');
+  f.feed.sceneReadyReported=true;f.advance(1_000);assert.equal(f.requests.length,1);
+  f.requests[0].show();f.requests[0].close();
+  f.advance(59_999);assert.equal(f.requests.length,1);f.advance(1);assert.equal(f.requests.length,2);
+  f.requests[1].fail();f.advance(59_999);assert.equal(f.requests.length,2);
+  f.advance(1);assert.equal(f.requests.length,3);
+  f.requests[2].show();f.requests[2].close();f.advance(60_000);assert.equal(f.requests.length,4);
+  f.exit();f.requests[3].show();assert.equal(f.requests[3].shown,false);
+  f.advance(90_000);assert.equal(f.requests.length,4,'exited entry cannot request again');
 });
 test('normal entry repeats within two minutes, then keeps repeating after close +60s', () => {
   const f = fixture(), start = f.now();
@@ -138,11 +154,11 @@ test('preview state is checked even when a scene omits cancellation on feed exit
   f.requests[0].show(); assert(!f.requests[0].shown);
   f.advance(60_000); assert.equal(f.requests.length, 1);
 });
-test('all games, home and result pages share cooldown; feed completion does not stop ads', () => {
+test('gameplay and result pages share cooldown; feed completion does not stop ads', () => {
   const f = fixture(); f.enter(); f.advance(31_000); f.requests[0].show(); f.requests[0].close();
   f.adc.cancelFeedEntryInterstitial(); f.feed.active = false;
   for (const name of ['NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'PenguinStackFeedGameScene',
+    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene',
     'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene']) {
     f.scene({ name, isValid: true }); f.adc.onLevelResult(1, 'pass', { eligible: false });
     f.advance(1_000);
@@ -169,29 +185,71 @@ test('loading screen, bundle loading, scene swaps and destroyed scenes cannot di
   f.advance(50_000); assert.equal(f.requests.length, 0);
   f.scene({ name: 'NewMainScene', isValid: true }); f.bundle.isLoadingScene = true;
   f.advance(50_000); assert.equal(f.requests.length, 0);
-  f.bundle.isLoadingScene = false; f.scene({ name: 'PenguinStackFeedGameScene', isValid: true });
+  f.bundle.isLoadingScene = false; f.scene({ name: 'DuckGrabFeedGameScene', isValid: true });
   f.advance(649); assert.equal(f.requests.length, 0);
   f.advance(1); assert.equal(f.requests.length, 1);
   f.scene({ name: 'JuggleBallGameScene', isValid: true });
   assert(!f.requests[0].canShow()); f.requests[0].show();
   f.scene(null); f.advance(100_000); assert.equal(f.requests.length, 1);
 });
-test('no-fill backs off 15/30/60 seconds, caps at 60 and resets after successful close', () => {
+test('every failed load/show waits a full 60 seconds, including after a successful ad', () => {
   const f = fixture(); f.advance(31_000);
-  for (const delay of [15_000, 30_000, 60_000, 60_000]) {
+  for (const delay of [60_000, 60_000, 60_000, 60_000]) {
     const count = f.requests.length;
     f.requests.at(-1).fail(); f.advance(delay - 1); assert.equal(f.requests.length, count);
     f.advance(1); assert.equal(f.requests.length, count + 1);
   }
   f.requests.at(-1).show(); f.requests.at(-1).close(); f.advance(60_000);
   const count = f.requests.length;
-  f.requests.at(-1).fail(); f.advance(15_000); assert.equal(f.requests.length, count + 1);
+  f.requests.at(-1).fail(); f.advance(59_999); assert.equal(f.requests.length, count);
+  f.advance(1); assert.equal(f.requests.length, count + 1);
 });
 test('disabled ads do not request; an invalid feed entry callback only blocks that session', () => {
   const f = fixture(); f.config.showAd = false; f.advance(100_000); assert.equal(f.requests.length, 0);
   f.config.showAd = true; f.enter(); f.adc.scheduleFeedEntryInterstitial(() => false);
   f.advance(60_000); assert.equal(f.requests.length, 0);
   f.feed.active = false; f.advance(1_000); assert.equal(f.requests.length, 1);
+});
+test('lobby and unready gameplay never request; a stale ready callback cannot unlock a new scene', () => {
+  const f = fixture(); f.scene({ name: 'NewMainScene', isValid: true });
+  f.advance(120_000); assert.equal(f.requests.length, 0);
+  const old = { name: 'DuckGrabFeedGameScene', isValid: true };
+  f.scene(old, false); f.adc.onEnterGame(); f.adc.onLevelResult(1, 'pass'); f.advance(120_000); assert.equal(f.requests.length, 0);
+  f.scene({ name: 'FoodDeliveryFeedGameScene', isValid: true }, false);
+  f.adc.onEnterGame({ isValid: true, scene: old });
+  f.advance(60_000); assert.equal(f.requests.length, 0);
+  f.ready(); f.advance(250); assert.equal(f.requests.length, 1);
+});
+test('feed entry waits for rendered scene readiness as well as the 2-second entry delay', () => {
+  const f = fixture(); f.feed.sceneReadyReported = false; f.enter();
+  f.advance(120_000); assert.equal(f.requests.length, 0);
+  f.feed.sceneReadyReported = true; f.advance(1_000); assert.equal(f.requests.length, 1);
+});
+test('each current gameplay can repeat after readiness without a per-game quota', () => {
+  for (const name of ['GameScene', 'JuggleBallGameScene', 'DuckGrabFeedGameScene', 'BrickChopFeedGameScene',
+    'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene', 'MathExamFeedGameScene',
+    'MotoRaceGameScene', 'ClayPigeonGameScene', 'DriftFeedGameScene']) {
+    const f = fixture(); f.scene({ name, isValid: true }); f.advance(31_000);
+    for (let i = 0; i < 3; i++) {
+      assert.equal(f.requests.length, i + 1, name);
+      f.requests[i].show(); f.requests[i].close(); f.advance(60_000);
+    }
+  }
+});
+test('100 consecutive impressions remain eligible with a full 60-second gap', () => {
+  const f = fixture(); f.advance(31_000);
+  for (let i = 0; i < 100; i++) {
+    assert.equal(f.requests.length, i + 1);
+    f.requests[i].show(); assert(f.requests[i].shown); f.requests[i].close();
+    f.advance(59_999); assert.equal(f.requests.length, i + 1);
+    f.advance(1); assert.equal(f.requests.length, i + 2);
+  }
+});
+test('failed request keeps its 60-second retry delay across scene changes', () => {
+  const f = fixture(); f.advance(31_000);
+  f.scene({ name: 'FoodDeliveryFeedGameScene', isValid: true });
+  f.requests[0].fail(); f.advance(59_999); assert.equal(f.requests.length, 1);
+  f.advance(1); assert.equal(f.requests.length, 2);
 });
 test('scene loading remains nonblocking but protects the pending launch frame', async () => {
   let launched, runCalls = 0;

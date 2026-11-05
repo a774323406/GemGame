@@ -155,6 +155,7 @@ export class foodDeliveryFeedGameScene extends Component {
     }
 
     protected start(): void {
+    adc.onEnterGame(this.node);
         this.bindNativeTouchFallback();
         if (this.feedMode) {
             FeedAcquisitionService.addListener(this.onFeedState);

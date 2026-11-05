@@ -39,7 +39,10 @@ export class newMainScene extends Component {
   puzzleButton: Button = null;
 
   @property(Button)
-  penguinButton: Button = null;
+  duckGrabButton: Button = null;
+
+  @property(Button)
+  brickChopButton: Button = null;
 
   @property(Button)
   foodDeliveryButton: Button = null;
@@ -70,7 +73,8 @@ export class newMainScene extends Component {
     this.shareButton?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
     this.sidebarButton?.node?.on(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.on(Button.EventType.CLICK, this.openPuzzle, this);
-    this.penguinButton?.node?.on(Button.EventType.CLICK, this.openPenguin, this);
+    this.brickChopButton?.node?.on(Button.EventType.CLICK, this.openBrickChop, this);
+    this.duckGrabButton?.node?.on(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this);
     this.mathExamButton?.node?.on(Button.EventType.CLICK, this.openMathExam, this);
@@ -104,7 +108,8 @@ export class newMainScene extends Component {
     this.shareButton?.node?.off(Button.EventType.CLICK, this.onShareClicked, this);
     this.sidebarButton?.node?.off(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.off(Button.EventType.CLICK, this.openPuzzle, this);
-    this.penguinButton?.node?.off(Button.EventType.CLICK, this.openPenguin, this);
+    this.brickChopButton?.node?.off(Button.EventType.CLICK, this.openBrickChop, this);
+    this.duckGrabButton?.node?.off(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.whiteGooseButton?.node?.off(Button.EventType.CLICK, this.openWhiteGoose, this);
     this.mathExamButton?.node?.off(Button.EventType.CLICK, this.openMathExam, this);
@@ -119,7 +124,8 @@ export class newMainScene extends Component {
   }
 
   private openPuzzle(): void { void this.enterGame(GameSceneName.Game); }
-  private openPenguin(): void { void this.enterGame(GameSceneName.PenguinStackFeedGame); }
+  private openBrickChop(): void { void this.enterGame(GameSceneName.BrickChopFeedGame); }
+  private openDuckGrab(): void { void this.enterGame(GameSceneName.DuckGrabFeedGame); }
   private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
   private openWhiteGoose(): void { void this.enterGame(GameSceneName.WhiteGooseFeedGame); }
   private openMathExam(): void { void this.enterGame(GameSceneName.MathExamFeedGame); }
@@ -153,7 +159,8 @@ export class newMainScene extends Component {
   private get gameButtons(): Button[] {
     return [
       this.puzzleButton,
-      this.penguinButton,
+      this.duckGrabButton,
+      this.brickChopButton,
       this.foodDeliveryButton,
       this.whiteGooseButton,
       this.mathExamButton,

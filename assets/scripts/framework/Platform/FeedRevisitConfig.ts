@@ -14,11 +14,13 @@ export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
  */
 export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
-/** 企鹅叠叠乐推荐流方案，直接进入 PenguinStackFeedGameScene。 */
-export const FEED_PENGUIN_STACK_CONTENT_ID = "CONTENT14860954626";
+/** 抓鸭子挑战推荐流方案，直接进入 DuckGrabFeedGameScene。 */
+export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT15740648962";
 
 /** 外卖精准投送推荐流方案，直接进入 FoodDeliveryFeedGameScene。 */
 export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT15252968962";
+/** 新增获客方案；保留原 ID 兼容已有推荐流入口。 */
+export const FEED_FOOD_DELIVERY_EXTRA_CONTENT_ID = "CONTENT15773045506";
 
 /** 套大鹅推荐流方案，直接进入 WhiteGooseFeedGameScene。 */
 export const FEED_WHITE_GOOSE_CONTENT_ID = "CONTENT14960528898";
@@ -95,9 +97,16 @@ export function createFeedRevisitExtra(readyAt: number): string {
 
 /** 狂暴摩托推荐流方案。 */
 export const FEED_MOTO_RACE_CONTENT_ID = "CONTENT15218705666";
+/** 新增获客方案；保留原 ID 兼容已有推荐流入口。 */
+export const FEED_MOTO_RACE_EXTRA_CONTENT_ID = "CONTENT15687335682";
 
 /** 飞碟射击推荐流方案，直接进入 ClayPigeonGameScene。 */
 export const FEED_CLAY_PIGEON_CONTENT_ID: string = "CONTENT15383250178";
 
 /** 漂移推荐流获客方案。 */
 export const FEED_DRIFT_CONTENT_ID: string = "CONTENT15441408514";
+/** 新增获客方案；保留原 ID 兼容已有推荐流入口。 */
+export const FEED_DRIFT_EXTRA_CONTENT_ID = "CONTENT15644009218";
+
+/** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
+export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT15740674562";

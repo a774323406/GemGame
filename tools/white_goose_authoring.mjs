@@ -6,7 +6,7 @@ import {
   ref,
   rgba,
   vec,
-} from './penguin_scene_authoring.mjs';
+} from './feed_scene_authoring.mjs';
 import { appendSceneGlobals, fitFeedResultOverlay } from './feed_result_layout.mjs';
 import { assetUuid } from './white_goose_asset_meta.mjs';
 
@@ -20,7 +20,7 @@ const existingFrame = file => {
   const meta = JSON.parse(fs.readFileSync(`${file}.meta`, 'utf8'));
   return `${meta.uuid}@f9941`;
 };
-const SHARED_ACTION_BUTTON_FRAME = existingFrame('assets/res/penguinStackFeed/action-orange.png');
+const SHARED_ACTION_BUTTON_FRAME = existingFrame('assets/res/feedShared/action-orange.png');
 
 function makeSceneRoot(author) {
   author.add({

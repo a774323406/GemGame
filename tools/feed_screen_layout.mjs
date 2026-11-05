@@ -1,4 +1,4 @@
-import { SceneAuthor, ref } from './penguin_scene_authoring.mjs';
+import { SceneAuthor, ref } from './feed_scene_authoring.mjs';
 // Keep interactive edge controls inside both supported portrait sizes.
 export function fitFeedScreenControls(objects, sceneName) {
  const find=name=>objects.findIndex(o=>o.__type__==='cc.Node'&&o._name===name);
@@ -16,6 +16,5 @@ export function fitFeedScreenControls(objects, sceneName) {
   // Keep overlays above the reparented pause control.
   const overlay=find('Overlay');objects[canvas]._children=objects[canvas]._children.filter(r=>r.__id__!==overlay);objects[canvas]._children.push(ref(overlay));
  }
- if(sceneName==='PenguinStackFeedGameScene')anchor('BottomHUD',20,{_bottom:72});
  if(sceneName==='WhiteGooseFeedGameScene')anchor('AddRingsButton',36,{_bottom:80,_right:24});
 }

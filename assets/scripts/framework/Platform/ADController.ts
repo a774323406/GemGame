@@ -1,4 +1,4 @@
-import { director, Director, game, Game } from "cc";
+import { director, Director, game, Game, Node, Scene } from "cc";
 import { GameConfig } from "../../GameConfig";
 import { GameSceneBundle, GameSceneName } from "../GameSceneBundle";
 import { FeedAcquisitionService } from "./FeedAcquisitionService";
@@ -12,13 +12,12 @@ export interface LevelResultAdOptions {
 
 /**
  * 所有入口共用一个广告时钟。只管理“何时请求”，不暂停引擎、不操作按钮或触摸。
- * 推荐流预览不弹；真正进入后和主页、正常游戏、结算页一样可以重复展示。
+ * 大厅、加载和推荐流预览不弹；玩法就绪后，游戏中及结算页均可不限次数展示。
  */
 export class ADController {
   private static readonly FIRST_DELAY_MS = 31_000;
   private static readonly FEED_ENTER_DELAY_MS = 2_000;
   private static readonly INTERVAL_MS = 60_000;
-  private static readonly RETRY_DELAYS_MS = [15_000, 30_000, 60_000];
 
   private readonly appStartedAt = Date.now();
   private initialized = false;
@@ -30,7 +29,7 @@ export class ADController {
   private feedValidity: (() => boolean) | null = null;
   private lastFullscreenAdEndedAt: number | null = null;
   private retryAt = 0;
-  private failures = 0;
+  private gameplayScene: Scene | null = null;
   private requestPending = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -51,7 +50,14 @@ export class ADController {
     this.wake();
   }
 
-  public onEnterGame(): void { this.initialize(); }
+  /** 由玩法在资源和初始画面准备完成后调用；过期场景回调不能解锁新场景。 */
+  public onEnterGame(owner?: Node): void {
+    this.initialize();
+    const scene = director.getScene();
+    if (!owner?.isValid || !scene || owner.scene !== scene || scene.name === GameSceneName.Main) return;
+    this.gameplayScene = scene;
+    this.wake();
+  }
 
   /** 场景的 feedEnter 回调只唤醒全局检查，重复通知不会重置冷却。 */
   public scheduleFeedEntryInterstitial(isStillValid?: () => boolean): void {
@@ -98,9 +104,9 @@ export class ADController {
     const scene = director.getScene();
     const feed = FeedAcquisitionService.getState();
     if (!GameConfig.showAd || this.appHidden || GameSceneBundle.isLoadingScene) return false;
-    if (!scene || !scene.isValid ||
+    if (!scene || !scene.isValid || scene.name === GameSceneName.Main || scene !== this.gameplayScene ||
       !Object.keys(GameSceneName).some(key => GameSceneName[key] === scene.name)) return false;
-    if (feed.active && (!feed.entered || feed.exited ||
+    if (feed.active && (!feed.sceneReadyReported || !feed.entered || feed.exited ||
       (this.feedValidity && !this.feedValidity()))) return false;
     return Date.now() >= this.nextAllowedAt();
   }
@@ -138,11 +144,10 @@ export class ADController {
       this.requestPending = false;
       if (shown) {
         this.lastFullscreenAdEndedAt = Date.now();
-        this.failures = 0;
         this.retryAt = 0;
-      } else if (canShow()) {
-        const delays = ADController.RETRY_DELAYS_MS;
-        this.retryAt = Date.now() + delays[Math.min(this.failures++, delays.length - 1)];
+      } else {
+        // 失败或加载中失效都等待完整间隔，切场景/切后台不能绕过重试冷却。
+        this.retryAt = Date.now() + ADController.INTERVAL_MS;
       }
       this.wake();
     };
@@ -158,12 +163,12 @@ export class ADController {
 
   private onFullscreenAdEnded(): void {
     this.lastFullscreenAdEndedAt = Date.now();
-    this.failures = 0;
     this.retryAt = 0;
     this.wake();
   }
 
   private onSceneLaunched(): void {
+    this.gameplayScene = null;
     ++this.generation;
     this.feedValidity = null;
     this.sceneReadyAt = Date.now() + 650;

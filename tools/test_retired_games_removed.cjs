@@ -19,6 +19,10 @@ function loadTypeScript(file, requireStub = () => ({})) {
 }
 
 const removedFiles = [
+  'assets/gamescene/PenguinStackFeedGameScene.scene',
+  'assets/scripts/penguinStackFeedGameScene.ts',
+  'assets/scripts/penguinStackRules.ts',
+  'assets/res/penguinStackFeed',
   'assets/gamescene/ShootingGlassBottlesGame.scene',
   'assets/gamescene/ShootingGlassBottlesGame.scene.meta',
   'assets/scripts/shootingGlassBottlesGame.ts',
@@ -68,7 +72,7 @@ assert.deepEqual(Array.from(Object.values(GameSceneName)).filter(name => name !=
   'NewMainScene',
   'GameScene',
   'JuggleBallGameScene',
-  'PenguinStackFeedGameScene',
+  'DuckGrabFeedGameScene',
   'FoodDeliveryFeedGameScene',
   'WhiteGooseFeedGameScene',
   'MotoRaceGameScene',
@@ -108,7 +112,7 @@ const cardNames = content._children.map(ref => scene[ref.__id__]._name);
 assert(!cardNames.some(name => /Archery|NailHammer|BalloonWheel/.test(name)), 'retired lobby cards must be removed');
 assert.deepEqual(cardNames.filter(name => name !== 'MathExamCard'), [
   'PuzzleGameCard',
-  'PenguinStackCard',
+  'DuckGrabCard',
   'FoodDeliveryCard',
   'WhiteGooseCard',
   'MotoRaceCard',

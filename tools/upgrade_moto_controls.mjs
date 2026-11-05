@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import {SceneAuthor,ref,rgba} from './penguin_scene_authoring.mjs';
+import {SceneAuthor,ref,rgba} from './feed_scene_authoring.mjs';
 const file='assets/gamescene/MotoRaceGameScene.scene',o=JSON.parse(fs.readFileSync(file));
 const c=o.find(v=>v.steeringPad&&v.world),root=c.layoutRoot.__id__,a=new SceneAuthor(o,'motoControls');
 const pad=c.steeringPad.__id__,padTransform=o[o[pad]._components.find(r=>o[r.__id__].__type__==='cc.UITransform').__id__];

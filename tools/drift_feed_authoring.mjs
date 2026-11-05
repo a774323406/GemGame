@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import {SceneAuthor,compressUuid,ref,rgba} from './penguin_scene_authoring.mjs';
+import {SceneAuthor,compressUuid,ref,rgba} from './feed_scene_authoring.mjs';
 import {appendSceneGlobals,fitFeedResultOverlay} from './feed_result_layout.mjs';
 import {standardizeLobbyCard} from './lobby_card_style.mjs';
 export const uuid=name=>{const h=crypto.createHash('sha256').update('GemGame/driftFeed/'+name).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;};
@@ -35,7 +35,7 @@ export function buildDriftFeedScene(){
  const title=label(a,'ResultTitle',panel,'挑战失败',400,104,620,165);
  const detail=label(a,'ResultDetail',panel,'本次通过 0 弯\n最佳纪录 0 弯',145,42,660,240);o[detail.component]._enableWrapText=true;
  const revive=button(a,'ReviveButton',panel,'复活继续',-180),retry=button(a,'RetryButton',panel,'重新挑战',-345,'blue'),home=button(a,'HomeButton',panel,'返回主页',-510);
- a.sprite('VideoBadge',o[revive].node.__id__,frame('assets/res/penguinStackFeed/video-badge.png'),{x:-150,w:72,h:52});
+ a.sprite('VideoBadge',o[revive].node.__id__,frame('assets/res/feedShared/video-badge.png'),{x:-150,w:72,h:52});
  const clip=n=>({__uuid__:uuid(n+'.wav'),__expectedType__:'cc.AudioClip'});
  const ctrl=a.component(canvas,compressUuid(uuid('driftFeedGameScene.ts')),{world:ref(world),background:ref(o[bg]._components.find(r=>o[r.__id__].__type__==='cc.Sprite').__id__),driveSurface:ref(input),hud:ref(hud),guide:ref(guide),scoreLabel:ref(score.component),bestLabel:ref(best.component),hintLabel:ref(hint.component),messageLabel:ref(message.component),pauseButton:ref(pause),resultOverlay:ref(overlay),resultTitle:ref(title.component),resultDetail:ref(detail.component),reviveButton:ref(revive),retryButton:ref(retry),homeButton:ref(home),roadFrames:['road_straight_600','road_left_90_r300','road_180_r300'].map(n=>({__uuid__:asset('road/'+n+'.png'),__expectedType__:'cc.SpriteFrame'})),arrowFrame:{__uuid__:asset('road/speed-arrow.png'),__expectedType__:'cc.SpriteFrame'},carFrame:{__uuid__:asset('car/player-car.png'),__expectedType__:'cc.SpriteFrame'},audioClips:['engine','drift','attach','score','boost','crash'].map(clip).concat([{__uuid__:JSON.parse(fs.readFileSync('assets/res/sound/getUserBgm.mp3.meta')).uuid,__expectedType__:'cc.AudioClip'}])});
  o[1]._globals=ref(appendSceneGlobals(src,o));fitFeedResultOverlay(o,'DriftFeedGameScene');

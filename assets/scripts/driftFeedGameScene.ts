@@ -1,4 +1,4 @@
-import {_decorator,AudioClip,Button,Color,Component,EventTouch,director,game,Game,Label,Node,Sprite,SpriteFrame,sys,view,ResolutionPolicy,Widget} from 'cc';
+import {_decorator,AudioClip,Button,Color,Component,EventTouch,game,Game,Label,Node,Sprite,SpriteFrame,sys,view,ResolutionPolicy,Widget} from 'cc';
 import {DriftFeedRun} from './drift/driftFeedRules';
 import {DriftFeedView,DRIFT_THEMES} from './drift/driftFeedView';
 import {DriftFeedEffects} from './drift/driftFeedEffects';
@@ -45,11 +45,11 @@ export class driftFeedGameScene extends Component {
   this.visual.render(this.run.snapshot,this.run.track,0);
   this.driveSurface.on(Node.EventType.TOUCH_START,this.press,this);this.driveSurface.on(Node.EventType.TOUCH_END,this.release,this);this.driveSurface.on(Node.EventType.TOUCH_CANCEL,this.release,this);
   this.pauseButton.node.on(Button.EventType.CLICK,this.togglePause,this);this.retryButton.node.on(Button.EventType.CLICK,this.retry,this);this.reviveButton.node.on(Button.EventType.CLICK,this.requestRevive,this);this.homeButton.node.on(Button.EventType.CLICK,this.home,this);
-  director.on(SdkUtils.EVENT_INTERSTITIAL_SHOWN,this.onInterstitialShown,this);
   game.on(Game.EVENT_HIDE,this.onHide,this);game.on(Game.EVENT_SHOW,this.onShow,this);
   FeedAcquisitionService.init();this.feed=FeedAcquisitionService.isActive();const state=FeedAcquisitionService.getState();this.entered=!this.feed||state.entered;this.exited=this.feed&&state.exited;FeedAcquisitionService.addListener(this.feedChanged);
  }
  protected start():void {
+    adc.onEnterGame(this.node);
   if(this.feed){void FeedAcquisitionService.reportSceneReadyAfterStableRender({owner:this.node,requiredVisibleNodes:[this.world,this.background.node],stableFrameCount:3,surfaceDelayMs:180,isReady:()=>!this.disposed&&!this.leaving&&!this.exited});this.scheduleAd();}
  }
  private scheduleAd():void{if(!this.feed||!this.entered||this.exited||this.adScheduled)return;this.adScheduled=true;adc.scheduleFeedEntryInterstitial(()=>!this.disposed&&!this.leaving&&this.feed&&this.entered&&!this.exited);}
@@ -58,7 +58,6 @@ export class driftFeedGameScene extends Component {
  private press(e:EventTouch):void{if(this.feed&&!this.entered)FeedAcquisitionService.activateFromFirstTouch();if(this.blocked()||this.resultOverlay.active||this.touchId!==null)return;this.audio.unlock();this.touchId=e.getID();this.run.setPressed(true);}
  private release(e:EventTouch):void{if(e.getID()===this.touchId)this.clearTouch();}
  private clearTouch():void{this.touchId=null;this.run.setPressed(false);}
- private onInterstitialShown():void{if(this.disposed||this.leaving)return;this.setPaused(true);}
  private onHide():void{this.hidden=true;this.clearTouch();this.audio.setSuspended(true);}
  private onShow():void{this.hidden=false;this.clearTouch();}
  protected update(dt:number):void {
@@ -98,5 +97,5 @@ export class driftFeedGameScene extends Component {
   });
  }
  private async home():Promise<void>{if(this.leaving)return;this.leaving=true;this.gate.invalidate();this.clearTouch();this.audio.setSuspended(true);try{await GameSceneBundle.loadScene(GameSceneName.Main);}catch(e){this.leaving=false;console.error('[DriftFeed] return failed',e);}}
- protected onDestroy():void{this.disposed=true;director.off(SdkUtils.EVENT_INTERSTITIAL_SHOWN,this.onInterstitialShown,this);this.gate.invalidate();game.off(Game.EVENT_HIDE,this.onHide,this);game.off(Game.EVENT_SHOW,this.onShow,this);FeedAcquisitionService.removeListener(this.feedChanged);if(this.feed){adc.cancelFeedEntryInterstitial();FeedAcquisitionService.completeSession();}this.audio?.dispose();this.effects?.dispose();this.releaseMusic?.();}
+ protected onDestroy():void{this.disposed=true;this.gate.invalidate();game.off(Game.EVENT_HIDE,this.onHide,this);game.off(Game.EVENT_SHOW,this.onShow,this);FeedAcquisitionService.removeListener(this.feedChanged);if(this.feed){adc.cancelFeedEntryInterstitial();FeedAcquisitionService.completeSession();}this.audio?.dispose();this.effects?.dispose();this.releaseMusic?.();}
 }

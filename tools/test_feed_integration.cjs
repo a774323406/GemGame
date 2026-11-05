@@ -25,11 +25,11 @@ class UIOpacity {}
 
 function fixture() {
   let now = 1_700_000_000_000, nextTimer = 0, timers = [], busy = false, shown = 0, scheduled = 0;
-  let state = { active: true, mode: 'acquisition', entered: false, exited: false, contentId: '' };
+  let state = { active: true, mode: 'acquisition', entered: false, exited: false, contentId: '', sceneReadyReported: true };
   let feedListener, firstTouches = 0;
   const animations = [];
   const game = new Emitter(), director = new Emitter();
-  let currentScene = { name: 'PenguinStackFeedGameScene', isValid: true };
+  let currentScene = { name: 'DuckGrabFeedGameScene', isValid: true };
   director.getScene = () => currentScene;
   const audio = new Proxy({}, { get: () => () => {} });
   const cc = {
@@ -84,7 +84,6 @@ function fixture() {
         if (name.endsWith('AudioManager')) return { default: audio };
         if (name.endsWith('gamePrefabMgr')) return { default: {}, soundName: {}, uiName: {} };
         if (name.endsWith('PlayData')) return { default: { Instance: { ispause: false } } };
-        if (name.endsWith('penguinStackRules')) return load('penguinStackRules.ts');
         return {};
       },
     });
@@ -102,22 +101,8 @@ function fixture() {
     }
     now = end;
   }
-  function penguin() {
-    currentScene = { name: 'PenguinStackFeedGameScene', isValid: true };
-    const g = new (load('penguinStackFeedGameScene.ts').penguinStackFeedGameScene)();
-    g.node = { isValid: true };
-    g.feedMode = true;
-    g.feedFinished = false;
-    g.disposed = false;
-    g.leaving = false;
-    g.appHidden = false;
-    g.refreshButtons = () => {};
-    g.showFeedPreview = () => {};
-    feedListener = g.onFeedStateChanged;
-    return g;
-  }
   return {
-    load, penguin, advance, adc, game, director, animations, cc,
+    load, advance, adc, game, director, animations, cc,
     shown: () => shown, scheduled: () => scheduled, firstTouches: () => firstTouches,
     destroyScene() { currentScene = null; },
     setState(value) { state = { ...state, ...value }; },
@@ -133,7 +118,7 @@ async function main() {
   test('all remaining result overlays/dims stretch to Canvas and block input', async () => {
     const { fitFeedResultOverlay, appendSceneGlobals } = await import('./feed_result_layout.mjs');
     const names = ['JuggleBallGameScene',
-      'FoodDeliveryFeedGameScene', 'PenguinStackFeedGameScene',
+      'FoodDeliveryFeedGameScene', 'DuckGrabFeedGameScene',
       'WhiteGooseFeedGameScene'];
     for (const name of names) {
       const data = JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`, 'utf8'));
@@ -176,9 +161,17 @@ async function main() {
     const cases = [
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
-      ['CONTENT14860954626', 'PenguinStackFeedGameScene'],
+      ['CONTENT15740674562', 'BrickChopFeedGameScene'],
+      ['xx', 'NewMainScene'],
+      ['CONTENT15740648962', 'DuckGrabFeedGameScene'],
+      ['CONTENT14860954626', 'NewMainScene'],
       ['CONTENT14960528898', 'WhiteGooseFeedGameScene'],
       ['CONTENT15252968962', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT15773045506', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT15218705666', 'MotoRaceGameScene'],
+      ['CONTENT15687335682', 'MotoRaceGameScene'],
+      ['CONTENT15441408514', 'DriftFeedGameScene'],
+      ['CONTENT15644009218', 'DriftFeedGameScene'],
       ['CONTENT15383250178', 'ClayPigeonGameScene'],
     ];
     for (const [contentId, scene, level] of cases) {
@@ -217,31 +210,6 @@ async function main() {
     g.showResult(true, '目标达成');
     assert.equal(g.sceneResultTitle.string, '挑战成功');
     assert.equal(g.sceneResultHomeButton.node.active, false);
-  });
-  test('penguin feed entry schedules one interstitial after the platform delay', () => {
-    const f = fixture(); f.penguin(); f.advance(40);
-    assert.equal(f.shown(), 0); assert.equal(f.scheduled(), 0);
-    f.enter(); f.enter(); assert.equal(f.scheduled(), 1);
-    f.advance(1.99); assert.equal(f.shown(), 0);
-    f.advance(0.02); assert.equal(f.shown(), 1);
-  });
-  test('penguin feed exit cancels and re-entry schedules a fresh interstitial', () => {
-    const f = fixture(); f.penguin(); f.enter(); f.advance(10); f.exit(); f.advance(40);
-    assert.equal(f.shown(), 0);
-    f.enter(); assert.equal(f.scheduled(), 2); f.advance(2.01); assert.equal(f.shown(), 1);
-  });
-  test('penguin session completion keeps repeated ads on the result page', () => {
-    const f = fixture(), g = f.penguin(); f.enter(); g.finishFeed(); f.advance(100);
-    assert.equal(f.shown(), 2);
-  });
-  test('penguin move-only input immediately recovers a missing touch start', () => {
-    const f = fixture(), g = f.penguin();
-    g.dragging = false; g.targetWhaleX = 0;
-    g.continueDrag(0.8);
-    assert.equal(g.dragging, true);
-    assert(Math.abs(g.targetWhaleX - 225) < 0.001);
-    g.continueDrag(0.9);
-    assert.equal(g.targetWhaleX, 305, 'continued dragging must respect the playfield edge');
   });
   for (const [name, run] of tests) { await run(); console.log('PASS ' + name); }
   console.log(`\n${tests.length} feed integration checks passed.`);

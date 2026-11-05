@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import {uuid} from './moto_race_authoring.mjs';
-import {SceneAuthor,ref} from './penguin_scene_authoring.mjs';
+import {SceneAuthor,ref} from './feed_scene_authoring.mjs';
 const write=(file,v)=>fs.writeFileSync(file,JSON.stringify(v,null,2)+'\n');
 const template=JSON.parse(fs.readFileSync('assets/res/mathExamFeed/correction-fluid.png.meta'));
 for(const [name,w,h] of [['riders-atlas.png',1024,1792],['rider-preview.png',256,256]]){

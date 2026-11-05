@@ -171,7 +171,7 @@ function createFixture() {
         } };
       }
       if (id === './framework/Platform/ADController') {
-        return { adc: { cancelFeedEntryInterstitial() {}, scheduleFeedEntryInterstitial() {} } };
+        return { adc: { onEnterGame() {}, cancelFeedEntryInterstitial() {}, scheduleFeedEntryInterstitial() {} } };
       }
       if (id === './framework/Platform/sdk/SdkUtils') {
         return { SdkUtils: {

@@ -102,6 +102,7 @@ export class mathExamFeedGameScene extends Component {
   }
 
   protected start(): void {
+    adc.onEnterGame(this.node);
     AudioManager.setSoundEvent();
     if (!this.feedMode || this.feedEntered) AudioManager.playMusic(soundName.getUserBgm);
     if (this.feedMode) {
@@ -149,7 +150,7 @@ export class mathExamFeedGameScene extends Component {
   };
 
   private isPaused(): boolean {
-    return this.appHidden || this.adInFlight || SdkUtils.isFullscreenAdBusy() || (this.feedMode && (!this.feedEntered || this.feedExited));
+    return this.appHidden || this.adInFlight || (SdkUtils.isFullscreenAdBusy() && !SdkUtils.isInterstitialBusy()) || (this.feedMode && (!this.feedEntered || this.feedExited));
   }
 
   private canWrite(): boolean { return this.phase === 'playing' && !this.isPaused(); }

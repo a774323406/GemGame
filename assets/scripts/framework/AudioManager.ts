@@ -381,7 +381,7 @@ export default class AudioManager {
   }
 
   /**
-   * 重新创建底层播放器并从头播放 BGM。
+   * 恢复未播放的 BGM；已在播放同一首时保持现有播放器。
    *
    * 推荐流会先在隐藏状态预启动游戏。若此时第一次 play 没有收到原生 onPlay，
    * Cocos 的音频操作队列会一直等待；仅再次调用 play 无法恢复。重新绑定 clip
@@ -396,9 +396,14 @@ export default class AudioManager {
       return;
     }
 
+    const clip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
+    // FeedEnter、首次触摸、onShow 可能连续到达，不能重建正在播放的同一个 clip。
+    if (clip && this.currentBgmName === name && this.bgmAudioSource.clip === clip && this.bgmAudioSource.playing) {
+      return;
+    }
+
     this.currentBgmName = name;
     const requestToken = ++this.bgmRequestToken;
-    const clip = gamePrefabMgr.Instance.soundRes[name] as AudioClip;
 
     if (clip) {
       this.playLoadedMusic(name, clip, requestToken, true);
@@ -426,8 +431,19 @@ export default class AudioManager {
     }
 
     if (forceRecreate && this.bgmAudioSource.clip) {
-      // 直接清空 clip 会同步销毁卡住的原生播放器，不经过旧的异步操作队列。
-      this.bgmAudioSource.clip = null;
+      // Cocos 3.8 的 WebAudio destroy 不会停止已启动的 BufferSource。
+      // 先静音并请求停止，确保即使旧操作队列卡住也不会留下重叠的声音。
+      const oldSource = this.bgmAudioSource;
+      const volume = oldSource.volume;
+      oldSource.volume = 0;
+      oldSource.stop();
+      oldSource.clip = null;
+      oldSource.destroy();
+      // 不在原组件上立即重新绑定同一个 clip：旧的异步加载回调只比较 clip 身份，
+      // 可能误认新请求并留下已失去引用的播放器。新组件隔离这些过期回调。
+      this.bgmAudioSource = this.audioNode!.addComponent(AudioSource);
+      this.bgmAudioSource.playOnAwake = false;
+      this.bgmAudioSource.volume = volume;
     }
 
     /**

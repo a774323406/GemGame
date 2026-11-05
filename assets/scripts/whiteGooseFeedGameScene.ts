@@ -176,6 +176,7 @@ export class whiteGooseFeedGameScene extends Component {
   }
 
   protected start(): void {
+    adc.onEnterGame(this.node);
     AudioManager.setSoundEvent();
     if (this.feedMode) {
       FeedAcquisitionService.addListener(this.onFeedStateChanged);

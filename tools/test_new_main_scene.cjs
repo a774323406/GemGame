@@ -106,13 +106,14 @@ assert.equal(layout._constraintNum, 2);
 
 const expectedCards = [
   'PuzzleGameCard',
-  'PenguinStackCard',
+  'DuckGrabCard',
   'FoodDeliveryCard',
   'WhiteGooseCard',
   'MathExamCard',
   'MotoRaceCard',
   'ClayPigeonCard',
   'DriftCard',
+  'BrickChopCard',
 ];
 const contentChildren = content.entry._children.map(object).map(node => node._name);
 assert.deepEqual(contentChildren, expectedCards, 'game cards/order changed');
@@ -162,13 +163,14 @@ for (const { id } of artworkOutlines) {
 
 const buttonProperties = [
   'puzzleButton',
-  'penguinButton',
+  'duckGrabButton',
   'foodDeliveryButton',
   'whiteGooseButton',
   'mathExamButton',
   'motoRaceButton',
   'clayPigeonButton',
   'driftButton',
+  'brickChopButton',
 ];
 buttonProperties.forEach((property, index) => {
   const button = object(controller[property]);
@@ -257,7 +259,7 @@ const rasterBytes = rasterFiles.reduce((total, filename) =>
 assert(rasterBytes < 1024 * 1024, `new lobby images exceed 1 MiB: ${rasterBytes}`);
 
 const previewFiles = rasterFiles.filter(filename => /^preview_.*\.jpg$/i.test(filename));
-assert.equal(previewFiles.length, 2, 'expected two retained extracted preview images');
+assert.equal(previewFiles.length, 1, 'duck preview reuses gameplay art');
 for (const filename of previewFiles) {
   const meta = JSON.parse(read(`assets/res/newMain/${filename}.meta`));
   const frame = meta.subMetas.f9941.userData;

@@ -1,0 +1,9 @@
+import fs from 'node:fs';import {createRequire} from 'node:module';import {uuid} from './duck_grab_authoring.mjs';
+const require=createRequire(import.meta.url),sharp=require('/Users/skyhand/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');
+const dir='assets/res/duckGrabFeed';fs.mkdirSync(dir,{recursive:true});
+const root='/Users/skyhand/.codex/generated_images/01a0cbf0-ddba-70f3-a6ee-b21f1e46c43c/';
+const images=[['caught.png','exec-0567e479-7df9-42d2-8382-63527c30b75a.png',300,310],['meadow.jpg','exec-e0d7d687-cb77-4a8a-ae53-a7c837ba6d97.png',512,1109],['duck.png','exec-ff597c0c-d63d-4e1c-ac0f-67d37496893c.png',180,310],['hand.png','exec-c7903ed1-588c-4982-a51b-31102e9eca90.png',112,154]];
+for(const [name,raw,w,h]of images){let im=sharp(root+raw);if(name.endsWith('.jpg'))im=im.resize(w,h,{fit:'fill'}).jpeg({quality:77,mozjpeg:true});else im=im.trim({threshold:30}).resize(w,h,{fit:'fill'}).png({palette:true,colours:64,dither:0,effort:10});await im.toFile(dir+'/'+name);
+ const template=fs.readFileSync('assets/res/foodDeliveryFeed/white.png.meta','utf8'),old=JSON.parse(template).uuid;const m=JSON.parse(template.replaceAll(old,uuid(name)).replaceAll('"white"',JSON.stringify(name.split('.')[0])));m.files=['.json',name.endsWith('.jpg')?'.jpg':'.png'];m.userData.hasAlpha=!name.endsWith('.jpg');const d=m.subMetas.f9941.userData;Object.assign(d,{width:w,height:h,rawWidth:w,rawHeight:h,packable:false});const x=w/2,y=h/2;d.vertices.rawPosition=[-x,-y,0,x,-y,0,-x,y,0,x,y,0];d.vertices.minPos=[-x,-y,0];d.vertices.maxPos=[x,y,0];fs.writeFileSync(dir+'/'+name+'.meta',JSON.stringify(m,null,2)+'\n');}
+for(const name of ['duckGrabFeed','feedShared'])fs.writeFileSync('assets/res/'+name+'.meta',JSON.stringify({ver:'1.2.0',importer:'directory',imported:true,uuid:uuid(name),files:[],subMetas:{},userData:{}},null,2)+'\n');
+console.log(images.map(([n])=>[n,fs.statSync(dir+'/'+n).size]));

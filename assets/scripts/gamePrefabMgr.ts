@@ -13,7 +13,6 @@ export enum soundName {
   bgm = "bgm",
   buttonClick = "buttonClick",
   getUserBgm = "getUserBgm",
-  archeryShoot = "archeryShoot",
   pingPongHit = "pingPongHit",
   countDown = "countDown",
   fail = "fail",
@@ -33,7 +32,6 @@ const UI_PREFAB_UUIDS: Partial<Record<uiName, string>> = {
 
 export const SOUND_ASSET_UUIDS: Partial<Record<soundName, string>> = {
   [soundName.getUserBgm]: "d6e118a1-2a61-4d90-90af-7637e691b99b",
-  [soundName.archeryShoot]: "510a19fb-79c0-42b4-92d7-b5e8efb563bf",
   [soundName.pingPongHit]: "cb69a817-40f3-4cd8-b99d-4aad28b3f1c7",
   [soundName.countDown]: "bb6dc42a-4883-4049-a42f-dfedede2d19c",
   [soundName.whiteGooseBgm]: "b87e7117-2101-541c-a09a-d9098dc1999f",

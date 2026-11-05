@@ -156,6 +156,7 @@ function fixture({ state: stateOverride = {}, loadSceneError = null, rewardedRes
     reportSceneReadyAfterStableRender(options) { readyReports.push(options); return Promise.resolve(true); },
   };
   const adc = {
+    onEnterGame() {},
     scheduleFeedEntryInterstitial(eligible) { ads.push({ type: 'schedule', eligible }); },
     cancelFeedEntryInterstitial() { ads.push({ type: 'cancel' }); },
   };

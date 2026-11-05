@@ -40,6 +40,7 @@ const cc = { _decorator:{ccclass:()=>v=>v,property:()=>()=>{}}, Component, Node,
 };
 let state = {active:true,entered:false,exited:false};
 let listener, complete=0, scheduled=0, busy=false, failLoad=false, musicStarts=0;
+let interstitial=false;
 let rewardResolve, rewardReject, adCalls=0;
 const showRewardedVideo=()=>{adCalls++;return new Promise((resolve,reject)=>{rewardResolve=resolve;rewardReject=reject;});};
 const feed={init(){},isActive:()=>state.active,getState:()=>state,addListener:fn=>listener=fn,removeListener(){},
@@ -50,8 +51,8 @@ const imports={'cc':cc,'./gamePrefabMgr':{soundName:{getUserBgm:'getUserBgm'}},'
   './inkEraser':compile('assets/scripts/inkEraser.ts'),
   './framework/AudioManager':{default:audio},
   './framework/Platform/FeedAcquisitionService':{FeedAcquisitionService:feed},
-  './framework/Platform/ADController':{adc:{cancelFeedEntryInterstitial(){},scheduleFeedEntryInterstitial(){scheduled++;}}},
-  './framework/Platform/sdk/SdkUtils':{SdkUtils:{isFullscreenAdBusy:()=>busy,showRewardedVideo}},
+  './framework/Platform/ADController':{adc:{onEnterGame() {}, cancelFeedEntryInterstitial(){},scheduleFeedEntryInterstitial(){scheduled++;}}},
+  './framework/Platform/sdk/SdkUtils':{SdkUtils:{isFullscreenAdBusy:()=>busy,isInterstitialBusy:()=>interstitial,showRewardedVideo}},
   './framework/GameSceneBundle':{GameSceneName:{Main:'NewMainScene'},GameSceneBundle:{loadScene:async()=>{if(failLoad)throw Error('offline');}}}};
 const {mathExamFeedGameScene:Controller}=compile(file,imports);
 function fixture() {
@@ -76,6 +77,7 @@ function fixture() {
   c.update(8); assert.equal(c.round.remaining,60,'preview must not consume time');
   state={...state,entered:true}; listener(state); c.update(2); assert.equal(c.round.remaining,58);
   listener(state); assert.equal(c.round.remaining,58,'duplicate entry must not reset'); assert.equal(scheduled,1);
+  busy=true; interstitial=true; c.update(1); assert.equal(c.round.remaining,57,'interstitial keeps timer running'); interstitial=false; c.round.remaining=58;
   busy=true; c.update(5); assert.equal(c.round.remaining,58,'ad pauses timer'); busy=false;
   c.onGameHide(); c.update(4); assert.equal(c.round.remaining,58,'background pauses timer'); c.onGameShow();
   state={...state,exited:true}; listener(state); c.update(5); assert.equal(c.round.remaining,58,'feed exit pauses timer');

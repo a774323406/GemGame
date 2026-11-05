@@ -416,6 +416,7 @@ export class gameScene extends Component {
         ? (this.heartFeedMode ? FEED_HEART_LEVEL : FEED_ACQUISITION_LEVEL)
         : this.getStoredLevelIndex();
     const levelLoaded = await this.loadLevel(this.levelIndex);
+    if (levelLoaded) adc.onEnterGame(this.node);
 
     if (this.feedMode && levelLoaded) {
       this.feedSceneReady = true;

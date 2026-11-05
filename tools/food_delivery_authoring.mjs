@@ -7,7 +7,7 @@ import {
   ref,
   rgba,
   vec,
-} from './penguin_scene_authoring.mjs';
+} from './feed_scene_authoring.mjs';
 import { appendSceneGlobals, fitFeedResultOverlay } from './feed_result_layout.mjs';
 
 export function assetUuid(name) {
@@ -379,7 +379,7 @@ export function appendFoodDeliveryCard(objects) {
   }
 
   const controller = objects.find(item =>
-    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.penguinButton && item?.gameList);
+    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.duckGrabButton && item?.gameList);
   if (!controller) throw new Error('NewMainScene controller is missing');
 
   const content = objects[contentId];

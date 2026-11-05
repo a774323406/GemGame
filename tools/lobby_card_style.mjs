@@ -1,7 +1,7 @@
 // Upgrade appended lobby cards to the shared card chrome without changing their
 // root/Button references or the surrounding editor-authored scene layout.
 import fs from 'node:fs';
-import { SceneAuthor, ref, rgba, vec } from './penguin_scene_authoring.mjs';
+import { SceneAuthor, ref, rgba, vec } from './feed_scene_authoring.mjs';
 const frame = file => `${JSON.parse(fs.readFileSync(`${file}.meta`)).uuid}@f9941`;
 const component = (objects, node, type) => objects[node]._components
   .map(r => objects[r.__id__]).find(v => v.__type__ === type);

@@ -1,5 +1,5 @@
 // Non-destructive NewMainScene card appender for the white-goose game.
-import { ref, vec } from './penguin_scene_authoring.mjs';
+import { ref, vec } from './feed_scene_authoring.mjs';
 
 const WHITE_GOOSE_PREVIEW = '9bc09818-0e84-5ea3-a1a0-42cca593f1bd@f9941';
 const WHITE_GOOSE_TITLE = '8ef97696-879e-43df-b9dc-42991bd5fedf@f9941';
@@ -73,7 +73,7 @@ export function appendWhiteGooseCard(objects) {
   }
 
   const controller = objects.find(item =>
-    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.penguinButton && item?.gameList);
+    item?.node?.__id__ === canvasId && item?.puzzleButton && item?.duckGrabButton && item?.gameList);
   if (!controller) throw new Error('NewMainScene controller is missing');
 
   const content = objects[contentId];

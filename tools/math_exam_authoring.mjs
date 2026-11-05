@@ -1,7 +1,7 @@
 import { standardizeLobbyCard } from './lobby_card_style.mjs';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { SceneAuthor, compressUuid, ref, rgba, vec } from './penguin_scene_authoring.mjs';
+import { SceneAuthor, compressUuid, ref, rgba, vec } from './feed_scene_authoring.mjs';
 import { appendSceneGlobals, fitFeedResultOverlay } from './feed_result_layout.mjs';
 
 export function mathUuid(name) {
@@ -26,7 +26,7 @@ function text(a, name, parent, caption, x, y, w, h, size, color = inkColor, extr
   return a.label(name, parent, caption, { x, y, w, h, size, color, outline: false, bold: false, ...extra });
 }
 function resultButton(a, name, parent, caption, y, rewarded = false) {
-  const id = a.sprite(name, parent, frame('assets/res/penguinStackFeed/action-orange.png'), { y, w: 360, h: 112 });
+  const id = a.sprite(name, parent, frame('assets/res/feedShared/action-orange.png'), { y, w: 360, h: 112 });
   a.label('Caption', id, caption, {
     x: rewarded ? 18 : 0, w: rewarded ? 248 : 336, h: 62, size: 34,
     color: rgba(255, 255, 255), outlineColor: rgba(117, 57, 20), outlineWidth: 3,

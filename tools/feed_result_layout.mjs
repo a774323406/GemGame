@@ -1,6 +1,6 @@
 import { fitFeedScreenControls } from './feed_screen_layout.mjs';
 import fs from "node:fs";
-import { SceneAuthor, compressUuid, ref } from "./penguin_scene_authoring.mjs";
+import { SceneAuthor, compressUuid, ref } from "./feed_scene_authoring.mjs";
 // Offline scene-authoring helper only. Runtime UI stays serialized in Creator.
 export function appendSceneGlobals(source, destination) {
   const start = source.findIndex(o => o.__type__ === "cc.SceneGlobals");
@@ -118,8 +118,8 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
   };
   const asset = name => JSON.parse(fs.readFileSync(new URL('../assets/res/feedResult/'+name+'.png.meta', import.meta.url))).uuid + '@f9941';
   const whiteFrame=JSON.parse(fs.readFileSync(new URL('../assets/res/foodDeliveryFeed/white.png.meta',import.meta.url))).uuid+'@f9941';
-  const videoFrame=JSON.parse(fs.readFileSync(new URL('../assets/res/penguinStackFeed/video-badge.png.meta',import.meta.url))).uuid+'@f9941';
-  const buttonFrame = name => asset(sceneName === 'PenguinStackFeedGameScene' ? (name === 'RetryButton' ? 'button-blue' : name === 'NextButton' ? 'button-green' : 'button-orange') : 'button-orange');
+  const videoFrame=JSON.parse(fs.readFileSync(new URL('../assets/res/feedShared/video-badge.png.meta',import.meta.url))).uuid+'@f9941';
+  const buttonFrame = () => asset('button-orange');
   for(const id of descendants) {
     const n=objects[id], name=n._name;
     if(["ResultPanel","CuteResultPanel","Panel","SuccessActions","FailureActions"].includes(name)) {
@@ -150,9 +150,6 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
         n._lpos.y=0;
       }
     }
-    if(sceneName === 'PenguinStackFeedGameScene' && ['SuccessCat','FailCat'].includes(name)) {
-      const sprite=component(id,'cc.Sprite');if(sprite)sprite._enabled=false;
-    }
     if(["ResultDim","ResultDimBackground","DimBackground","Shade","Mask","Dimmer"].includes(name)) {
       const sprite=component(id,"cc.Sprite"), opacity=component(id,"cc.UIOpacity");
       if(sprite) {sprite._color=color(0,0,0,opacity ? 255 : 145);sprite._spriteFrame={__uuid__:whiteFrame,__expectedType__:"cc.SpriteFrame"};}
@@ -160,11 +157,10 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     }
   }
   const layouts = {
+    BrickChopFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
+    DuckGrabFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
     DriftFeedGameScene: [["Kicker",550,640,60,42],["ResultTitle",400,620,165,104],["ResultDetail",145,660,240,42],["ReviveButton",-180,470,138],["RetryButton",-345,470,138],["HomeButton",-510,470,138]],
     ClayPigeonGameScene: [["Kicker",550,640,60,42],["ResultTitle",420,620,165,104],["ResultDetail",140,660,310,42],["ResumeButton",-170,470,138],["ReplayButton",-335,470,138],["HomeButton",-500,470,138]],
-    PenguinStackFeedGameScene: [
-      ["ResultTitle",395,620,165,104],["ResultDetail",225,650,160,42],
-      ["NextButton",-180,470,138],["ReviveButton",-180,470,138],["RetryButton",-345,470,138],["HomeButton",-510,470,138]],
     MotoRaceGameScene: [["Kicker",550,640,60,42],["ResultTitle",420,620,165,104],
       ["ResultDetail",140,660,310,42],["ResumeButton",-170,470,138],["ReplayButton",-335,470,138],["HomeButton",-500,470,138]],
     MathExamFeedGameScene: [["ResultKicker",550,640,60,42],["ResultTitle",395,620,165,104],
@@ -222,7 +218,7 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     objects[overlayId]._children=[ref(dimId),...objects[overlayId]._children.filter(r=>r.__id__!==dimId)];
   }
   const panelId=find('ResultPanel') ?? find('CuteResultPanel') ?? find('Panel');
-  const gameTitles={PenguinStackFeedGameScene:'企鹅叠叠乐',JuggleBallGameScene:'乒乓球挑战'};
+  const gameTitles={JuggleBallGameScene:'乒乓球挑战'};
   if(gameTitles[sceneName]) {
     let id=find('ResultGameKicker');
     if(id===undefined) {const created=author.label('ResultGameKicker',panelId,gameTitles[sceneName],{w:650,h:65,size:42,bold:true,outline:true,outlineWidth:3});id=created.node;descendants.push(id);}
@@ -238,9 +234,10 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     artworks.push(ref(objects[artworkId]._components.find(r=>objects[r.__id__].__type__==='cc.Sprite').__id__));
   }
   const hudNames={
+    BrickChopFeedGameScene:["HUD","HitMessage"],
+    DuckGrabFeedGameScene:["HUD"],
     DriftFeedGameScene:["HUD","Guide","Message"],
     ClayPigeonGameScene:["TopHUD","BottomHUD","RoundTip"],
-    PenguinStackFeedGameScene:['TopHUD','BottomHUD','CaughtLabel','MoveGuide','CatchFeedback'],
     MathExamFeedGameScene:['BackButton','AddTimeButton','CorrectionFluid'],
     MotoRaceGameScene:['HudShapes','Armor','RankPanel','Rank','Time','PauseButton','BackButton','Speed','SpeedUnit','PunchButton','KickButton','Message','Countdown','BoostButton','SteeringPad'],
     JuggleBallGameScene:['HeaderPanel','GoalPanel','LevelLabel','GoalLabel','ChanceLabel','BackButton','ScoreLabel','StatusLabel','ReadyArrow','MoveHint','SlowdownButton','ExtraChanceButton'],

@@ -138,7 +138,7 @@ async function main() {
     .map(reference => reference.__id__)
     .find(id => menuScene[id].__type__ === 'cc.UITransform');
   const controllerId = menuScene.findIndex(item =>
-    item?.puzzleButton && item?.penguinButton && item?.gameList);
+    item?.puzzleButton && item?.duckGrabButton && item?.gameList);
   content._children = content._children.filter(reference => reference.__id__ < serializedFoodCardId);
   menuScene[transformId]._contentSize.height = 888;
   delete menuScene[controllerId].foodDeliveryButton;

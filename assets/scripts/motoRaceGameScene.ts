@@ -75,6 +75,7 @@ export class motoRaceGameScene extends Component {
     adc.scheduleFeedEntryInterstitial(()=>!!this.node?.isValid&&!this.disposed&&!this.leaving&&!this.sessionFinished&&!this.feedBlocked());
   }
   protected start():void {
+    adc.onEnterGame(this.node);
     if(!this.feedMode)return;
     void FeedAcquisitionService.reportSceneReadyAfterStableRender({owner:this.node,requiredVisibleNodes:[this.layoutRoot,this.world.node],stableFrameCount:3,surfaceDelayMs:180,isReady:()=>!this.leaving&&!this.disposed&&!this.feedExited});
     this.scheduleFeedAd();
@@ -187,7 +188,7 @@ export class motoRaceGameScene extends Component {
   private syncMusic():void {
     if(!this.music)return;
     const allowed=!this.feedBlocked()&&!this.hidden&&!this.leaving&&!this.race.paused&&!this.adInFlight
-      &&this.race.status==='racing'&&!SdkUtils.isFullscreenAdBusy()&&gameStorage.getMusic()!==1;
+      &&this.race.status==='racing'&&!(SdkUtils.isFullscreenAdBusy()&&!SdkUtils.isInterstitialBusy())&&gameStorage.getMusic()!==1;
     if(allowed){if(!this.music.playing)this.music.play();}
     else if(this.music.playing)this.music.pause();
   }
@@ -196,7 +197,7 @@ export class motoRaceGameScene extends Component {
   }
   protected update(dt:number):void {
     this.syncMusic();
-    if(this.feedBlocked()||this.hidden||this.leaving||this.race.paused||this.adInFlight||SdkUtils.isFullscreenAdBusy()){this.clearInput();return;}
+    if(this.feedBlocked()||this.hidden||this.leaving||this.race.paused||this.adInFlight||(SdkUtils.isFullscreenAdBusy()&&!SdkUtils.isInterstitialBusy())){this.clearInput();return;}
     if(this.race.status!=='racing')return;
     dt=Math.min(dt,.1);
     if(this.countdown>0){this.countdown=Math.max(0,this.countdown-dt);this.countdownLabel.string=this.countdown>0?String(Math.ceil(this.countdown)):'出发！';}
