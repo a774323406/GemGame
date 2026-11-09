@@ -28,7 +28,7 @@
 
 ## 推荐流配置
 
-`assets/scripts/framework/Platform/FeedRevisitConfig.ts` 中的 `FEED_MATH_EXAM_CONTENT_ID` 已配置为用户提供的 `CONTENT15952591106`。该获客流入口直接进入 `MathExamFeedGameScene`（口算大挑战）；现有复访兜底保持原行为。集成检查使用此实际 ID 和项目配置验证跳转。
+`assets/scripts/framework/Platform/FeedRevisitConfig.ts` 中的 `FEED_MATH_EXAM_CONTENT_ID` 已配置为用户提供的 `CONTENT16146432770`。该获客流入口直接进入 `MathExamFeedGameScene`（口算大挑战）；现有复访兜底保持原行为。集成检查使用此实际 ID 和项目配置验证跳转。
 
 预览不计时，正式进入开始完整回合。切后台、全屏广告、推荐流退出时暂停。返回大厅时清理触摸、动画和推荐流会话。正式发布前仍需在抖音真机核对实际 Content ID、首次进入通知及广告时序。
 

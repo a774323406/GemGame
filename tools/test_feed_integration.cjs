@@ -154,25 +154,25 @@ async function main() {
   test('new Content IDs route to the requested games; juggle selects the correct level', () => {
     const f = fixture();
     const config = f.load('framework/Platform/FeedRevisitConfig.ts');
-    assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'CONTENT15897922306');
-    assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT15834999298');
+    assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'CONTENT15937188866');
+    assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT16146433026');
     const loader = new (f.load('loadScene.ts').loadScene)();
     const juggle = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)(); juggle.feedMode = true;
     const cases = [
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
-      ['CONTENT15998976770', 'BrickChopFeedGameScene'],
+      ['CONTENT16082608130', 'BrickChopFeedGameScene'],
       ['xx', 'NewMainScene'],
-      ['CONTENT15825748994', 'DuckGrabFeedGameScene'],
+      ['CONTENT15825843202', 'DuckGrabFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
-      ['CONTENT15897922306', 'WhiteGooseFeedGameScene'],
-      ['CONTENT15834999298', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT15937188866', 'WhiteGooseFeedGameScene'],
+      ['CONTENT16146433026', 'FoodDeliveryFeedGameScene'],
       ['CONTENT15773045506', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT15646532866', 'MotoRaceGameScene'],
+      ['CONTENT16072561410', 'MotoRaceGameScene'],
       ['CONTENT15687335682', 'MotoRaceGameScene'],
-      ['CONTENT15646533122', 'DriftFeedGameScene'],
+      ['CONTENT15927315970', 'DriftFeedGameScene'],
       ['CONTENT15644009218', 'DriftFeedGameScene'],
-      ['CONTENT15825792770', 'ClayPigeonGameScene'],
+      ['CONTENT16248433922', 'ClayPigeonGameScene'],
     ];
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene);
