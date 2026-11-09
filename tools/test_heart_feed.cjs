@@ -9,7 +9,7 @@ class Stub { clone() { return new Stub(); } }
 Stub.EventType={TOUCH_START:'touch-start'};
 Stub.WHITE = new Stub(); Stub.ONE = new Stub();
 const cc = new Proxy({ _decorator: { ccclass: () => c => c, property: (...args) => args.length >= 2 ? undefined : () => {} }, Component: Stub, sys: {localStorage} }, {get: (o,k) => o[k] ?? Stub});
-let state = {active:true, mode:'acquisition', contentId:'CONTENT15319004674', entered:false};
+let state = {active:true, mode:'acquisition', contentId:'CONTENT16082560258', entered:false};
 const feed = {init(){}, isActive:()=>state.active, isAcquisition:()=>state.mode==='acquisition', isRevisit:()=>state.mode==='revisit', getState:()=>state, getContentId:()=>state.contentId, addListener(){}, activateFromFirstTouch(){state={...state,entered:true};}};
 let scheduled = 0, cancelled = 0, validity;
 const audioCalls=[];let adBusy=false;
