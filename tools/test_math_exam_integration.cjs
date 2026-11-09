@@ -21,9 +21,9 @@ function load(file) {
 const Loader=load('loadScene').loadScene;
 const loader=new Loader();loader.warnUnknownFeedContentId=()=>{};
 assert.equal(loader.resolveFeedEntry().sceneName,'NewMainScene','empty unconfigured content ID must preserve fallback');
-state.contentId='CONTENT15271990018';
+state.contentId='CONTENT15825828354';
 assert.equal(loader.resolveFeedEntry().sceneName,'MathExamFeedGameScene','the actual acquisition ID must enter math exam using project configuration');
-state.contentId='CONTENT15218705666';
+state.contentId='CONTENT15897954818';
 assert.equal(loader.resolveFeedEntry().sceneName,'MotoRaceGameScene','motorcycle acquisition ID routes directly to its scene');
 state.mode='revisit';
 assert.equal(loader.resolveFeedEntry().sceneName,'NewMainScene','retired revisit entry returns to the lobby');

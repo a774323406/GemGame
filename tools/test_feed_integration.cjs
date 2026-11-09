@@ -154,28 +154,32 @@ async function main() {
   test('new Content IDs route to the requested games; juggle selects the correct level', () => {
     const f = fixture();
     const config = f.load('framework/Platform/FeedRevisitConfig.ts');
-    assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'CONTENT14960528898');
-    assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT15252968962');
     const loader = new (f.load('loadScene.ts').loadScene)();
     const juggle = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)(); juggle.feedMode = true;
     const cases = [
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
-      ['CONTENT15740674562', 'BrickChopFeedGameScene'],
+      ['CONTENT15319004674', 'GameScene'],
+      ['CONTENT16249041666', 'WhiteGooseFeedGameScene'],
+      ['CONTENT15825828354', 'MathExamFeedGameScene'],
+      ['CONTENT15960888834', 'ClayPigeonGameScene'],
+      ['CONTENT15936572162', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT15897954818', 'MotoRaceGameScene'],
+      ['CONTENT15927306754', 'DriftFeedGameScene'],
+      ['CONTENT15927307010', 'DuckGrabFeedGameScene'],
+      ['CONTENT15825829378', 'BrickChopFeedGameScene'],
       ['xx', 'NewMainScene'],
-      ['CONTENT15740648962', 'DuckGrabFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
-      ['CONTENT14960528898', 'WhiteGooseFeedGameScene'],
-      ['CONTENT15252968962', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT15773045506', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT15218705666', 'MotoRaceGameScene'],
-      ['CONTENT15687335682', 'MotoRaceGameScene'],
-      ['CONTENT15441408514', 'DriftFeedGameScene'],
-      ['CONTENT15644009218', 'DriftFeedGameScene'],
-      ['CONTENT15383250178', 'ClayPigeonGameScene'],
     ];
+    // Replaced primary and extra IDs must no longer launch the retired entry.
+    for (const contentId of [
+      'CONTENT14960528898','CONTENT15271990018','CONTENT15383250178',
+      'CONTENT15252968962','CONTENT15773045506','CONTENT15218705666',
+      'CONTENT15687335682','CONTENT15441408514','CONTENT15644009218',
+      'CONTENT15740648962','CONTENT15740674562',
+    ]) cases.push([contentId, 'NewMainScene']);
     for (const [contentId, scene, level] of cases) {
-      f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene);
+      f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene, contentId);
       if (level) assert.equal(juggle.resolveEntryLevel(), level);
     }
     f.setState({ contentId: 'unknown' }); assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene');

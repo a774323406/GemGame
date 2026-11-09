@@ -19,7 +19,6 @@ import {
 } from "./framework/Platform/FeedAcquisitionService";
 import {
   FEED_FOOD_DELIVERY_CONTENT_ID,
-  FEED_FOOD_DELIVERY_EXTRA_CONTENT_ID,
   FEED_JUGGLE_CONTENT_ID,
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
   FEED_DUCK_GRAB_CONTENT_ID,
@@ -27,10 +26,8 @@ import {
   FEED_WHITE_GOOSE_CONTENT_ID,
   FEED_MATH_EXAM_CONTENT_ID,
   FEED_MOTO_RACE_CONTENT_ID,
-  FEED_MOTO_RACE_EXTRA_CONTENT_ID,
   FEED_CLAY_PIGEON_CONTENT_ID,
   FEED_DRIFT_CONTENT_ID,
-  FEED_DRIFT_EXTRA_CONTENT_ID,
   FEED_HEART_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
@@ -201,8 +198,7 @@ export class loadScene extends Component {
       return { sceneName: GameSceneName.Game, reason: `推荐流爱心第 8 关（${contentId}）` };
     }
 
-    if ((FEED_DRIFT_CONTENT_ID && contentId === FEED_DRIFT_CONTENT_ID) ||
-      contentId === FEED_DRIFT_EXTRA_CONTENT_ID) {
+    if (FEED_DRIFT_CONTENT_ID && contentId === FEED_DRIFT_CONTENT_ID) {
       return { sceneName: GameSceneName.DriftFeedGame, reason: `推荐流漂移（${contentId}）` };
     }
 
@@ -210,7 +206,7 @@ export class loadScene extends Component {
       return { sceneName: GameSceneName.ClayPigeonGame, reason: `推荐流飞碟射击（${contentId}）` };
     }
 
-    if (contentId === FEED_MOTO_RACE_CONTENT_ID || contentId === FEED_MOTO_RACE_EXTRA_CONTENT_ID) {
+    if (contentId === FEED_MOTO_RACE_CONTENT_ID) {
       return { sceneName: GameSceneName.MotoRaceGame, reason: `推荐流狂暴摩托（${contentId}）` };
     }
 
@@ -242,10 +238,7 @@ export class loadScene extends Component {
       };
     }
 
-    if (
-      (FEED_FOOD_DELIVERY_CONTENT_ID && contentId === FEED_FOOD_DELIVERY_CONTENT_ID) ||
-      contentId === FEED_FOOD_DELIVERY_EXTRA_CONTENT_ID
-    ) {
+    if (FEED_FOOD_DELIVERY_CONTENT_ID && contentId === FEED_FOOD_DELIVERY_CONTENT_ID) {
       return {
         sceneName: GameSceneName.FoodDeliveryFeedGame,
         reason: "外卖精准投送获客玩法",
