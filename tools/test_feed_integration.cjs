@@ -168,7 +168,7 @@ async function main() {
       ['CONTENT15927306754', 'DriftFeedGameScene'],
       ['CONTENT15927307010', 'DuckGrabFeedGameScene'],
       ['CONTENT15825829378', 'BrickChopFeedGameScene'],
-      ['xx', 'NewMainScene'],
+      ['xx', 'RopeDuckFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
     ];
     // Replaced primary and extra IDs must no longer launch the retired entry.

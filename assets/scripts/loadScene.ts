@@ -23,6 +23,7 @@ import {
   FEED_JUGGLE_LEVEL2_CONTENT_ID,
   FEED_DUCK_GRAB_CONTENT_ID,
   FEED_BRICK_CHOP_CONTENT_ID,
+  FEED_ROPE_DUCK_CONTENT_ID,
   FEED_WHITE_GOOSE_CONTENT_ID,
   FEED_MATH_EXAM_CONTENT_ID,
   FEED_MOTO_RACE_CONTENT_ID,
@@ -225,6 +226,10 @@ export class loadScene extends Component {
         sceneName: GameSceneName.JuggleBallGame,
         reason: `推荐流颠球挑战第二关方案（${contentId}）`,
       };
+    }
+
+    if (FEED_ROPE_DUCK_CONTENT_ID && contentId === FEED_ROPE_DUCK_CONTENT_ID) {
+      return { sceneName: GameSceneName.RopeDuckFeedGame, reason: `推荐流双鸭跳跃（${contentId}）` };
     }
 
     if (FEED_BRICK_CHOP_CONTENT_ID && contentId === FEED_BRICK_CHOP_CONTENT_ID) {

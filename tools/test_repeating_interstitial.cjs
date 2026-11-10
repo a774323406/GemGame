@@ -26,7 +26,7 @@ function fixture() {
   director.pause = director.resume = () => assert.fail('interstitial must not change engine pause');
   const sceneNames = Object.fromEntries([
     'NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'FoodDeliveryFeedGameScene',
+    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'FoodDeliveryFeedGameScene',
     'WhiteGooseFeedGameScene', 'DriftFeedGameScene', 'MathExamFeedGameScene', 'MotoRaceGameScene', 'ClayPigeonGameScene',
   ].map(name => [name, name]));
   sceneNames.Main = 'NewMainScene';
@@ -158,7 +158,7 @@ test('gameplay and result pages share cooldown; feed completion does not stop ad
   const f = fixture(); f.enter(); f.advance(31_000); f.requests[0].show(); f.requests[0].close();
   f.adc.cancelFeedEntryInterstitial(); f.feed.active = false;
   for (const name of ['NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene',
+    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene',
     'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene']) {
     f.scene({ name, isValid: true }); f.adc.onLevelResult(1, 'pass', { eligible: false });
     f.advance(1_000);
@@ -226,7 +226,7 @@ test('feed entry waits for rendered scene readiness as well as the 2-second entr
   f.feed.sceneReadyReported = true; f.advance(1_000); assert.equal(f.requests.length, 1);
 });
 test('each current gameplay can repeat after readiness without a per-game quota', () => {
-  for (const name of ['GameScene', 'JuggleBallGameScene', 'DuckGrabFeedGameScene', 'BrickChopFeedGameScene',
+  for (const name of ['GameScene', 'JuggleBallGameScene', 'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene',
     'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene', 'MathExamFeedGameScene',
     'MotoRaceGameScene', 'ClayPigeonGameScene', 'DriftFeedGameScene']) {
     const f = fixture(); f.scene({ name, isValid: true }); f.advance(31_000);

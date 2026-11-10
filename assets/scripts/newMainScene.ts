@@ -45,6 +45,9 @@ export class newMainScene extends Component {
   brickChopButton: Button = null;
 
   @property(Button)
+  ropeDuckButton: Button = null;
+
+  @property(Button)
   foodDeliveryButton: Button = null;
 
   @property(Button)
@@ -73,6 +76,7 @@ export class newMainScene extends Component {
     this.shareButton?.node?.on(Button.EventType.CLICK, this.onShareClicked, this);
     this.sidebarButton?.node?.on(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.on(Button.EventType.CLICK, this.openPuzzle, this);
+    this.ropeDuckButton?.node?.on(Button.EventType.CLICK, this.openRopeDuck, this);
     this.brickChopButton?.node?.on(Button.EventType.CLICK, this.openBrickChop, this);
     this.duckGrabButton?.node?.on(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
@@ -108,6 +112,7 @@ export class newMainScene extends Component {
     this.shareButton?.node?.off(Button.EventType.CLICK, this.onShareClicked, this);
     this.sidebarButton?.node?.off(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.off(Button.EventType.CLICK, this.openPuzzle, this);
+    this.ropeDuckButton?.node?.off(Button.EventType.CLICK, this.openRopeDuck, this);
     this.brickChopButton?.node?.off(Button.EventType.CLICK, this.openBrickChop, this);
     this.duckGrabButton?.node?.off(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
@@ -124,6 +129,8 @@ export class newMainScene extends Component {
   }
 
   private openPuzzle(): void { void this.enterGame(GameSceneName.Game); }
+  private openRopeDuck(): void { void this.enterGame(GameSceneName.RopeDuckFeedGame); }
+
   private openBrickChop(): void { void this.enterGame(GameSceneName.BrickChopFeedGame); }
   private openDuckGrab(): void { void this.enterGame(GameSceneName.DuckGrabFeedGame); }
   private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
@@ -161,6 +168,7 @@ export class newMainScene extends Component {
       this.puzzleButton,
       this.duckGrabButton,
       this.brickChopButton,
+      this.ropeDuckButton,
       this.foodDeliveryButton,
       this.whiteGooseButton,
       this.mathExamButton,

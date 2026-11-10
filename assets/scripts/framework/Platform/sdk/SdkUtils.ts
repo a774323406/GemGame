@@ -20,6 +20,7 @@ const AD_FEED_TYPES: Readonly<Record<string, string>> = {
   NewMainScene: "玩法大厅",
   GameScene: "拼豆排序",
   JuggleBallGameScene: "乒乓球第一关",
+  RopeDuckFeedGameScene: "双鸭跳跃",
   BrickChopFeedGameScene: "劈砖挑战",
   DuckGrabFeedGameScene: "抓鸭子挑战",
   FoodDeliveryFeedGameScene: "外卖精准投送",
