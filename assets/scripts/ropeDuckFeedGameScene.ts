@@ -66,7 +66,9 @@ export class ropeDuckFeedGameScene extends Component {
   }
   protected start():void {
     adc.onEnterGame(this.node);
-    if(this.feed)void FeedAcquisitionService.reportSceneReadyAfterStableRender({owner:this.node,requiredVisibleNodes:[this.surface,...this.ducks],stableFrameCount:3,surfaceDelayMs:180,isReady:()=>!this.disposed&&!this.leaving&&!this.exited});
+    // Feed exit during preload does not unload this scene. The host needs 7001
+    // before it can present the card; waiting for feedEnter here can deadlock.
+    if(this.feed)void FeedAcquisitionService.reportSceneReadyAfterStableRender({owner:this.node,requiredVisibleNodes:[this.surface,...this.ducks],stableFrameCount:3,surfaceDelayMs:180,isReady:()=>!this.disposed&&!this.leaving});
     this.scheduleAd();this.syncAudio();
   }
   private actions():[Button,Function][]{return [[this.backButton,this.requestExit],[this.reviveButton,this.reviveAction],[this.replayButton,this.replay],[this.homeButton,this.home],[this.continueButton,this.cancelExit],[this.restartButton,this.restart],[this.exitButton,this.home]];}
@@ -87,7 +89,8 @@ export class ropeDuckFeedGameScene extends Component {
     AudioManager.setSoundEvent();AudioManager.playMusic(soundName.getUserBgm);
   }
   private onTouchStart(event:EventTouch):void {
-    if(this.feed&&!this.entered&&!this.exited)FeedAcquisitionService.activateFromFirstTouch();
+    // A real canvas touch also recovers a stale feedExit when feedEnter is late.
+    if(this.feed&&!this.entered)FeedAcquisitionService.activateFromFirstTouch();
     if(this.blocked()||this.touchId!==null)return;
     this.syncAudio();
     if(this.round.beginCharge())this.touchId=event.getID();

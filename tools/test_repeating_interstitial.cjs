@@ -101,9 +101,10 @@ test('drift CONTENT15927306754 preview/entry, repeat and exit use shared interst
   f.exit();f.requests[1].show();assert.equal(f.requests[1].shown,false);
   f.advance(90_000);assert.equal(f.requests.length,2);
 });
-test('brick CONTENT15825829378 waits for readiness, repeats, retries after 60s and stops on exit', () => {
-  const f=fixture();f.scene({name:'BrickChopFeedGameScene',isValid:true});
-  Object.assign(f.feed,{active:true,contentId:'CONTENT15825829378',sceneReadyReported:false});
+for(const [name,contentId] of [['BrickChopFeedGameScene','CONTENT15825829378'],['RopeDuckFeedGameScene','CONTENT16072577794']])
+test(`${name} ${contentId} waits for readiness, repeats, retries after 60s and stops on exit`, () => {
+  const f=fixture();f.scene({name,isValid:true});
+  Object.assign(f.feed,{active:true,contentId,sceneReadyReported:false});
   f.advance(90_000);assert.equal(f.requests.length,0,'preview never requests');
   f.enter();f.advance(5_000);assert.equal(f.requests.length,0,'wait for rendered readiness');
   f.feed.sceneReadyReported=true;f.advance(1_000);assert.equal(f.requests.length,1);

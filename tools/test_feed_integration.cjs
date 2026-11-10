@@ -168,7 +168,7 @@ async function main() {
       ['CONTENT15927306754', 'DriftFeedGameScene'],
       ['CONTENT15927307010', 'DuckGrabFeedGameScene'],
       ['CONTENT15825829378', 'BrickChopFeedGameScene'],
-      ['xx', 'RopeDuckFeedGameScene'],
+      ['CONTENT16072577794', 'RopeDuckFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
     ];
     // Replaced primary and extra IDs must no longer launch the retired entry.
@@ -176,7 +176,7 @@ async function main() {
       'CONTENT14960528898','CONTENT15271990018','CONTENT15383250178',
       'CONTENT15252968962','CONTENT15773045506','CONTENT15218705666',
       'CONTENT15687335682','CONTENT15441408514','CONTENT15644009218',
-      'CONTENT15740648962','CONTENT15740674562',
+      'CONTENT15740648962','CONTENT15740674562','xx',
     ]) cases.push([contentId, 'NewMainScene']);
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene, contentId);

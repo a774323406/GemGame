@@ -105,5 +105,5 @@ export const FEED_DRIFT_CONTENT_ID: string = "CONTENT15927306754";
 /** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
 export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT15825829378";
 
-/** 双鸭跳跃推荐流方案，暂用占位 ID。 */
-export const FEED_ROPE_DUCK_CONTENT_ID = "xx";
+/** 双鸭跳跃推荐流方案，直接进入 RopeDuckFeedGameScene。 */
+export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT16072577794";
