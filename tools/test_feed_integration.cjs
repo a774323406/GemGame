@@ -160,14 +160,14 @@ async function main() {
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
       ['CONTENT15319004674', 'GameScene'],
-      ['CONTENT16249041666', 'WhiteGooseFeedGameScene'],
-      ['CONTENT15825828354', 'MathExamFeedGameScene'],
-      ['CONTENT15960888834', 'ClayPigeonGameScene'],
-      ['CONTENT15936572162', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT15897954818', 'MotoRaceGameScene'],
-      ['CONTENT15927306754', 'DriftFeedGameScene'],
-      ['CONTENT15927307010', 'DuckGrabFeedGameScene'],
-      ['CONTENT15825829378', 'BrickChopFeedGameScene'],
+      ['CONTENT15981329666', 'WhiteGooseFeedGameScene'],
+      ['CONTENT16249091586', 'MathExamFeedGameScene'],
+      ['CONTENT16248468738', 'ClayPigeonGameScene'],
+      ['CONTENT16010963714', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT16277328898', 'MotoRaceGameScene'],
+      ['CONTENT16072604162', 'DriftFeedGameScene'],
+      ['CONTENT16072604418', 'DuckGrabFeedGameScene'],
+      ['CONTENT16277329154', 'BrickChopFeedGameScene'],
       ['CONTENT16072577794', 'RopeDuckFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
     ];
@@ -177,6 +177,7 @@ async function main() {
       'CONTENT15252968962','CONTENT15773045506','CONTENT15218705666',
       'CONTENT15687335682','CONTENT15441408514','CONTENT15644009218',
       'CONTENT15740648962','CONTENT15740674562','xx',
+      'CONTENT16249041666','CONTENT15825828354','CONTENT15960888834','CONTENT15936572162','CONTENT15897954818','CONTENT15927306754','CONTENT15927307010','CONTENT15825829378',
     ]) cases.push([contentId, 'NewMainScene']);
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene, contentId);

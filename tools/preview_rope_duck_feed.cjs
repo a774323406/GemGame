@@ -15,8 +15,8 @@ const url = process.argv[2] || 'http://127.0.0.1:8768/';
       ['CONTENT16072577794', 'RopeDuckFeedGameScene', 'exit-during-load'],
       ['CONTENT16072577794', 'RopeDuckFeedGameScene', 'exit-touch'],
       ['CONTENT16072577794', 'RopeDuckFeedGameScene', 'return-touch'],
-      ['CONTENT15927307010', 'DuckGrabFeedGameScene', 'event'],
-      ['CONTENT15825829378', 'BrickChopFeedGameScene', 'event'],
+      ['CONTENT16072604418', 'DuckGrabFeedGameScene', 'event'],
+      ['CONTENT16277329154', 'BrickChopFeedGameScene', 'event'],
     ]) {
       if (process.env.FEED_CASE && process.env.FEED_CASE !== activation) continue;
       const page = await browser.newPage({ viewport: { width: 750, height: 1334 }, hasTouch: true });

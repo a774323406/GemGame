@@ -117,8 +117,8 @@ async function main() {
   const sceneBundle = f.load('framework/GameSceneBundle.ts');
   const loader = new (f.load('loadScene.ts').loadScene)();
 
-  assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT15936572162');
-  f.feed.state.contentId = 'CONTENT15936572162';
+  assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT16010963714');
+  f.feed.state.contentId = 'CONTENT16010963714';
   assert.equal(loader.resolveFeedEntry().sceneName, 'FoodDeliveryFeedGameScene');
   f.feed.state.contentId = 'UNKNOWN_CONTENT_ID';
   assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene',

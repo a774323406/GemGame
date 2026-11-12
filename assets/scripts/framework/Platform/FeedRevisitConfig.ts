@@ -15,16 +15,16 @@ export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
 export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
 /** 抓鸭子挑战推荐流方案，直接进入 DuckGrabFeedGameScene。 */
-export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT15927307010";
+export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT16072604418";
 
 /** 外卖精准投送推荐流方案，直接进入 FoodDeliveryFeedGameScene。 */
-export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT15936572162";
+export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT16010963714";
 
 /** 套大鹅推荐流方案，直接进入 WhiteGooseFeedGameScene。 */
-export const FEED_WHITE_GOOSE_CONTENT_ID = "CONTENT16249041666";
+export const FEED_WHITE_GOOSE_CONTENT_ID = "CONTENT15981329666";
 
 /** 口算大挑战推荐流方案，直接进入 MathExamFeedGameScene。 */
-export const FEED_MATH_EXAM_CONTENT_ID: string = "CONTENT15825828354";
+export const FEED_MATH_EXAM_CONTENT_ID: string = "CONTENT16249091586";
 
 /** 复访方案已在抖音后台下线：暂停订阅、排期上报与奖励；获客直玩不受影响。 */
 export const FEED_REVISIT_ENABLED = false;
@@ -94,16 +94,16 @@ export function createFeedRevisitExtra(readyAt: number): string {
 }
 
 /** 狂暴摩托推荐流方案。 */
-export const FEED_MOTO_RACE_CONTENT_ID = "CONTENT15897954818";
+export const FEED_MOTO_RACE_CONTENT_ID = "CONTENT16277328898";
 
 /** 飞碟射击推荐流方案，直接进入 ClayPigeonGameScene。 */
-export const FEED_CLAY_PIGEON_CONTENT_ID: string = "CONTENT15960888834";
+export const FEED_CLAY_PIGEON_CONTENT_ID: string = "CONTENT16248468738";
 
 /** 漂移推荐流获客方案。 */
-export const FEED_DRIFT_CONTENT_ID: string = "CONTENT15927306754";
+export const FEED_DRIFT_CONTENT_ID: string = "CONTENT16072604162";
 
 /** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
-export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT15825829378";
+export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16277329154";
 
 /** 双鸭跳跃推荐流方案，直接进入 RopeDuckFeedGameScene。 */
 export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT16072577794";

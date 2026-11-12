@@ -91,9 +91,9 @@ function fixture() {
 }
 const tests = [];
 const test = (name, run) => tests.push([name, run]);
-test('drift CONTENT15927306754 preview/entry, repeat and exit use shared interstitial timing', () => {
+test('drift CONTENT16072604162 preview/entry, repeat and exit use shared interstitial timing', () => {
   const f=fixture();f.scene({name:'DriftFeedGameScene',isValid:true});
-  Object.assign(f.feed,{active:true,contentId:'CONTENT15927306754'});
+  Object.assign(f.feed,{active:true,contentId:'CONTENT16072604162'});
   f.advance(90_000);assert.equal(f.requests.length,0);
   f.enter();f.advance(1_999);assert.equal(f.requests.length,0);
   f.advance(1);assert.equal(f.requests.length,1);f.requests[0].show();f.requests[0].close();
@@ -101,7 +101,7 @@ test('drift CONTENT15927306754 preview/entry, repeat and exit use shared interst
   f.exit();f.requests[1].show();assert.equal(f.requests[1].shown,false);
   f.advance(90_000);assert.equal(f.requests.length,2);
 });
-for(const [name,contentId] of [['BrickChopFeedGameScene','CONTENT15825829378'],['RopeDuckFeedGameScene','CONTENT16072577794']])
+for(const [name,contentId] of [['BrickChopFeedGameScene','CONTENT16277329154'],['RopeDuckFeedGameScene','CONTENT16072577794']])
 test(`${name} ${contentId} waits for readiness, repeats, retries after 60s and stops on exit`, () => {
   const f=fixture();f.scene({name,isValid:true});
   Object.assign(f.feed,{active:true,contentId,sceneReadyReported:false});
