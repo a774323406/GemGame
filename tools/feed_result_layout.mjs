@@ -157,6 +157,7 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     }
   }
   const layouts = {
+    RopeDuckFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",140,660,240,40],["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
     BrickChopFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
     DuckGrabFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
     DriftFeedGameScene: [["Kicker",550,640,60,42],["ResultTitle",400,620,165,104],["ResultDetail",145,660,240,42],["ReviveButton",-180,470,138],["RetryButton",-345,470,138],["HomeButton",-510,470,138]],
@@ -234,6 +235,7 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     artworks.push(ref(objects[artworkId]._components.find(r=>objects[r.__id__].__type__==='cc.Sprite').__id__));
   }
   const hudNames={
+    RopeDuckFeedGameScene:["HUD"],
     BrickChopFeedGameScene:["HUD","HitMessage"],
     DuckGrabFeedGameScene:["HUD"],
     DriftFeedGameScene:["HUD","Guide","Message"],

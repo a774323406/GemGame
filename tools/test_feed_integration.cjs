@@ -162,6 +162,7 @@ async function main() {
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
       ['CONTENT16082608130', 'BrickChopFeedGameScene'],
+      ['CONTENT16072580098', 'RopeDuckFeedGameScene'],
       ['xx', 'NewMainScene'],
       ['CONTENT15825843202', 'DuckGrabFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],

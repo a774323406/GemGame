@@ -114,6 +114,7 @@ const expectedCards = [
   'ClayPigeonCard',
   'DriftCard',
   'BrickChopCard',
+  'RopeDuckCard',
 ];
 const contentChildren = content.entry._children.map(object).map(node => node._name);
 assert.deepEqual(contentChildren, expectedCards, 'game cards/order changed');
@@ -171,6 +172,7 @@ const buttonProperties = [
   'clayPigeonButton',
   'driftButton',
   'brickChopButton',
+  'ropeDuckButton',
 ];
 buttonProperties.forEach((property, index) => {
   const button = object(controller[property]);

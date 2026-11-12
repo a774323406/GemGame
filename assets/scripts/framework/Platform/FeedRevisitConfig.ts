@@ -110,3 +110,6 @@ export const FEED_DRIFT_EXTRA_CONTENT_ID = "CONTENT15644009218";
 
 /** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
 export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16082608130";
+
+/** 双鸭跳跃推荐流方案，使用 kdzzz 专属 ID。 */
+export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT16072580098";

@@ -94,6 +94,7 @@ async function main() {
       JuggleBallGameScene: '乒乓球第一关',
       DuckGrabFeedGameScene: '抓鸭子挑战',
       BrickChopFeedGameScene: '劈砖挑战',
+      RopeDuckFeedGameScene: '双鸭跳跃',
       FoodDeliveryFeedGameScene: '外卖精准投送',
       WhiteGooseFeedGameScene: '套大鹅',
       MathExamFeedGameScene: '口算大挑战',
