@@ -15,10 +15,10 @@ export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
 export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
 /** 抓鸭子挑战推荐流方案，直接进入 DuckGrabFeedGameScene。 */
-export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT15926016002";
+export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT15926045698";
 
 /** 外卖精准投送推荐流方案，直接进入 FoodDeliveryFeedGameScene。 */
-export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT15898013698";
+export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT16277349634";
 /** 新增获客方案；保留原 ID 兼容已有推荐流入口。 */
 export const FEED_FOOD_DELIVERY_EXTRA_CONTENT_ID = "CONTENT15773045506";
 
@@ -109,13 +109,13 @@ export const FEED_DRIFT_CONTENT_ID: string = "CONTENT16146470658";
 export const FEED_DRIFT_EXTRA_CONTENT_ID = "CONTENT15644009218";
 
 /** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
-export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16010964482";
+export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16397114370";
 
 /** 双鸭跳跃推荐流方案，使用 kdzzz 专属 ID。 */
-export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT15981330178";
+export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT16072636674";
 
 /** 货车叠叠高推荐流方案，待补充 kdzzz 专属 ID。 */
 export const FEED_TRUCK_STACK_CONTENT_ID = "xx";
 
-/** 果冻压压乐推荐流方案，待补充 kdzzz 专属 ID。 */
-export const FEED_JELLY_CRUSH_CONTENT_ID = "xx-jelly";
+/** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */
+export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16010997506";
