@@ -119,7 +119,7 @@ async function main() {
     const { fitFeedResultOverlay, appendSceneGlobals } = await import('./feed_result_layout.mjs');
     const names = ['JuggleBallGameScene',
       'FoodDeliveryFeedGameScene', 'DuckGrabFeedGameScene',
-      'WhiteGooseFeedGameScene'];
+      'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene', 'JellyCrushFeedGameScene'];
     for (const name of names) {
       const data = JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`, 'utf8'));
       const component = (node, type) => node._components.map(ref => data[ref.__id__]).find(x => x.__type__ === type);
@@ -160,15 +160,12 @@ async function main() {
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
       ['CONTENT15319004674', 'GameScene'],
-      ['CONTENT15981329666', 'WhiteGooseFeedGameScene'],
-      ['CONTENT16249091586', 'MathExamFeedGameScene'],
-      ['CONTENT16248468738', 'ClayPigeonGameScene'],
-      ['CONTENT16010963714', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT16277328898', 'MotoRaceGameScene'],
-      ['CONTENT16072604162', 'DriftFeedGameScene'],
-      ['CONTENT16072604418', 'DuckGrabFeedGameScene'],
-      ['CONTENT16277329154', 'BrickChopFeedGameScene'],
-      ['CONTENT16072577794', 'RopeDuckFeedGameScene'],
+      ['CONTENT15926045186', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT16010996738', 'DuckGrabFeedGameScene'],
+      ['CONTENT15865085442', 'BrickChopFeedGameScene'],
+      ['CONTENT15865085186', 'RopeDuckFeedGameScene'],
+      ['CONTENT16010997250', 'TruckStackFeedGameScene'],
+      ['CONTENT15865084930', 'JellyCrushFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
     ];
     // Replaced primary and extra IDs must no longer launch the retired entry.
@@ -176,8 +173,9 @@ async function main() {
       'CONTENT14960528898','CONTENT15271990018','CONTENT15383250178',
       'CONTENT15252968962','CONTENT15773045506','CONTENT15218705666',
       'CONTENT15687335682','CONTENT15441408514','CONTENT15644009218',
-      'CONTENT15740648962','CONTENT15740674562','xx',
+      'CONTENT15740648962','CONTENT15740674562',
       'CONTENT16249041666','CONTENT15825828354','CONTENT15960888834','CONTENT15936572162','CONTENT15897954818','CONTENT15927306754','CONTENT15927307010','CONTENT15825829378',
+      'CONTENT15981329666','CONTENT16249091586','CONTENT16277328898','CONTENT16248468738','CONTENT16072604162',
     ]) cases.push([contentId, 'NewMainScene']);
     for (const [contentId, scene, level] of cases) {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene, contentId);

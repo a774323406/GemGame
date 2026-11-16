@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const ts = require(process.env.NAIL_TEST_TYPESCRIPT_PATH ||
   '/Applications/Cocos/Creator/3.8.5/CocosCreator.app/Contents/Resources/app.asar.unpacked/node_modules/typescript');
 
-function fixture(enabledOverride, contentIdOverride) {
+function fixture(enabledOverride, contentIdOverride, launchOptions) {
   const calls = [], warnings = [], storage = new Map(), cache = {};
   const noop = () => {};
   const cc = {
@@ -28,7 +28,7 @@ function fixture(enabledOverride, contentIdOverride) {
     storeFeedData(options) { calls.push(['storeFeedData', options.contentID]); options.success(); },
     getEnvInfoSync() { return { microapp: { envType: 'production' } }; },
     getLaunchOptionsSync() {
-      return { scene: '103041', query: {
+      return launchOptions || { scene: '103041', query: {
         feed_game_scene: '0', feed_game_channel: '2', feed_game_content_id: 'CONTENT14868790274',
       } };
     },
@@ -119,6 +119,17 @@ async function main() {
     service.reportSceneReady(); service.reportSceneReady();
     assert.deepEqual(f.calls.filter(Array.isArray), [['reportScene', 7001]]);
     assert.deepEqual(f.warnings, []);
+  });
+  test('feed markers still activate when a new preview uses another scene and encoded query data', () => {
+    const f = fixture(undefined, undefined, {
+      scene: '999999',
+      query: 'feed_game_scene=0&feed_game_channel=2&feed_game_content_id=CONTENT15865084930',
+    });
+    const service = f.load('framework/Platform/FeedAcquisitionService.ts').FeedAcquisitionService;
+    const state = service.getState();
+    assert.equal(state.active, true);
+    assert.equal(state.mode, 'acquisition');
+    assert.equal(state.contentId, 'CONTENT15865084930');
   });
   test('fallback lobby reports ready once for retired feed entries', () => {
     const f = fixture(), Main = f.load('newMainScene.ts').newMainScene;

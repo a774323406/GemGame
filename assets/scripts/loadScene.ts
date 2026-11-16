@@ -24,12 +24,9 @@ import {
   FEED_DUCK_GRAB_CONTENT_ID,
   FEED_BRICK_CHOP_CONTENT_ID,
   FEED_ROPE_DUCK_CONTENT_ID,
-  FEED_WHITE_GOOSE_CONTENT_ID,
-  FEED_MATH_EXAM_CONTENT_ID,
-  FEED_MOTO_RACE_CONTENT_ID,
-  FEED_CLAY_PIGEON_CONTENT_ID,
-  FEED_DRIFT_CONTENT_ID,
+  FEED_TRUCK_STACK_CONTENT_ID,
   FEED_HEART_CONTENT_ID,
+  FEED_JELLY_CRUSH_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { adc } from "./framework/Platform/ADController";
@@ -199,16 +196,8 @@ export class loadScene extends Component {
       return { sceneName: GameSceneName.Game, reason: `推荐流爱心第 8 关（${contentId}）` };
     }
 
-    if (FEED_DRIFT_CONTENT_ID && contentId === FEED_DRIFT_CONTENT_ID) {
-      return { sceneName: GameSceneName.DriftFeedGame, reason: `推荐流漂移（${contentId}）` };
-    }
-
-    if (FEED_CLAY_PIGEON_CONTENT_ID && contentId === FEED_CLAY_PIGEON_CONTENT_ID) {
-      return { sceneName: GameSceneName.ClayPigeonGame, reason: `推荐流飞碟射击（${contentId}）` };
-    }
-
-    if (contentId === FEED_MOTO_RACE_CONTENT_ID) {
-      return { sceneName: GameSceneName.MotoRaceGame, reason: `推荐流狂暴摩托（${contentId}）` };
+    if (contentId === FEED_JELLY_CRUSH_CONTENT_ID) {
+      return { sceneName: GameSceneName.JellyCrushFeedGame, reason: `推荐流果冻压压乐（${contentId}）` };
     }
 
     if (contentId === FEED_JUGGLE_CONTENT_ID) {
@@ -232,6 +221,10 @@ export class loadScene extends Component {
       return { sceneName: GameSceneName.RopeDuckFeedGame, reason: `推荐流双鸭跳跃（${contentId}）` };
     }
 
+    if (FEED_TRUCK_STACK_CONTENT_ID && contentId === FEED_TRUCK_STACK_CONTENT_ID) {
+      return { sceneName: GameSceneName.TruckStackFeedGame, reason: `推荐流货车叠叠高（${contentId}）` };
+    }
+
     if (FEED_BRICK_CHOP_CONTENT_ID && contentId === FEED_BRICK_CHOP_CONTENT_ID) {
       return { sceneName: GameSceneName.BrickChopFeedGame, reason: `推荐流劈砖挑战方案（${contentId}）` };
     }
@@ -247,20 +240,6 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.FoodDeliveryFeedGame,
         reason: "外卖精准投送获客玩法",
-      };
-    }
-
-    if (FEED_WHITE_GOOSE_CONTENT_ID && contentId === FEED_WHITE_GOOSE_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.WhiteGooseFeedGame,
-        reason: `推荐流套大鹅方案（${contentId}）`,
-      };
-    }
-
-    if (FEED_MATH_EXAM_CONTENT_ID && contentId === FEED_MATH_EXAM_CONTENT_ID) {
-      return {
-        sceneName: GameSceneName.MathExamFeedGame,
-        reason: `推荐流口算大挑战方案（${contentId}）`,
       };
     }
 

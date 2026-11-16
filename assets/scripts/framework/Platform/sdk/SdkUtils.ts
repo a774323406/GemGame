@@ -21,14 +21,11 @@ const AD_FEED_TYPES: Readonly<Record<string, string>> = {
   GameScene: "拼豆排序",
   JuggleBallGameScene: "乒乓球第一关",
   RopeDuckFeedGameScene: "双鸭跳跃",
+  TruckStackFeedGameScene: "货车叠叠高",
   BrickChopFeedGameScene: "劈砖挑战",
   DuckGrabFeedGameScene: "抓鸭子挑战",
   FoodDeliveryFeedGameScene: "外卖精准投送",
-  WhiteGooseFeedGameScene: "套大鹅",
-  MathExamFeedGameScene: "口算大挑战",
-  MotoRaceGameScene: "狂暴摩托",
-  DriftFeedGameScene: "漂移",
-  ClayPigeonGameScene: "飞碟射击",
+  JellyCrushFeedGameScene: "果冻压压乐",
 };
 
 export class SdkUtils {

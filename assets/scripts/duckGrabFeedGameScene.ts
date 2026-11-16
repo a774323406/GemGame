@@ -1,4 +1,4 @@
-import { _decorator, Button, Component, Game, game, director, Label, Node, ResolutionPolicy, view } from 'cc';
+import { _decorator, AudioSource, Button, Component, Game, game, director, Label, Node, ResolutionPolicy, view } from 'cc';
 import { DuckGrabRound } from './duckGrabRules';
 import { FeedAcquisitionService, FeedAcquisitionState } from './framework/Platform/FeedAcquisitionService';
 import { adc } from './framework/Platform/ADController';
@@ -28,6 +28,7 @@ export class duckGrabFeedGameScene extends Component {
   @property(Button) continueButton: Button = null;
   @property(Button) exitButton: Button = null;
   @property(Node) exitOverlay: Node = null;
+  @property(AudioSource) missAudio: AudioSource = null;
   round = new DuckGrabRound();
   private feed = false;
   private entered = true;
@@ -134,7 +135,7 @@ export class duckGrabFeedGameScene extends Component {
     const before = this.round.phase, tauntBefore = this.round.tauntRemaining;
     this.round.tick(step); this.render();
     if (before === 'playing' && this.round.phase === 'success') { this.successDelay = .9; void AudioManager.playEffectByName('up'); }
-    if (tauntBefore <= 0 && this.round.tauntRemaining > 0) void AudioManager.playEffectByName('whiteGooseCall1');
+    if (tauntBefore <= 0 && this.round.tauntRemaining > 0) this.playMissAudio();
     if (before === 'playing' && this.round.phase === 'failure') this.showResult();
   }
   private render(angle = this.round.angle): void {
@@ -165,6 +166,11 @@ export class duckGrabFeedGameScene extends Component {
       ? `抓住啦！\n尝试 ${this.round.attempts} 次 · 用时 ${(60 - this.round.remaining).toFixed(1)} 秒`
       : `时间到！\n本次尝试 ${this.round.attempts} 次，再试试吧`;
     this.hud.active = false; this.resultOverlay.active = true;
+  }
+  private playMissAudio(): void {
+    if (this.presentationPaused() || !AudioManager.canPlaySound() || !this.missAudio?.isValid) return;
+    this.missAudio.stop();
+    this.missAudio.play();
   }
   private replay(): void {
     if (this.disposed || this.leaving) return;

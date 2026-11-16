@@ -59,6 +59,29 @@ const removedFiles = [
   'assets/scripts/penRefillFeedGameScene.ts.meta',
   'assets/res/milkTeaFeed.meta',
   'assets/res/penRefillFeed.meta',
+  'assets/gamescene/WhiteGooseFeedGameScene.scene',
+  'assets/gamescene/WhiteGooseFeedGameScene.scene.meta',
+  'assets/gamescene/MathExamFeedGameScene.scene',
+  'assets/gamescene/MathExamFeedGameScene.scene.meta',
+  'assets/gamescene/MotoRaceGameScene.scene',
+  'assets/gamescene/MotoRaceGameScene.scene.meta',
+  'assets/gamescene/ClayPigeonGameScene.scene',
+  'assets/gamescene/ClayPigeonGameScene.scene.meta',
+  'assets/gamescene/DriftFeedGameScene.scene',
+  'assets/gamescene/DriftFeedGameScene.scene.meta',
+  ...['whiteGooseFeedGameScene', 'whiteGooseRoundRules', 'mathExamFeedGameScene', 'mathExamRules',
+    'handwrittenDigits', 'inkEraser', 'motoRaceArt', 'motoRaceGameScene', 'motoRaceRenderer',
+    'motoRaceRules', 'clayPigeonGameScene', 'clayPigeonRules', 'driftFeedGameScene']
+    .flatMap(name => [`assets/scripts/${name}.ts`, `assets/scripts/${name}.ts.meta`]),
+  'assets/scripts/drift',
+  'assets/scripts/drift.meta',
+  'assets/res/whiteGooseFeed', 'assets/res/whiteGooseFeed.meta',
+  'assets/res/mathExamFeed', 'assets/res/mathExamFeed.meta',
+  'assets/res/motoRace', 'assets/res/motoRace.meta',
+  'assets/res/clayPigeon', 'assets/res/clayPigeon.meta',
+  'assets/res/driftFeed', 'assets/res/driftFeed.meta',
+  'assets/res/newMain/preview_white_goose.png', 'assets/res/newMain/preview_white_goose.png.meta',
+  'assets/res/newMain/title_white_goose.jpg', 'assets/res/newMain/title_white_goose.jpg.meta',
 ];
 for (const file of removedFiles) {
   assert.equal(fs.existsSync(file), false, `${file} must not ship`);
@@ -68,16 +91,15 @@ const { GameSceneName } = loadTypeScript(
   'assets/scripts/framework/GameSceneBundle.ts',
   name => name === 'cc' ? {} : { ResourceManager: {} },
 );
-assert.deepEqual(Array.from(Object.values(GameSceneName)).filter(name => name !== 'MathExamFeedGameScene'), [
+assert.deepEqual(Array.from(Object.values(GameSceneName)), [
   'NewMainScene',
   'GameScene',
   'JuggleBallGameScene',
+  'RopeDuckFeedGameScene',
+  'BrickChopFeedGameScene',
   'DuckGrabFeedGameScene',
   'FoodDeliveryFeedGameScene',
-  'WhiteGooseFeedGameScene',
-  'MotoRaceGameScene',
-  'DriftFeedGameScene',
-  'ClayPigeonGameScene',
+  'JellyCrushFeedGameScene',
 ]);
 
 const feedConfig = loadTypeScript('assets/scripts/framework/Platform/FeedRevisitConfig.ts');
@@ -88,6 +110,10 @@ assert.equal(Object.hasOwn(feedConfig, 'FEED_SHOOTING_CONTENT_ID'), false);
 assert.equal(feedConfig.FEED_REVISIT_CONTENT_ID, '', 'retired revisit ID must not be scheduled');
 for (const key of ['FEED_ARCHERY_CONTENT_ID', 'FEED_NAIL_HAMMER_CONTENT_ID', 'FEED_BALLOON_WHEEL_CONTENT_ID']) {
   assert.equal(Object.hasOwn(feedConfig, key), false);
+}
+for (const key of ['FEED_WHITE_GOOSE_CONTENT_ID', 'FEED_MATH_EXAM_CONTENT_ID', 'FEED_MOTO_RACE_CONTENT_ID',
+  'FEED_CLAY_PIGEON_CONTENT_ID', 'FEED_DRIFT_CONTENT_ID']) {
+  assert.equal(Object.hasOwn(feedConfig, key), false, `${key} must be retired`);
 }
 let contentId, mode = 'acquisition';
 const { loadScene } = loadTypeScript('assets/scripts/loadScene.ts', name => {
@@ -100,7 +126,8 @@ const { loadScene } = loadTypeScript('assets/scripts/loadScene.ts', name => {
 const loader = new loadScene();
 loader.warnUnknownFeedContentId = () => {};
 for (mode of ['acquisition', 'revisit']) {
-  for (contentId of ['CONTENT14389077506', 'CONTENT14868790274', 'CONTENT14816266754', 'CONTENT15383195906', 'CONTENT14389313538', '', 'unknown']) {
+  for (contentId of ['CONTENT14389077506', 'CONTENT14868790274', 'CONTENT14816266754', 'CONTENT15383195906', 'CONTENT14389313538',
+    'CONTENT15981329666', 'CONTENT16249091586', 'CONTENT16277328898', 'CONTENT16248468738', 'CONTENT16072604162', '', 'unknown']) {
     assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene', 'retired or unknown feed IDs must return to the lobby');
   }
 }
@@ -109,15 +136,13 @@ const scene = JSON.parse(fs.readFileSync('assets/gamescene/NewMainScene.scene', 
 const content = scene.find(item => item?.__type__ === 'cc.Node' && item._name === 'Content');
 assert(content, 'NewMainScene Content node is missing');
 const cardNames = content._children.map(ref => scene[ref.__id__]._name);
-assert(!cardNames.some(name => /Archery|NailHammer|BalloonWheel/.test(name)), 'retired lobby cards must be removed');
-assert.deepEqual(cardNames.filter(name => name !== 'MathExamCard'), [
+assert.deepEqual(cardNames, [
   'PuzzleGameCard',
   'DuckGrabCard',
   'FoodDeliveryCard',
-  'WhiteGooseCard',
-  'MotoRaceCard',
-  'ClayPigeonCard',
-  'DriftCard',
+  'BrickChopCard',
+  'RopeDuckCard',
+  'JellyCrushCard',
 ]);
 
 for (const [index, entry] of scene.entries()) {
@@ -134,13 +159,15 @@ for (const [index, entry] of scene.entries()) {
   validate(entry);
 }
 
-// External delivery still uses the shooting sound even though its name contains "archery".
 const { soundName, SOUND_ASSET_UUIDS } = loadTypeScript('assets/scripts/gamePrefabMgr.ts');
-for (const name of ['archeryShoot', 'getUserBgm', 'down', 'fail']) {
+for (const name of ['getUserBgm', 'down', 'fail']) {
   assert.equal(soundName[name], name);
   assert(fs.statSync(`assets/res/sound/${name}.mp3`).size > 0);
 }
-const sharedShot = JSON.parse(fs.readFileSync('assets/res/sound/archeryShoot.mp3.meta', 'utf8'));
-assert.equal(SOUND_ASSET_UUIDS.archeryShoot, sharedShot.uuid);
+for (const retiredSound of ['whiteGooseBgm', 'whiteGooseCall1', 'whiteGooseCall2', 'whiteGooseCall3']) {
+  assert.equal(Object.hasOwn(soundName, retiredSound), false, `${retiredSound} must be retired`);
+  assert.equal(Object.hasOwn(SOUND_ASSET_UUIDS, retiredSound), false, `${retiredSound} UUID must be retired`);
+}
+assert(fs.readFileSync('assets/scripts/duckGrabFeedGameScene.ts', 'utf8').includes("playEffectByName('fail')"));
 
 console.log('PASS retired games and legacy main are absent; surviving lobby/assets resolve');

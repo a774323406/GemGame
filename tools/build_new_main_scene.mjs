@@ -1,9 +1,7 @@
 import { appendRopeDuckCard } from './rope_duck_authoring.mjs';
+import { appendTruckStackCard } from './truck_stack_authoring.mjs';
 import { appendBrickChopCard } from './brick_chop_authoring.mjs';
 import {replaceLobbyCard} from "./duck_grab_authoring.mjs";
-import { appendDriftCard } from './drift_feed_authoring.mjs';
-import { appendClayPigeonCard } from './clay_pigeon_authoring.mjs';
-import { appendMotoCard } from './moto_race_authoring.mjs';
 // Offline scene authoring for the replacement lobby. Fixed UI is serialized
 // into NewMainScene.scene so it remains editable in Cocos Creator.
 import fs from 'node:fs';
@@ -17,8 +15,8 @@ import {
 } from './feed_scene_authoring.mjs';
 import { appendSceneGlobals } from './feed_result_layout.mjs';
 import { appendFoodDeliveryCard } from './food_delivery_authoring.mjs';
-import { appendWhiteGooseCard } from './white_goose_main_card.mjs';
-import { appendMathExamCard } from './math_exam_authoring.mjs';
+import { appendJellyCrushCard } from './jelly_crush_authoring.mjs';
+import { standardizeAllLobbyCards } from './lobby_card_style.mjs';
 
 const SCENE_NAME = 'NewMainScene';
 const SCENE_UUID = 'e2f66be5-60ce-4ebc-90a4-d99841dd2b9a';
@@ -32,7 +30,6 @@ const NEW_MAIN_ASSETS = [
   { name: 'preview_puzzle.jpg', uuid: 'bb2e83a4-eb22-435c-bb35-3a3256985701', width: 246, height: 198, alpha: false },
   { name: 'title_puzzle.jpg', uuid: '4d694c49-116b-4d23-a8ef-75cfb0c2a3e9', width: 268, height: 57, alpha: false },
   { name: 'title_food_delivery.jpg', uuid: 'a21b33ea-e748-44dd-a2af-092a25be28fa', width: 268, height: 57, alpha: false },
-  { name: 'title_white_goose.jpg', uuid: '8ef97696-879e-43df-b9dc-42991bd5fedf', width: 268, height: 57, alpha: false },
   { name: 'preview_border.png', uuid: '75720185-3cba-42e9-bfa6-155295a8045a', width: 10, height: 10, alpha: true },
 ];
 const SCENE_FILE = `assets/gamescene/${SCENE_NAME}.scene`;
@@ -58,7 +55,6 @@ const art = {
   previewPuzzle: newMainFrame('preview_puzzle.jpg'),
   titlePuzzle: newMainFrame('title_puzzle.jpg'),
   titleFoodDelivery: newMainFrame('title_food_delivery.jpg'),
-  titleWhiteGoose: newMainFrame('title_white_goose.jpg'),
   previewBorder: newMainFrame('preview_border.png'),
   setting: existingFrame('assets/res/texture/设置按钮-最小.png'),
   share: existingFrame('assets/res/texture/UIs/share_main_icon.png'),
@@ -548,13 +544,11 @@ if (process.argv.includes('--write')) {
     : objects;
   replaceLobbyCard(outputObjects);
   appendFoodDeliveryCard(outputObjects);
-  appendWhiteGooseCard(outputObjects);
-  appendMathExamCard(outputObjects);
-  appendMotoCard(outputObjects);
-  appendClayPigeonCard(outputObjects);
-  appendDriftCard(outputObjects);
   appendBrickChopCard(outputObjects);
   appendRopeDuckCard(outputObjects);
+  appendTruckStackCard(outputObjects);
+  appendJellyCrushCard(outputObjects);
+  standardizeAllLobbyCards(outputObjects);
   writeJson(SCENE_FILE, outputObjects);
   if (!fs.existsSync(`${SCENE_FILE}.meta`)) {
     writeJson(`${SCENE_FILE}.meta`, {

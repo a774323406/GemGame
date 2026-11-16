@@ -11,10 +11,5 @@ export function fitFeedScreenControls(objects, sceneName) {
   let w=comp(id,'cc.Widget');if(!w){author.widget(id,flags,offsets);w=comp(id,'cc.Widget');}
   Object.assign(w,{_enabled:true,_alignFlags:flags,_alignMode:2,...offsets});
  };
- if(sceneName==='MotoRaceGameScene') {
-  anchor('PauseButton',9,{_top:64,_left:24},true);
-  // Keep overlays above the reparented pause control.
-  const overlay=find('Overlay');objects[canvas]._children=objects[canvas]._children.filter(r=>r.__id__!==overlay);objects[canvas]._children.push(ref(overlay));
- }
- if(sceneName==='WhiteGooseFeedGameScene')anchor('AddRingsButton',36,{_bottom:80,_right:24});
+ if(sceneName==='JellyCrushFeedGameScene')anchor('BackButton',9,{_top:105,_left:24},true);
 }

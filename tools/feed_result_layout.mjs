@@ -27,7 +27,7 @@ export function appendSceneGlobals(source, destination) {
 
 export function fitFeedResultOverlay(objects, sceneName) {
   const nodeId = name => objects.findIndex(o => o.__type__ === "cc.Node" && o._name === name);
-  const overlayId = nodeId(sceneName === "MotoRaceGameScene" ? "Overlay" : "ResultOverlay");
+  const overlayId = nodeId("ResultOverlay");
   if (overlayId < 0) throw new Error(`${sceneName}: ResultOverlay is missing`);
   const component = (id, type) => objects[id]._components
     .map(ref => objects[ref.__id__]).find(o => o.__type__ === type);
@@ -157,22 +157,16 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     }
   }
   const layouts = {
+    TruckStackFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",140,660,240,40],["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
     RopeDuckFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",140,660,240,40],["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
     BrickChopFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
     DuckGrabFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
-    DriftFeedGameScene: [["Kicker",550,640,60,42],["ResultTitle",400,620,165,104],["ResultDetail",145,660,240,42],["ReviveButton",-180,470,138],["RetryButton",-345,470,138],["HomeButton",-510,470,138]],
-    ClayPigeonGameScene: [["Kicker",550,640,60,42],["ResultTitle",420,620,165,104],["ResultDetail",140,660,310,42],["ResumeButton",-170,470,138],["ReplayButton",-335,470,138],["HomeButton",-500,470,138]],
-    MotoRaceGameScene: [["Kicker",550,640,60,42],["ResultTitle",420,620,165,104],
-      ["ResultDetail",140,660,310,42],["ResumeButton",-170,470,138],["ReplayButton",-335,470,138],["HomeButton",-500,470,138]],
-    MathExamFeedGameScene: [["ResultKicker",550,640,60,42],["ResultTitle",395,620,165,104],
-      ["ResultScore",185,630,150,100],["ResultDetail",30,640,100,42],["Best",-65,640,50,28],
-      ["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
-    WhiteGooseFeedGameScene: [["ResultGameTitle",550,640,60,42],["SuccessTitle",405,620,165,104],
-      ["FailureTitle",405,620,165,104],["ProgressLabel",200,660,110,60],["DetailLabel",80,670,120,42],
-      ["HomeButton",-160,470,138],["ReplayButton",-325,470,138],["ReviveButton",-325,470,138],["RestartButton",-490,470,138]],
     FoodDeliveryFeedGameScene: [["ResultGameTitle",550,650,60,42],["SuccessTitle",405,620,165,104],
       ["FailureTitle",405,620,165,104],["SuccessContent",170,660,210],["FailureContent",170,660,210],
       ["HomeButton",-260,470,138],["RetryButton",-425,470,138],["NextButton",-425,470,138]],
+    JellyCrushFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],
+      ["ResultDetail",125,660,240,42],["ReviveButton",-180,470,138],
+      ["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
     JuggleBallGameScene: [["ResultTitle",395,620,165,104],["ResultDetail",185,650,190,44],
       ["ResultHomeButton",-300,470,138],["ResultActionButton",-465,470,138]],
   };
@@ -226,7 +220,6 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     position('ResultGameKicker',550,650,65,42);
     component(id,'cc.Label')._outlineColor=color(47,36,31);
   }
-  if(sceneName==='MathExamFeedGameScene')component(find('ResultKicker'),'cc.Label')._string='口算大挑战';
   const titleIds=['ResultTitle','ResultTitleLabel','SuccessTitle','FailureTitle'].map(find).filter(id=>id!==undefined);
   const artworks=[];
   for(const id of titleIds) {
@@ -235,19 +228,16 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     artworks.push(ref(objects[artworkId]._components.find(r=>objects[r.__id__].__type__==='cc.Sprite').__id__));
   }
   const hudNames={
+    TruckStackFeedGameScene:["HUD"],
     RopeDuckFeedGameScene:["HUD"],
     BrickChopFeedGameScene:["HUD","HitMessage"],
     DuckGrabFeedGameScene:["HUD"],
-    DriftFeedGameScene:["HUD","Guide","Message"],
-    ClayPigeonGameScene:["TopHUD","BottomHUD","RoundTip"],
-    MathExamFeedGameScene:['BackButton','AddTimeButton','CorrectionFluid'],
-    MotoRaceGameScene:['HudShapes','Armor','RankPanel','Rank','Time','PauseButton','BackButton','Speed','SpeedUnit','PunchButton','KickButton','Message','Countdown','BoostButton','SteeringPad'],
     JuggleBallGameScene:['HeaderPanel','GoalPanel','LevelLabel','GoalLabel','ChanceLabel','BackButton','ScoreLabel','StatusLabel','ReadyArrow','MoveHint','SlowdownButton','ExtraChanceButton'],
-    WhiteGooseFeedGameScene:['SafeArea','AddRingsButton'],
     FoodDeliveryFeedGameScene:['SafeArea','SlowdownButton','ChanceLabel','TapHint'],
+    JellyCrushFeedGameScene:['HUD','HitMessage'],
   };
   const scriptUuid=JSON.parse(fs.readFileSync(new URL('../assets/scripts/feedResultPresentation.ts.meta',import.meta.url))).uuid;
-  const fields={successLift:0.075,successButtons:sceneName==='MathExamFeedGameScene'?['ReplayButton','HomeButton'].map(name=>ref(objects[find(name)]._components.find(r=>objects[r.__id__].__type__==='cc.Widget').__id__)):[],titles:titleIds.map(id=>ref(objects[id]._components.find(r=>objects[r.__id__].__type__==='cc.Label').__id__)),artworks,
+  const fields={successLift:0.075,successButtons:[],titles:titleIds.map(id=>ref(objects[id]._components.find(r=>objects[r.__id__].__type__==='cc.Label').__id__)),artworks,
     successFrame:{__uuid__:asset('title-success'),__expectedType__:'cc.SpriteFrame'},failureFrame:{__uuid__:asset('title-failure'),__expectedType__:'cc.SpriteFrame'},
     gameplayHud:objects.flatMap((o,i)=>o.__type__==='cc.Node' && !descendants.includes(i) && hudNames[sceneName]?.includes(o._name)?[ref(i)]:[])};
   const existing=component(overlayId,compressUuid(scriptUuid));

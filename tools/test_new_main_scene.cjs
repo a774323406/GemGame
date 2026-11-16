@@ -108,13 +108,10 @@ const expectedCards = [
   'PuzzleGameCard',
   'DuckGrabCard',
   'FoodDeliveryCard',
-  'WhiteGooseCard',
-  'MathExamCard',
-  'MotoRaceCard',
-  'ClayPigeonCard',
-  'DriftCard',
   'BrickChopCard',
   'RopeDuckCard',
+  'JellyCrushCard',
+  'TruckStackCard',
 ];
 const contentChildren = content.entry._children.map(object).map(node => node._name);
 assert.deepEqual(contentChildren, expectedCards, 'game cards/order changed');
@@ -127,7 +124,7 @@ assert.deepEqual(
   'the third card must start the second row',
 );
 assert.deepEqual(
-  [nodeByName('WhiteGooseCard').entry._lpos.x, nodeByName('WhiteGooseCard').entry._lpos.y],
+  [nodeByName('BrickChopCard').entry._lpos.x, nodeByName('BrickChopCard').entry._lpos.y],
   [139, -446],
   'the fourth card must complete the second row',
 );
@@ -166,13 +163,10 @@ const buttonProperties = [
   'puzzleButton',
   'duckGrabButton',
   'foodDeliveryButton',
-  'whiteGooseButton',
-  'mathExamButton',
-  'motoRaceButton',
-  'clayPigeonButton',
-  'driftButton',
   'brickChopButton',
   'ropeDuckButton',
+  'jellyCrushButton',
+  'truckStackButton',
 ];
 buttonProperties.forEach((property, index) => {
   const button = object(controller[property]);
@@ -182,38 +176,26 @@ buttonProperties.forEach((property, index) => {
 assert(!('juggleButton' in controller), 'new lobby must not bind a juggle entry');
 assert(!scene.some(item => item?._name === 'JuggleBallCard'), 'new lobby must not contain a juggle card');
 const foodCard = nodeByName('FoodDeliveryCard');
-const bottomTitleAssets = [
-  ['FoodDeliveryCard', 'title_food_delivery.jpg'],
-  ['WhiteGooseCard', 'title_white_goose.jpg'],
-];
-for (const [cardName, filename] of bottomTitleAssets) {
+const foodPlaque = foodCard.entry._children.map(object).find(child => child._name === 'TitlePlaque');
+assert(foodPlaque, 'FoodDeliveryCard title plaque is missing');
+const sharedTitleMeta = JSON.parse(read('assets/res/newMain/card_title_blank.png.meta'));
+assert.equal(component(scene.indexOf(foodPlaque), 'cc.Sprite')._spriteFrame.__uuid__,
+  `${sharedTitleMeta.uuid}@f9941`);
+for (const cardName of expectedCards) {
   const card = nodeByName(cardName);
   const plaque = card.entry._children.map(object).find(child => child._name === 'TitlePlaque');
   assert(plaque, `${cardName} title plaque is missing`);
-  assert(!plaque._children.some(child => object(child)._name === 'GameName'),
-    `${cardName} must use the same baked-title-image type as the other gameplay cards`);
-  const metaPath = `assets/res/newMain/${filename}.meta`;
-  assert(fs.existsSync(path.join(projectRoot, metaPath)), `${filename} metadata is missing`);
-  const meta = JSON.parse(read(metaPath));
-  const frame = meta.subMetas.f9941.userData;
-  assert.equal(component(scene.indexOf(plaque), 'cc.Sprite')._spriteFrame.__uuid__, `${meta.uuid}@f9941`);
-  assert.deepEqual([frame.rawWidth, frame.rawHeight], [268, 57],
-    `${filename} must match the common gameplay-title dimensions`);
+  assert.equal(component(scene.indexOf(plaque), 'cc.Sprite')._spriteFrame.__uuid__, `${sharedTitleMeta.uuid}@f9941`);
+  const labels = plaque._children.map(object).filter(child => component(scene.indexOf(child), 'cc.Label'));
+  assert.equal(labels.length, 1, `${cardName} must have one shared title label`);
+  const label = component(scene.indexOf(labels[0]), 'cc.Label');
+  assert.equal(label._fontSize, 30, `${cardName} title font must match DuckGrabCard`);
+  assert.deepEqual(label._outlineColor, { __type__: 'cc.Color', r: 67, g: 42, b: 31, a: 255 });
+  assert.equal(label._outlineWidth, 3, `${cardName} title outline must match DuckGrabCard`);
 }
 const foodMask = foodCard.entry._children.map(object).find(child => child._name === 'ArtworkMask');
 const foodArtNames = foodMask._children.map(object).map(child => child._name);
 assert.deepEqual(foodArtNames, ['Artwork', 'CourierPreview', 'OrderPreview']);
-const whiteGooseCard = nodeByName('WhiteGooseCard');
-const whiteGooseMask = whiteGooseCard.entry._children.map(object)
-  .find(child => child._name === 'ArtworkMask');
-const whiteGooseArtwork = whiteGooseMask._children.map(object)
-  .find(child => child._name === 'Artwork');
-assert.equal(
-  component(scene.indexOf(whiteGooseArtwork), 'cc.Sprite')._spriteFrame.__uuid__,
-  '9bc09818-0e84-5ea3-a1a0-42cca593f1bd@f9941',
-  'white goose card must use its dedicated preview image',
-);
-
 for (const property of ['settingButton', 'shareButton', 'sidebarButton']) {
   assert.equal(object(controller[property]).__type__, 'cc.Button', `${property} is not bound`);
 }
@@ -232,22 +214,16 @@ assert.deepEqual(
 const bundleSource = read('assets/scripts/framework/GameSceneBundle.ts');
 assert(bundleSource.includes('Main = "NewMainScene"'));
 assert(bundleSource.includes(`[GameSceneName.Main]: "${SCENE_UUID}"`));
-assert(bundleSource.includes('WhiteGooseFeedGame = "WhiteGooseFeedGameScene"'));
-assert(bundleSource.includes(
-  '[GameSceneName.WhiteGooseFeedGame]: "ba4c8390-ece1-56f3-ae54-585950e78599"',
-));
+for (const retiredScene of ['WhiteGooseFeedGameScene', 'MathExamFeedGameScene', 'MotoRaceGameScene', 'ClayPigeonGameScene', 'DriftFeedGameScene']) {
+  assert(!bundleSource.includes(retiredScene), `${retiredScene} remains in the scene bundle`);
+}
 assert(!bundleSource.includes('LegacyMain'));
 
 const controllerSource = read('assets/scripts/newMainScene.ts');
 assert(controllerSource.includes('view.setDesignResolutionSize(750, 1624, ResolutionPolicy.FIXED_WIDTH)'), 'Lobby must reset fixed-width policy on cold start and return');
-assert(controllerSource.includes('whiteGooseButton: Button = null'));
-assert(controllerSource.includes(
-  'this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this)',
-));
-assert(controllerSource.includes(
-  'this.whiteGooseButton?.node?.off(Button.EventType.CLICK, this.openWhiteGoose, this)',
-));
-assert(controllerSource.includes('this.enterGame(GameSceneName.WhiteGooseFeedGame)'));
+for (const retiredName of ['whiteGooseButton', 'mathExamButton', 'motoRaceButton', 'clayPigeonButton', 'driftButton']) {
+  assert(!controllerSource.includes(retiredName), `${retiredName} remains in the lobby controller`);
+}
 
 const loadingSource = read('assets/scripts/loadScene.ts');
 assert(loadingSource.includes('feedEntry?.sceneName ?? GameSceneName.Main'));
