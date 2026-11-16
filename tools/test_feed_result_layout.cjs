@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const names=['JuggleBallGameScene','DuckGrabFeedGameScene','BrickChopFeedGameScene','RopeDuckFeedGameScene','TruckStackFeedGameScene','FoodDeliveryFeedGameScene','WhiteGooseFeedGameScene','MathExamFeedGameScene','MotoRaceGameScene'];
+const names=['JuggleBallGameScene','DuckGrabFeedGameScene','BrickChopFeedGameScene','RopeDuckFeedGameScene','TruckStackFeedGameScene','FoodDeliveryFeedGameScene','JellyCrushFeedGameScene'];
 function check(o,name) {
  const id=n=>o.findIndex(v=>v.__type__==='cc.Node'&&v._name===n);
  const comp=(i,t)=>o[i]._components.map(r=>o[r.__id__]).find(v=>v.__type__===t);
- const overlay=id(name==='MotoRaceGameScene'?'Overlay':'ResultOverlay');
+ const overlay=id('ResultOverlay');
  assert(overlay>=0,name);
  assert(comp(o[overlay]._parent.__id__,'cc.Canvas'),name+' overlay must be attached to Canvas');
  assert(comp(overlay,'cc.BlockInputEvents'),name+' must block gameplay input');
@@ -43,6 +43,6 @@ function check(o,name) {
 (async()=>{
  const {fitFeedResultOverlay}=await import('./feed_result_layout.mjs');
  for(const name of names.filter(name=>!process.argv.includes('--maintained-only')||!['JuggleBallGameScene'].includes(name))){const o=JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`));check(o,name);const before=JSON.stringify(o);fitFeedResultOverlay(o,name);assert.equal(JSON.stringify(o),before,name+' authoring must be idempotent');console.log('PASS '+name);}
- for(const [file,fn,name] of [['truck_stack','buildTruckStackScene','TruckStackFeedGameScene'],['rope_duck','buildRopeDuckScene','RopeDuckFeedGameScene'],['brick_chop','buildBrickChopScene','BrickChopFeedGameScene'],['duck_grab','buildDuckGrabScene','DuckGrabFeedGameScene'],['food_delivery','buildFoodDeliveryScene','FoodDeliveryFeedGameScene'],['white_goose','buildWhiteGooseScene','WhiteGooseFeedGameScene'],['math_exam','buildMathExamScene','MathExamFeedGameScene'],['moto_race','buildMotoScene','MotoRaceGameScene']]){const mod=await import(`./${file}_authoring.mjs`);check(mod[fn](),name);}
+ for(const [file,fn,name] of [['rope_duck','buildRopeDuckScene','RopeDuckFeedGameScene'],['truck_stack','buildTruckStackScene','TruckStackFeedGameScene'],['brick_chop','buildBrickChopScene','BrickChopFeedGameScene'],['duck_grab','buildDuckGrabScene','DuckGrabFeedGameScene'],['food_delivery','buildFoodDeliveryScene','FoodDeliveryFeedGameScene'],['jelly_crush','buildJellyCrushScene','JellyCrushFeedGameScene']]){const mod=await import(`./${file}_authoring.mjs`);check(mod[fn](),name);}
  console.log('PASS rebuilt layouts and retained actions');
 })().catch(e=>{console.error(e);process.exitCode=1;});

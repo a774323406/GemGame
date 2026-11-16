@@ -1,5 +1,5 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
-for(const name of ['MotoRace','DuckGrabFeed','WhiteGooseFeed','FoodDeliveryFeed','MathExamFeed']) {
+for(const name of ['JuggleBall','DuckGrabFeed','FoodDeliveryFeed','BrickChopFeed','RopeDuckFeed','TruckStackFeed','JellyCrushFeed']) {
  const o=JSON.parse(fs.readFileSync(`assets/gamescene/${name}GameScene.scene`));
  const node=n=>o.find(v=>v.__type__==='cc.Node'&&v._name===n),comp=(n,t)=>n._components.map(r=>o[r.__id__]).find(v=>v.__type__===t);
  for(const height of [1334,1624]) {
@@ -9,8 +9,6 @@ for(const name of ['MotoRace','DuckGrabFeed','WhiteGooseFeed','FoodDeliveryFeed'
    assert(height/2+w._verticalCenter*height-size.height/2>=80,`${name} ${n._name} bottom margin ${height}`);
   }
  }
- if(name==='MotoRace'){const p=node('PauseButton');assert.equal(o[p._parent.__id__]._name,'Canvas');const w=comp(p,'cc.Widget');assert.equal(w._alignFlags,9);assert(w._top>=64&&w._left>=24);}
  if(name==='DuckGrabFeed')assert(comp(node('SlowdownButton'),'cc.Widget')._bottom>=80);
- if(name==='WhiteGooseFeed'){const w=comp(node('AddRingsButton'),'cc.Widget');assert.equal(w._alignFlags,36);assert(w._bottom>=80&&w._right>=24);}
  console.log('PASS supported portrait sizes:',name);
 }

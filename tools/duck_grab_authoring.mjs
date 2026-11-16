@@ -6,6 +6,7 @@ export const uuid=n=>{const h=crypto.createHash('sha256').update('GemGame/duckGr
 export const SCENE_UUID=uuid('DuckGrabFeedGameScene');
 const frame=p=>JSON.parse(fs.readFileSync(p+'.meta')).uuid+'@f9941';
 const art=n=>frame('assets/res/duckGrabFeed/'+n);
+const audioAsset=n=>JSON.parse(fs.readFileSync('assets/res/duckGrabFeed/'+n+'.meta')).uuid;
 const component=(o,id,type)=>o[id]._components.map(r=>r.__id__).find(i=>o[i].__type__===type);
 // Clone only a node subtree and components, never external scene state.
 function cloneNode(src,o,root){const ids=[];function walk(id){ids.push(id);for(const r of src[id]._components)ids.push(r.__id__);for(const r of src[id]._children)walk(r.__id__);}walk(root);const map=new Map(ids.map((id,i)=>[id,o.length+i]));function remap(v){if(Array.isArray(v))return v.map(remap);if(!v||typeof v!=='object')return v;if(Number.isInteger(v.__id__))return map.has(v.__id__)?ref(map.get(v.__id__)):null;return Object.fromEntries(Object.entries(v).map(([k,x])=>[k,remap(x)]));}for(const id of ids){const c=remap(src[id]);if(c._id)c._id='duckClone_'+map.get(id);o.push(c);}return map.get(root);}
@@ -52,7 +53,8 @@ export function buildDuckGrabScene(){
  a.label('PauseDetail',exitOverlay,'确定退出本局吗？',{y:100,w:650,h:90,size:42});
  const pauseAction=(name,text,y)=>{const n=a.sprite(name,exitOverlay,frame('assets/res/feedResult/button-orange.png'),{y,w:470,h:138});a.label('Caption',n,text,{w:420,h:90,size:48});return a.button(n);};
  const continueButton=pauseAction('ContinueButton','继续游戏',-80),exitButton=pauseAction('ExitButton','退出本局',-255);
- a.component(canvas,compressUuid(uuid('duckGrabFeedGameScene.ts')),{backButton:ref(back),continueButton:ref(continueButton),exitButton:ref(exitButton),exitOverlay:ref(exitOverlay),surface:ref(surface),duckPivot:ref(pivot),hand:ref(hand),caughtPose:ref(caught),taunt:ref(taunt.node),hud:ref(hud),resultOverlay:ref(overlay),timeLabel:ref(clock.component),attemptLabel:ref(count.component),hintLabel:ref(hint.component),resultTitle:ref(title.component),resultDetail:ref(detail.component),slowdownButton:ref(slowButton),replayButton:ref(replay),homeButton:ref(home)});
+ const missAudio=a.component(canvas,'cc.AudioSource',{_clip:{__uuid__:audioAsset('duck-miss.mp3'),__expectedType__:'cc.AudioClip'},_loop:false,_playOnAwake:false,_volume:.78});
+ a.component(canvas,compressUuid(uuid('duckGrabFeedGameScene.ts')),{backButton:ref(back),continueButton:ref(continueButton),exitButton:ref(exitButton),exitOverlay:ref(exitOverlay),surface:ref(surface),duckPivot:ref(pivot),hand:ref(hand),caughtPose:ref(caught),taunt:ref(taunt.node),hud:ref(hud),resultOverlay:ref(overlay),timeLabel:ref(clock.component),attemptLabel:ref(count.component),hintLabel:ref(hint.component),resultTitle:ref(title.component),resultDetail:ref(detail.component),slowdownButton:ref(slowButton),replayButton:ref(replay),homeButton:ref(home),missAudio:ref(missAudio)});
  o[1]._globals=ref(appendSceneGlobals(src,o));fitFeedResultOverlay(o,'DuckGrabFeedGameScene');return o;
 }
 export function replaceLobbyCard(o){

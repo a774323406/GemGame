@@ -119,7 +119,7 @@ async function main() {
     const { fitFeedResultOverlay, appendSceneGlobals } = await import('./feed_result_layout.mjs');
     const names = ['JuggleBallGameScene',
       'FoodDeliveryFeedGameScene', 'DuckGrabFeedGameScene',
-      'WhiteGooseFeedGameScene'];
+      'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene', 'JellyCrushFeedGameScene'];
     for (const name of names) {
       const data = JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`, 'utf8'));
       const component = (node, type) => node._components.map(ref => data[ref.__id__]).find(x => x.__type__ === type);
@@ -154,32 +154,31 @@ async function main() {
   test('new Content IDs route to the requested games; juggle selects the correct level', () => {
     const f = fixture();
     const config = f.load('framework/Platform/FeedRevisitConfig.ts');
-    assert.equal(config.FEED_WHITE_GOOSE_CONTENT_ID, 'CONTENT16249092354');
-    assert.equal(config.FEED_FOOD_DELIVERY_CONTENT_ID, 'CONTENT15898013698');
     const loader = new (f.load('loadScene.ts').loadScene)();
     const juggle = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)(); juggle.feedMode = true;
     const cases = [
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
-      ['CONTENT16010964482', 'BrickChopFeedGameScene'],
-      ['CONTENT15981330178', 'RopeDuckFeedGameScene'],
-      ['xx', 'TruckStackFeedGameScene'],
-      ['CONTENT15926016002', 'DuckGrabFeedGameScene'],
+      [config.FEED_HEART_CONTENT_ID, 'GameScene'],
+      [config.FEED_FOOD_DELIVERY_CONTENT_ID, 'FoodDeliveryFeedGameScene'],
+      [config.FEED_DUCK_GRAB_CONTENT_ID, 'DuckGrabFeedGameScene'],
+      [config.FEED_BRICK_CHOP_CONTENT_ID, 'BrickChopFeedGameScene'],
+      [config.FEED_ROPE_DUCK_CONTENT_ID, 'RopeDuckFeedGameScene'],
+      [config.FEED_TRUCK_STACK_CONTENT_ID, 'TruckStackFeedGameScene'],
+      [config.FEED_JELLY_CRUSH_CONTENT_ID, 'JellyCrushFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
-      ['CONTENT16249092354', 'WhiteGooseFeedGameScene'],
-      ['CONTENT16249092098', 'MathExamFeedGameScene'],
-      ['CONTENT15898013698', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT15773045506', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT16277329410', 'MotoRaceGameScene'],
-      ['CONTENT15687335682', 'MotoRaceGameScene'],
-      ['CONTENT16146470658', 'DriftFeedGameScene'],
-      ['CONTENT15644009218', 'DriftFeedGameScene'],
-      ['CONTENT15927357954', 'ClayPigeonGameScene'],
     ];
-    // The replaced primary IDs no longer launch a game; extra compatibility IDs above remain valid.
-    for (const contentId of ['CONTENT15825843202', 'CONTENT16146432770', 'CONTENT16146433026', 'CONTENT15937188866', 'CONTENT16072561410', 'CONTENT15927315970', 'CONTENT16082608130', 'CONTENT16248433922', 'CONTENT16072580098']) cases.push([contentId, 'NewMainScene']);
+    // Replaced primary and extra IDs must no longer launch the retired entry.
+    for (const contentId of [
+      'CONTENT14960528898','CONTENT15271990018','CONTENT15383250178',
+      'CONTENT15252968962','CONTENT15773045506','CONTENT15218705666',
+      'CONTENT15687335682','CONTENT15441408514','CONTENT15644009218',
+      'CONTENT15740648962','CONTENT15740674562',
+      'CONTENT16249041666','CONTENT15825828354','CONTENT15960888834','CONTENT15936572162','CONTENT15897954818','CONTENT15927306754','CONTENT15927307010','CONTENT15825829378',
+      'CONTENT15981329666','CONTENT16249091586','CONTENT16277328898','CONTENT16248468738','CONTENT16072604162',
+    ]) cases.push([contentId, 'NewMainScene']);
     for (const [contentId, scene, level] of cases) {
-      f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene);
+      f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene, contentId);
       if (level) assert.equal(juggle.resolveEntryLevel(), level);
     }
     f.setState({ contentId: 'unknown' }); assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene');

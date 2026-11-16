@@ -26,8 +26,7 @@ function fixture() {
   director.pause = director.resume = () => assert.fail('interstitial must not change engine pause');
   const sceneNames = Object.fromEntries([
     'NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene', 'FoodDeliveryFeedGameScene',
-    'WhiteGooseFeedGameScene', 'DriftFeedGameScene', 'MathExamFeedGameScene', 'MotoRaceGameScene', 'ClayPigeonGameScene',
+    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene', 'FoodDeliveryFeedGameScene', 'JellyCrushFeedGameScene',
   ].map(name => [name, name]));
   sceneNames.Main = 'NewMainScene';
   const sdk = {
@@ -91,16 +90,6 @@ function fixture() {
 }
 const tests = [];
 const test = (name, run) => tests.push([name, run]);
-test('drift CONTENT16146470658 preview/entry, repeat and exit use shared interstitial timing', () => {
-  const f=fixture();f.scene({name:'DriftFeedGameScene',isValid:true});
-  Object.assign(f.feed,{active:true,contentId:'CONTENT16146470658'});
-  f.advance(90_000);assert.equal(f.requests.length,0);
-  f.enter();f.advance(1_999);assert.equal(f.requests.length,0);
-  f.advance(1);assert.equal(f.requests.length,1);f.requests[0].show();f.requests[0].close();
-  f.advance(59_999);assert.equal(f.requests.length,1);f.advance(1);assert.equal(f.requests.length,2);
-  f.exit();f.requests[1].show();assert.equal(f.requests[1].shown,false);
-  f.advance(90_000);assert.equal(f.requests.length,2);
-});
 for(const [name,contentId] of [['TruckStackFeedGameScene','xx'],['BrickChopFeedGameScene','CONTENT16010964482'],['RopeDuckFeedGameScene','CONTENT15981330178']])
 test(`${name} ${contentId} waits for readiness, repeats, retries after 60s and stops on exit`, () => {
   const f=fixture();f.scene({name,isValid:true});
@@ -159,8 +148,8 @@ test('gameplay and result pages share cooldown; feed completion does not stop ad
   const f = fixture(); f.enter(); f.advance(31_000); f.requests[0].show(); f.requests[0].close();
   f.adc.cancelFeedEntryInterstitial(); f.feed.active = false;
   for (const name of ['NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene',
-    'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene']) {
+    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene',
+    'FoodDeliveryFeedGameScene', 'JellyCrushFeedGameScene']) {
     f.scene({ name, isValid: true }); f.adc.onLevelResult(1, 'pass', { eligible: false });
     f.advance(1_000);
   }
@@ -228,8 +217,7 @@ test('feed entry waits for rendered scene readiness as well as the 2-second entr
 });
 test('each current gameplay can repeat after readiness without a per-game quota', () => {
   for (const name of ['GameScene', 'JuggleBallGameScene', 'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene',
-    'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene', 'MathExamFeedGameScene',
-    'MotoRaceGameScene', 'ClayPigeonGameScene', 'DriftFeedGameScene']) {
+    'FoodDeliveryFeedGameScene', 'JellyCrushFeedGameScene']) {
     const f = fixture(); f.scene({ name, isValid: true }); f.advance(31_000);
     for (let i = 0; i < 3; i++) {
       assert.equal(f.requests.length, i + 1, name);

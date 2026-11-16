@@ -54,19 +54,7 @@ export class newMainScene extends Component {
   foodDeliveryButton: Button = null;
 
   @property(Button)
-  whiteGooseButton: Button = null;
-
-  @property(Button)
-  mathExamButton: Button = null;
-
-  @property(Button)
-  motoRaceButton: Button = null;
-
-  @property(Button)
-  clayPigeonButton: Button = null;
-
-  @property(Button)
-  driftButton: Button = null;
+  jellyCrushButton: Button = null;
 
   private navigating = false;
   private shareInFlight = false;
@@ -84,11 +72,7 @@ export class newMainScene extends Component {
     this.brickChopButton?.node?.on(Button.EventType.CLICK, this.openBrickChop, this);
     this.duckGrabButton?.node?.on(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
-    this.whiteGooseButton?.node?.on(Button.EventType.CLICK, this.openWhiteGoose, this);
-    this.mathExamButton?.node?.on(Button.EventType.CLICK, this.openMathExam, this);
-    this.driftButton?.node?.on(Button.EventType.CLICK, this.openDrift, this);
-    this.clayPigeonButton?.node?.on(Button.EventType.CLICK, this.openClayPigeon, this);
-    this.motoRaceButton?.node?.on(Button.EventType.CLICK, this.openMotoRace, this);
+    this.jellyCrushButton?.node?.on(Button.EventType.CLICK, this.openJellyCrush, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     SidebarRewardService.addListener(this.onSidebarStateChanged);
@@ -107,9 +91,6 @@ export class newMainScene extends Component {
   }
 
   protected onDestroy(): void {
-    this.driftButton?.node?.off(Button.EventType.CLICK, this.openDrift, this);
-    this.clayPigeonButton?.node?.off(Button.EventType.CLICK, this.openClayPigeon, this);
-    this.motoRaceButton?.node?.off(Button.EventType.CLICK, this.openMotoRace, this);
     game.off(Game.EVENT_SHOW, this.onGameShow, this);
     SidebarRewardService.removeListener(this.onSidebarStateChanged);
     this.settingButton?.node?.off(Button.EventType.CLICK, this.openSettings, this);
@@ -121,8 +102,7 @@ export class newMainScene extends Component {
     this.brickChopButton?.node?.off(Button.EventType.CLICK, this.openBrickChop, this);
     this.duckGrabButton?.node?.off(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
-    this.whiteGooseButton?.node?.off(Button.EventType.CLICK, this.openWhiteGoose, this);
-    this.mathExamButton?.node?.off(Button.EventType.CLICK, this.openMathExam, this);
+    this.jellyCrushButton?.node?.off(Button.EventType.CLICK, this.openJellyCrush, this);
   }
 
   private openSettings(): void {
@@ -140,11 +120,7 @@ export class newMainScene extends Component {
   private openBrickChop(): void { void this.enterGame(GameSceneName.BrickChopFeedGame); }
   private openDuckGrab(): void { void this.enterGame(GameSceneName.DuckGrabFeedGame); }
   private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
-  private openWhiteGoose(): void { void this.enterGame(GameSceneName.WhiteGooseFeedGame); }
-  private openMathExam(): void { void this.enterGame(GameSceneName.MathExamFeedGame); }
-  private openDrift(): void { void this.enterGame(GameSceneName.DriftFeedGame); }
-  private openClayPigeon(): void { void this.enterGame(GameSceneName.ClayPigeonGame); }
-  private openMotoRace(): void { void this.enterGame(GameSceneName.MotoRaceGame); }
+  private openJellyCrush(): void { void this.enterGame(GameSceneName.JellyCrushFeedGame); }
 
   private async enterGame(sceneName: GameSceneName): Promise<void> {
     if (this.navigating || GameSceneBundle.isLoadingScene) return;
@@ -177,11 +153,7 @@ export class newMainScene extends Component {
       this.ropeDuckButton,
       this.truckStackButton,
       this.foodDeliveryButton,
-      this.whiteGooseButton,
-      this.mathExamButton,
-      this.motoRaceButton,
-      this.clayPigeonButton,
-      this.driftButton,
+      this.jellyCrushButton,
     ].filter(Boolean);
   }
 

@@ -7,7 +7,7 @@ const url = process.argv[2] || 'http://127.0.0.1:8768/';
 const feedConfig = fs.readFileSync('assets/scripts/framework/Platform/FeedRevisitConfig.ts', 'utf8');
 function contentId(name) {
   const match = feedConfig.match(new RegExp(`export const ${name}(?:\\s*:\\s*string)?\\s*=\\s*"([^"]*)"`));
-  assert(match && match[1], `Configure this branch's ${name} before feed preview`);
+  assert(match && match[1] && match[1] !== 'xx', `Configure this branch's ${name} before feed preview`);
   return match[1];
 }
 (async () => {

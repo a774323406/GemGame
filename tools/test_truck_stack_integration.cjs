@@ -16,11 +16,11 @@ const load = (file, requireFn = () => ({})) => {
   const loader = load('loadScene.ts', name => name === 'cc' ? cc : name.endsWith('GameSceneBundle') ? bundle :
     name.endsWith('FeedRevisitConfig') ? config : name.endsWith('FeedAcquisitionService') ? {FeedAcquisitionService: {getState: () => state}} : {});
   const route = new loader.loadScene();
-  for (const [id, scene] of [['xx','TruckStackFeedGameScene'], ['CONTENT15981330178','RopeDuckFeedGameScene'],
-    ['CONTENT16249092098','MathExamFeedGameScene'], ['CONTENT16010964482','BrickChopFeedGameScene'], ['unknown', 'NewMainScene']]) {
+  for (const [id, scene] of [[config.FEED_TRUCK_STACK_CONTENT_ID,'TruckStackFeedGameScene'], [config.FEED_ROPE_DUCK_CONTENT_ID,'RopeDuckFeedGameScene'],
+    [config.FEED_BRICK_CHOP_CONTENT_ID,'BrickChopFeedGameScene'], ['unknown', 'NewMainScene']]) {
     state.contentId = id; assert.equal(route.resolveFeedEntry().sceneName, scene, id + ' routes correctly');
   }
-  state.contentId = 'xx'; state.mode = 'revisit';
+  state.contentId = config.FEED_TRUCK_STACK_CONTENT_ID; state.mode = 'revisit';
   assert.equal(route.resolveFeedEntry().sceneName, 'NewMainScene', 'retired revisit still falls back');
   const {buildTruckStackScene, appendTruckStackCard, SCENE_UUID, uuid} = await import('./truck_stack_authoring.mjs');
   const scene = JSON.parse(fs.readFileSync('assets/gamescene/TruckStackFeedGameScene.scene'));

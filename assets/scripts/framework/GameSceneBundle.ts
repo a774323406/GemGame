@@ -13,16 +13,10 @@ export enum GameSceneName {
   BrickChopFeedGame = "BrickChopFeedGameScene",
   DuckGrabFeedGame = "DuckGrabFeedGameScene",
   FoodDeliveryFeedGame = "FoodDeliveryFeedGameScene",
-  WhiteGooseFeedGame = "WhiteGooseFeedGameScene",
-  MathExamFeedGame = "MathExamFeedGameScene",
-  MotoRaceGame = "MotoRaceGameScene",
-  DriftFeedGame = "DriftFeedGameScene",
-  ClayPigeonGame = "ClayPigeonGameScene",
+  JellyCrushFeedGame = "JellyCrushFeedGameScene",
 }
 
 const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
-  [GameSceneName.DriftFeedGame]: "8621d826-d203-56a6-a0e6-ed18cf94d1e6",
-  [GameSceneName.ClayPigeonGame]: "f9a113b4-e127-5d9e-a754-e165a1344ebd",
   [GameSceneName.Main]: "e2f66be5-60ce-4ebc-90a4-d99841dd2b9a",
   [GameSceneName.Game]: "f1b4dce3-df3d-4fdd-b734-66899ef83623",
   [GameSceneName.JuggleBallGame]: "222c590e-82b2-4778-b62d-acf4b3829c0b",
@@ -31,9 +25,7 @@ const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
   [GameSceneName.BrickChopFeedGame]: "b3c0567c-f955-53eb-a799-7318d480bf2d",
   [GameSceneName.DuckGrabFeedGame]: "2bd73f08-2520-51f8-ae71-abb501645730",
   [GameSceneName.FoodDeliveryFeedGame]: "fccc8a6c-9bab-5757-a411-a8bf4c40935b",
-  [GameSceneName.WhiteGooseFeedGame]: "ba4c8390-ece1-56f3-ae54-585950e78599",
-  [GameSceneName.MathExamFeedGame]: "16cb5b67-1cc4-5e8f-a42e-1af87bf65a0e",
-  [GameSceneName.MotoRaceGame]: "5191a270-00d4-5c42-a314-03ba4068deda",
+  [GameSceneName.JellyCrushFeedGame]: "da36427c-0c6e-504e-a0f7-1db5ce7b2342",
 };
 
 /**

@@ -3,29 +3,54 @@
 import fs from 'node:fs';
 import { SceneAuthor, ref, rgba, vec } from './feed_scene_authoring.mjs';
 const frame = file => `${JSON.parse(fs.readFileSync(`${file}.meta`)).uuid}@f9941`;
+const duckTitleFrame = frame('assets/res/newMain/card_title_blank.png');
 const component = (objects, node, type) => objects[node]._components
   .map(r => objects[r.__id__]).find(v => v.__type__ === type);
 const child = (objects, node, name) => objects[node]._children
   .map(r => r.__id__).find(id => objects[id]._name === name);
 
-function applySharedTitleBar(objects, plaque, a) {
-  if (child(objects, plaque, 'TitleFill') !== undefined) return;
-  // Keep the same brush-shaped edge pixels as the existing title cards.
-  // A flat UI fill replaces the baked caption underneath the editable label.
-  component(objects, plaque, 'cc.Sprite')._spriteFrame = {
-    __uuid__: frame('assets/res/newMain/title_white_goose.jpg'), __expectedType__: 'cc.SpriteFrame',
+function applySharedTitleBar(objects, plaque, a, title) {
+  // Use the same plaque and label treatment as the duck challenge card. Old
+  // game-specific title art and the extra fill sprite are no longer needed.
+  const plaqueSprite = component(objects, plaque, 'cc.Sprite');
+  if (plaqueSprite) plaqueSprite._spriteFrame = {
+    __uuid__: duckTitleFrame, __expectedType__: 'cc.SpriteFrame',
   };
-  const fill = a.sprite('TitleFill', plaque, frame('assets/res/foodDeliveryFeed/white.png'), {
-    w: 134, h: 41, color: rgba(248, 174, 48),
+  const labelId = objects[plaque]._children
+    .map(r => r.__id__)
+    .find(id => component(objects, id, 'cc.Label') !== undefined);
+  let gameName = labelId;
+  if (gameName === undefined) {
+    gameName = a.label('GameName', plaque, title || '', {
+      w: 230, h: 54, size: 30, color: rgba(255, 255, 255),
+      outlineColor: rgba(67, 42, 31), outlineWidth: 3,
+    }).node;
+  }
+  const label = component(objects, gameName, 'cc.Label');
+  const transform = component(objects, gameName, 'cc.UITransform');
+  if (label) Object.assign(label, {
+    _string: title || label._string,
+    _actualFontSize: 30,
+    _fontSize: 30,
+    _lineHeight: 37.5,
+    _color: rgba(255, 255, 255),
+    _isBold: true,
+    _enableOutline: true,
+    _outlineColor: rgba(67, 42, 31),
+    _outlineWidth: 3,
   });
-  objects[plaque]._children = [ref(fill), ...objects[plaque]._children.filter(r => r.__id__ !== fill)];
+  if (transform) transform._contentSize = { __type__: 'cc.Size', width: 230, height: 54 };
+  objects[gameName]._name = 'GameName';
+  objects[gameName]._parent = ref(plaque);
+  objects[gameName]._lpos = vec(0, 0, 0);
+  objects[plaque]._children = [ref(gameName)];
 }
 
 export function standardizeLobbyCard(objects, cardId, title) {
   // Preserve subsequent editor adjustments and make authoring repeatable.
   const existingPlaque = child(objects, cardId, 'TitlePlaque');
   if (existingPlaque !== undefined && child(objects, cardId, 'ArtworkMask') !== undefined) {
-    applySharedTitleBar(objects, existingPlaque, new SceneAuthor(objects, `${objects[cardId]._name}Title`));
+    applySharedTitleBar(objects, existingPlaque, new SceneAuthor(objects, `${objects[cardId]._name}Title`), title);
     return;
   }
   const preview = child(objects, cardId, 'Preview');
@@ -63,5 +88,20 @@ export function standardizeLobbyCard(objects, cardId, title) {
     _color: rgba(255, 251, 241), _isBold: true, _enableOutline: true,
     _outlineColor: rgba(105, 55, 28), _outlineWidth: 4,
   });
-  applySharedTitleBar(objects, plaque, a);
+  applySharedTitleBar(objects, plaque, a, title);
+}
+
+export function standardizeAllLobbyCards(objects) {
+  const titles = {
+    PuzzleGameCard: '拼豆玩法',
+    DuckGrabCard: '抓鸭子挑战',
+    FoodDeliveryCard: '外卖精准投送',
+    BrickChopCard: '劈砖挑战',
+    RopeDuckCard: '双鸭跳跃',
+    JellyCrushCard: '果冻压压乐',
+  };
+  for (const [name, title] of Object.entries(titles)) {
+    const cardId = objects.findIndex(item => item?.__type__ === 'cc.Node' && item._name === name);
+    if (cardId >= 0) standardizeLobbyCard(objects, cardId, title);
+  }
 }

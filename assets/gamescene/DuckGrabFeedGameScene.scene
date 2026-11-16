@@ -52,7 +52,7 @@
     },
     "autoReleaseAssets": false,
     "_globals": {
-      "__id__": 127
+      "__id__": 128
     },
     "_id": "2bd73f08-2520-51f8-ae71-abb501645730"
   },
@@ -109,6 +109,9 @@
       },
       {
         "__id__": 126
+      },
+      {
+        "__id__": 127
       }
     ],
     "_prefab": null,
@@ -2641,13 +2644,13 @@
         "__id__": 69
       },
       {
-        "__id__": 136
+        "__id__": 137
       },
       {
-        "__id__": 138
+        "__id__": 139
       },
       {
-        "__id__": 148
+        "__id__": 149
       }
     ],
     "_prefab": null,
@@ -2720,7 +2723,7 @@
         "__id__": 72
       },
       {
-        "__id__": 137
+        "__id__": 138
       }
     ],
     "_prefab": null,
@@ -2845,7 +2848,7 @@
         "__id__": 74
       },
       {
-        "__id__": 139
+        "__id__": 140
       }
     ],
     "_prefab": null,
@@ -2910,7 +2913,7 @@
     },
     "_children": [
       {
-        "__id__": 145
+        "__id__": 146
       }
     ],
     "_active": true,
@@ -2922,7 +2925,7 @@
         "__id__": 77
       },
       {
-        "__id__": 141
+        "__id__": 142
       }
     ],
     "_prefab": null,
@@ -3057,7 +3060,7 @@
         "__id__": 80
       },
       {
-        "__id__": 140
+        "__id__": 141
       }
     ],
     "_prefab": null,
@@ -3192,7 +3195,7 @@
         "__id__": 83
       },
       {
-        "__id__": 142
+        "__id__": 143
       }
     ],
     "_prefab": null,
@@ -3334,7 +3337,7 @@
         "__id__": 90
       },
       {
-        "__id__": 143
+        "__id__": 144
       }
     ],
     "_prefab": null,
@@ -3637,7 +3640,7 @@
         "__id__": 97
       },
       {
-        "__id__": 144
+        "__id__": 145
       }
     ],
     "_prefab": null,
@@ -5053,6 +5056,25 @@
     "_id": "duckGrab_ccButton_113"
   },
   {
+    "__type__": "cc.AudioSource",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 2
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_clip": {
+      "__uuid__": "9b4f4136-5bb8-5ec4-acad-3085f79fbbdf",
+      "__expectedType__": "cc.AudioClip"
+    },
+    "_loop": false,
+    "_playOnAwake": false,
+    "_volume": 0.78,
+    "_id": "duckGrab_ccAudioSource_114"
+  },
+  {
     "__type__": "b540b93k5FYA6IBsSlzFStf",
     "_name": "",
     "_objFlags": 0,
@@ -5119,33 +5141,36 @@
     "homeButton": {
       "__id__": 97
     },
-    "_id": "duckGrab_b540b93k5FYA6IBsSlzFStf_114"
+    "missAudio": {
+      "__id__": 126
+    },
+    "_id": "duckGrab_b540b93k5FYA6IBsSlzFStf_115"
   },
   {
     "__type__": "cc.SceneGlobals",
     "ambient": {
-      "__id__": 128
-    },
-    "shadows": {
       "__id__": 129
     },
-    "_skybox": {
+    "shadows": {
       "__id__": 130
     },
-    "fog": {
+    "_skybox": {
       "__id__": 131
     },
-    "octree": {
+    "fog": {
       "__id__": 132
     },
-    "skin": {
+    "octree": {
       "__id__": 133
     },
-    "lightProbeInfo": {
+    "skin": {
       "__id__": 134
     },
-    "postSettings": {
+    "lightProbeInfo": {
       "__id__": 135
+    },
+    "postSettings": {
+      "__id__": 136
     },
     "bakedWithStationaryMainLight": false,
     "bakedWithHighpLightmap": false
@@ -5561,10 +5586,10 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 146
+        "__id__": 147
       },
       {
-        "__id__": 147
+        "__id__": 148
       }
     ],
     "_prefab": null,
@@ -5595,7 +5620,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "feedResult_DuckGrabFeedGameScene_ResultHeadingArtwork_146"
+    "_id": "feedResult_DuckGrabFeedGameScene_ResultHeadingArtwork_147"
   },
   {
     "__type__": "cc.UITransform",
@@ -5603,7 +5628,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 145
+      "__id__": 146
     },
     "_enabled": true,
     "__prefab": null,
@@ -5617,7 +5642,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "feedResult_DuckGrabFeedGameScene_ccUITransform_147"
+    "_id": "feedResult_DuckGrabFeedGameScene_ccUITransform_148"
   },
   {
     "__type__": "cc.Sprite",
@@ -5625,7 +5650,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 145
+      "__id__": 146
     },
     "_enabled": true,
     "__prefab": null,
@@ -5656,7 +5681,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "feedResult_DuckGrabFeedGameScene_ccSprite_148"
+    "_id": "feedResult_DuckGrabFeedGameScene_ccSprite_149"
   },
   {
     "__type__": "f03299UeBRTpoO7jyfmXw45",
@@ -5677,7 +5702,7 @@
     ],
     "artworks": [
       {
-        "__id__": 147
+        "__id__": 148
       }
     ],
     "successFrame": {
