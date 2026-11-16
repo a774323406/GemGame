@@ -345,11 +345,20 @@ export class FeedAcquisitionService {
 
   private static readLaunchContext(options: any) {
     const scene = String(options?.scene ?? "");
-    const query = options?.query || {};
-    if (scene.slice(-4) !== "3041") return;
+    const query = this.getFeedLaunchQuery(options);
+    const feedScene = Number(
+      query.feed_game_scene ?? query.feedGameScene ?? query.feedScene,
+    );
+    const feedChannel = Number(
+      query.feed_game_channel ?? query.feedGameChannel ?? query.feedChannel,
+    );
 
-    const feedScene = Number(query.feed_game_scene);
-    const feedChannel = Number(query.feed_game_channel);
+    // 3041 is the production scene used by the original integration. New
+    // feed previews can carry the same feed markers with a different scene
+    // value, so the markers are the source of truth when they are present.
+    const hasFeedMarkers = Number.isFinite(feedScene) && Number.isFinite(feedChannel);
+    if (!hasFeedMarkers && scene.slice(-4) !== "3041") return;
+
     if (feedScene === 0 && feedChannel === 2) {
       this.mode = "acquisition";
     } else if (feedScene === 3 && feedChannel === 1) {
@@ -360,8 +369,73 @@ export class FeedAcquisitionService {
 
     this.active = true;
     this.feedScene = feedScene;
-    this.contentId = String(query.feed_game_content_id || "");
-    this.extra = String(query.feed_game_extra || "");
+    this.contentId = this.normalizeContentId(
+      query.feed_game_content_id ??
+        query.feedGameContentId ??
+        query.feed_game_contentID ??
+        query.contentId ??
+        query.content_id ??
+        query.contentID,
+    );
+    this.extra = String(
+      query.feed_game_extra ?? query.feedGameExtra ?? "",
+    );
+    console.log(
+      `[FeedDirectPlay] 启动参数已识别: scene=${scene || "empty"}, feedScene=${feedScene}, feedChannel=${feedChannel}, contentId=${this.contentId || "empty"}`,
+    );
+  }
+
+  private static getFeedLaunchQuery(options: any): Record<string, any> {
+    const query: Record<string, any> = {};
+    const extraData = this.parseLaunchQuery(options?.referrerInfo?.extraData);
+    Object.assign(query, extraData);
+    Object.assign(query, this.parseLaunchQuery(extraData.query));
+    Object.assign(
+      query,
+      this.parseLaunchQuery(options?.referrerInfo?.extraData?.query),
+    );
+    Object.assign(query, this.parseLaunchQuery(options));
+    Object.assign(query, this.parseLaunchQuery(options?.query));
+    return query;
+  }
+
+  private static parseLaunchQuery(value: any): Record<string, any> {
+    if (!value || typeof value === "object") {
+      return value && typeof value === "object" ? value : {};
+    }
+
+    const text = String(value).trim();
+    if (!text) return {};
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {
+      // Some hosts expose extraData as a URL query string.
+    }
+
+    const query: Record<string, string> = {};
+    for (const part of text.replace(/^\?/, "").split("&")) {
+      const separator = part.indexOf("=");
+      if (separator < 0) continue;
+      try {
+        const key = decodeURIComponent(part.slice(0, separator));
+        const rawValue = part.slice(separator + 1);
+        query[key] = decodeURIComponent(rawValue.replace(/\+/g, " "));
+      } catch {
+        // Ignore malformed query fragments and keep the remaining markers.
+      }
+    }
+    return query;
+  }
+
+  private static normalizeContentId(value: any): string {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    try {
+      return decodeURIComponent(text).trim();
+    } catch {
+      return text;
+    }
   }
 
   private static getDouyinApi(): any | null {
