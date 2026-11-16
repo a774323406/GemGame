@@ -48,6 +48,9 @@ export class newMainScene extends Component {
   ropeDuckButton: Button = null;
 
   @property(Button)
+  truckStackButton: Button = null;
+
+  @property(Button)
   foodDeliveryButton: Button = null;
 
   @property(Button)
@@ -77,6 +80,7 @@ export class newMainScene extends Component {
     this.sidebarButton?.node?.on(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.on(Button.EventType.CLICK, this.openPuzzle, this);
     this.ropeDuckButton?.node?.on(Button.EventType.CLICK, this.openRopeDuck, this);
+    this.truckStackButton?.node?.on(Button.EventType.CLICK, this.openTruckStack, this);
     this.brickChopButton?.node?.on(Button.EventType.CLICK, this.openBrickChop, this);
     this.duckGrabButton?.node?.on(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
@@ -113,6 +117,7 @@ export class newMainScene extends Component {
     this.sidebarButton?.node?.off(Button.EventType.CLICK, this.openSidebarReward, this);
     this.puzzleButton?.node?.off(Button.EventType.CLICK, this.openPuzzle, this);
     this.ropeDuckButton?.node?.off(Button.EventType.CLICK, this.openRopeDuck, this);
+    this.truckStackButton?.node?.off(Button.EventType.CLICK, this.openTruckStack, this);
     this.brickChopButton?.node?.off(Button.EventType.CLICK, this.openBrickChop, this);
     this.duckGrabButton?.node?.off(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
@@ -130,6 +135,7 @@ export class newMainScene extends Component {
 
   private openPuzzle(): void { void this.enterGame(GameSceneName.Game); }
   private openRopeDuck(): void { void this.enterGame(GameSceneName.RopeDuckFeedGame); }
+  private openTruckStack(): void { void this.enterGame(GameSceneName.TruckStackFeedGame); }
 
   private openBrickChop(): void { void this.enterGame(GameSceneName.BrickChopFeedGame); }
   private openDuckGrab(): void { void this.enterGame(GameSceneName.DuckGrabFeedGame); }
@@ -169,6 +175,7 @@ export class newMainScene extends Component {
       this.duckGrabButton,
       this.brickChopButton,
       this.ropeDuckButton,
+      this.truckStackButton,
       this.foodDeliveryButton,
       this.whiteGooseButton,
       this.mathExamButton,

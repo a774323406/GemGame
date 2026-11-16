@@ -95,6 +95,7 @@ async function main() {
       DuckGrabFeedGameScene: '抓鸭子挑战',
       BrickChopFeedGameScene: '劈砖挑战',
       RopeDuckFeedGameScene: '双鸭跳跃',
+      TruckStackFeedGameScene: '货车叠叠高',
       FoodDeliveryFeedGameScene: '外卖精准投送',
       WhiteGooseFeedGameScene: '套大鹅',
       MathExamFeedGameScene: '口算大挑战',

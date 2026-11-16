@@ -72,6 +72,9 @@ assert.deepEqual(Array.from(Object.values(GameSceneName)).filter(name => name !=
   'NewMainScene',
   'GameScene',
   'JuggleBallGameScene',
+  'RopeDuckFeedGameScene',
+  'TruckStackFeedGameScene',
+  'BrickChopFeedGameScene',
   'DuckGrabFeedGameScene',
   'FoodDeliveryFeedGameScene',
   'WhiteGooseFeedGameScene',
@@ -118,6 +121,9 @@ assert.deepEqual(cardNames.filter(name => name !== 'MathExamCard'), [
   'MotoRaceCard',
   'ClayPigeonCard',
   'DriftCard',
+  'BrickChopCard',
+  'RopeDuckCard',
+  'TruckStackCard',
 ]);
 
 for (const [index, entry] of scene.entries()) {
@@ -134,13 +140,15 @@ for (const [index, entry] of scene.entries()) {
   validate(entry);
 }
 
-// External delivery still uses the shooting sound even though its name contains "archery".
+// Current shared music/cues survive retirement; the removed archery cue stays absent.
 const { soundName, SOUND_ASSET_UUIDS } = loadTypeScript('assets/scripts/gamePrefabMgr.ts');
-for (const name of ['archeryShoot', 'getUserBgm', 'down', 'fail']) {
+for (const name of ['getUserBgm', 'down', 'fail']) {
   assert.equal(soundName[name], name);
   assert(fs.statSync(`assets/res/sound/${name}.mp3`).size > 0);
 }
-const sharedShot = JSON.parse(fs.readFileSync('assets/res/sound/archeryShoot.mp3.meta', 'utf8'));
-assert.equal(SOUND_ASSET_UUIDS.archeryShoot, sharedShot.uuid);
+assert.equal(soundName.archeryShoot, undefined);
+assert.equal(fs.existsSync('assets/res/sound/archeryShoot.mp3'), false);
+const sharedBgm = JSON.parse(fs.readFileSync('assets/res/sound/getUserBgm.mp3.meta', 'utf8'));
+assert.equal(SOUND_ASSET_UUIDS.getUserBgm, sharedBgm.uuid);
 
 console.log('PASS retired games and legacy main are absent; surviving lobby/assets resolve');

@@ -26,7 +26,7 @@ function fixture() {
   director.pause = director.resume = () => assert.fail('interstitial must not change engine pause');
   const sceneNames = Object.fromEntries([
     'NewMainScene', 'GameScene', 'JuggleBallGameScene',
-    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'FoodDeliveryFeedGameScene',
+    'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene', 'FoodDeliveryFeedGameScene',
     'WhiteGooseFeedGameScene', 'DriftFeedGameScene', 'MathExamFeedGameScene', 'MotoRaceGameScene', 'ClayPigeonGameScene',
   ].map(name => [name, name]));
   sceneNames.Main = 'NewMainScene';
@@ -101,7 +101,7 @@ test('drift CONTENT16146470658 preview/entry, repeat and exit use shared interst
   f.exit();f.requests[1].show();assert.equal(f.requests[1].shown,false);
   f.advance(90_000);assert.equal(f.requests.length,2);
 });
-for(const [name,contentId] of [['BrickChopFeedGameScene','CONTENT16010964482'],['RopeDuckFeedGameScene','CONTENT15981330178']])
+for(const [name,contentId] of [['TruckStackFeedGameScene','xx'],['BrickChopFeedGameScene','CONTENT16010964482'],['RopeDuckFeedGameScene','CONTENT15981330178']])
 test(`${name} ${contentId} waits for readiness, repeats, retries after 60s and stops on exit`, () => {
   const f=fixture();f.scene({name,isValid:true});
   Object.assign(f.feed,{active:true,contentId,sceneReadyReported:false});
@@ -227,7 +227,7 @@ test('feed entry waits for rendered scene readiness as well as the 2-second entr
   f.feed.sceneReadyReported = true; f.advance(1_000); assert.equal(f.requests.length, 1);
 });
 test('each current gameplay can repeat after readiness without a per-game quota', () => {
-  for (const name of ['GameScene', 'JuggleBallGameScene', 'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene',
+  for (const name of ['GameScene', 'JuggleBallGameScene', 'DuckGrabFeedGameScene', 'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene',
     'FoodDeliveryFeedGameScene', 'WhiteGooseFeedGameScene', 'MathExamFeedGameScene',
     'MotoRaceGameScene', 'ClayPigeonGameScene', 'DriftFeedGameScene']) {
     const f = fixture(); f.scene({ name, isValid: true }); f.advance(31_000);

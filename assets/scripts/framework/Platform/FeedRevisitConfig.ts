@@ -113,3 +113,6 @@ export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16010964482";
 
 /** 双鸭跳跃推荐流方案，使用 kdzzz 专属 ID。 */
 export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT15981330178";
+
+/** 货车叠叠高推荐流方案，待补充 kdzzz 专属 ID。 */
+export const FEED_TRUCK_STACK_CONTENT_ID = "xx";

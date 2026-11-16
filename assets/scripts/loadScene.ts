@@ -25,6 +25,7 @@ import {
   FEED_DUCK_GRAB_CONTENT_ID,
   FEED_BRICK_CHOP_CONTENT_ID,
   FEED_ROPE_DUCK_CONTENT_ID,
+  FEED_TRUCK_STACK_CONTENT_ID,
   FEED_WHITE_GOOSE_CONTENT_ID,
   FEED_MATH_EXAM_CONTENT_ID,
   FEED_MOTO_RACE_CONTENT_ID,
@@ -230,6 +231,10 @@ export class loadScene extends Component {
         sceneName: GameSceneName.JuggleBallGame,
         reason: `推荐流颠球挑战第二关方案（${contentId}）`,
       };
+    }
+
+    if (FEED_TRUCK_STACK_CONTENT_ID && contentId === FEED_TRUCK_STACK_CONTENT_ID) {
+      return { sceneName: GameSceneName.TruckStackFeedGame, reason: `推荐流货车叠叠高（${contentId}）` };
     }
 
     if (FEED_ROPE_DUCK_CONTENT_ID && contentId === FEED_ROPE_DUCK_CONTENT_ID) {

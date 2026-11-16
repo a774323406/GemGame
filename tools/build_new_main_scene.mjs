@@ -1,4 +1,5 @@
 import { appendRopeDuckCard } from './rope_duck_authoring.mjs';
+import { appendTruckStackCard } from './truck_stack_authoring.mjs';
 import { appendBrickChopCard } from './brick_chop_authoring.mjs';
 import {replaceLobbyCard} from "./duck_grab_authoring.mjs";
 import { appendDriftCard } from './drift_feed_authoring.mjs';
@@ -555,6 +556,7 @@ if (process.argv.includes('--write')) {
   appendDriftCard(outputObjects);
   appendBrickChopCard(outputObjects);
   appendRopeDuckCard(outputObjects);
+  appendTruckStackCard(outputObjects);
   writeJson(SCENE_FILE, outputObjects);
   if (!fs.existsSync(`${SCENE_FILE}.meta`)) {
     writeJson(`${SCENE_FILE}.meta`, {

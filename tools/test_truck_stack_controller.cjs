@@ -1,0 +1,142 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+assert(fs.existsSync('assets/scripts/truckStackFeedGameScene.ts'), 'truck stack controller is implemented');
+const {fixture, advance, land, fail} = require('./truck_stack_test_helpers.cjs');
+
+(async () => {
+  const f = fixture({exited: true}), c = f.c;
+  assert.equal(c.round.height, 1);
+  assert(f.music && f.musicNames.every(n => n === 'getUserBgm'));
+  assert.equal(f.ready.length, 1);
+  assert(f.ready[0].isReady(), 'preload exit cannot suppress scene readiness');
+  assert.equal(f.schedules.length, 0, 'preview cannot start feed interstitial');
+  const previewX = c.round.activeBox.x;
+  advance(c, .4);
+  assert.notEqual(c.round.activeBox.x, previewX, 'visible preview swings');
+  assert.equal(c.round.height, 1, 'preview cannot earn height');
+  c.onTouchStart();
+  assert(f.recoveries > 0, 'native foreground recovery runs on first touch/feed entry');
+  assert.equal(f.schedules.length, 1);
+  assert.equal(c.round.phase, 'dropping', 'first touch activates even after stale exit');
+  c.onTouchStart();
+  assert.equal(c.round.phase, 'dropping');
+  f.interstitialBusy = true;
+  const y = c.round.activeBox.y;
+  advance(c, .1);
+  assert(c.round.activeBox.y < y, 'interstitial must not pause simulation');
+  f.interstitialBusy = false;
+
+  const throwFixture = fixture({active: false}), thrown = throwFixture.c;
+  const releaseX = thrown.heldBox.position.x, releaseAngle = thrown.heldBox.angle;
+  thrown.onTouchStart(); thrown.update(0);
+  assert.equal(thrown.heldBox.position.x, releaseX, 'release keeps the displayed position');
+  assert.equal(thrown.heldBox.angle, releaseAngle, 'release keeps the displayed angle');
+  assert.equal(thrown.rope.commands.length, 0, 'the released body is detached from the rope');
+  advance(thrown, .1);
+  assert(thrown.heldBox.position.x > releaseX + 5, 'rendering follows the actual horizontal throw');
+  assert.equal(thrown.heldBox.angle, thrown.round.activeBox.angle);
+  thrown.onDestroy();
+
+  c.replay(); land(c);
+  assert.equal(c.round.height, 2);
+  assert.equal(c.heightLabel.string, '2 米');
+  assert(f.writes.some(([key, value]) => key === 'truckStackBest' && value === '2'), 'record is saved on landing');
+  const impactFixture = fixture({active: false});
+  impactFixture.c.round.activeBox.x = 0; impactFixture.c.onTouchStart();
+  while (impactFixture.c.round.phase === 'dropping') impactFixture.c.update(1 / 120);
+  assert(impactFixture.c.dust[0].y >= 124 && impactFixture.c.dust[0].y < 126, 'landing dust originates at the contact seam');
+  impactFixture.c.onDestroy();
+  const cameraFixture = fixture({active: false});
+  land(cameraFixture.c); land(cameraFixture.c);
+  cameraFixture.c.round.activeBox.x = 0; cameraFixture.c.onTouchStart();
+  while (cameraFixture.c.round.phase === 'dropping') {
+    const previousY = cameraFixture.c.boxNodes[0].position.y;
+    cameraFixture.c.update(1 / 120);
+    assert(Math.abs(cameraFixture.c.boxNodes[0].position.y - previousY) < 20, 'landing camera tracks smoothly rather than jumping one box height');
+  }
+  cameraFixture.c.onDestroy();
+  c.requestExit();
+  assert(c.exitOverlay.active && !f.music);
+  assert(!c.hud.active, 'pause overlay hides HUD so captions cannot overlap');
+  const pausedX = c.round.activeBox.x;
+  advance(c, .2);
+  assert.equal(c.round.activeBox.x, pausedX);
+  c.restart();
+  assert.equal(c.round.height, 1);
+  assert(c.hud.active && !c.exitOverlay.active && f.music);
+  assert(c.bestLabel.string.includes('2'), 'restart preserves record');
+  c.onHide(); advance(c, .2); assert(!f.music);
+  const recoveries = f.recoveries;
+  c.onShow(); assert(f.music); assert(f.recoveries > recoveries, 'foreground recovers a stalled native audio queue');
+
+  let promise = c.slowdown();
+  assert(c.adInFlight && !c.slowdownButton.interactable);
+  const sameRound = c.round;
+  c.replay(); assert.equal(c.round, sameRound, 'restart is blocked during reward');
+  f.resolves.shift().resolve(false); await promise;
+  assert.equal(c.round.slowRemaining, 0, 'skipped ad gives no slowdown');
+  promise = c.slowdown(); f.resolves.shift().resolve(true); await promise;
+  assert.equal(c.round.slowRemaining, 20);
+  assert(!c.adInFlight && !c.slowdownButton.interactable, 'cannot buy overlapping slowdown');
+  f.change({entered: false, exited: true});
+  const slow = c.round.slowRemaining;
+  advance(c, .5);
+  assert.equal(c.round.slowRemaining, slow, 'feed preview does not consume earned slowdown');
+  f.change({entered: true, exited: false});
+  c.replay(); land(c); fail(c);
+  assert.equal(c.round.phase, 'failure');
+  assert(c.resultOverlay.active && !c.hud.active);
+  assert.equal(f.results.length, 1, 'failure reported once');
+  promise = c.revive(); f.resolves.shift().resolve(false); await promise;
+  assert(c.resultOverlay.active);
+  promise = c.revive(); f.resolves.shift().resolve(true); await promise;
+  assert.equal(c.round.height, 2, 'revival keeps stack');
+  assert.equal(c.round.phase, 'swinging');
+  assert(!c.resultOverlay.active && c.hud.active);
+
+  fail(c); promise = c.revive();
+  f.change({entered: false, exited: true});
+  f.resolves.shift().resolve(true); await promise;
+  assert.equal(c.round.phase, 'failure', 'reward from an exited session cannot revive');
+  assert(!c.adInFlight, 'feed exit clears local busy state');
+  f.change({entered: true, exited: false});
+  promise = c.revive();
+  c.onDestroy(); f.resolves.shift().resolve(true); await promise;
+  assert.equal(c.round.phase, 'failure', 'destroyed scene cannot revive');
+  assert.equal(f.completed, 1); assert.equal(f.listener, null);
+  const destroyedChild = fixture();
+  destroyedChild.c.surface.isValid = false;
+  destroyedChild.c.surface.off = () => {throw Error('destroyed Node event processor is unavailable');};
+  assert.doesNotThrow(() => destroyedChild.c.onDestroy(), 'Cocos destroys child nodes before the Canvas controller');
+  assert.equal(destroyedChild.listener, null);
+  assert.equal(destroyedChild.completed, 1, 'leaving the scene always closes the feed session');
+
+  for (const stored of ['NaN', 'Infinity', '-20', 'garbage']) {
+    const n = fixture({active: false, stored});
+    assert.equal(n.c.bestLabel.string, '最高 1 米', 'corrupt record falls back');
+    n.c.onDestroy();
+  }
+  for (const height of [1334, 1624]) {
+    const v = fixture({active: false, height});
+    const initialPivot = v.c.rope.commands.find(command => command.name === 'moveTo');
+    const pivotFromTop = height / 2 - initialPivot.args[1];
+    assert(pivotFromTop >= -40 && pivotFromTop <= -15, 'the rope starts outside the top of the screen');
+    assert(!v.c.rope.commands.some(command => command.name === 'circle'), 'the fixed-point dot is removed');
+    advance(v.c, .25);
+    const end = v.c.rope.commands.find(command => command.name === 'lineTo');
+    const box = v.c.heldBox, angle = box.angle * Math.PI / 180;
+    assert(Math.abs(end.args[0] - (box.position.x - Math.sin(angle) * 62 * box.scale.x)) < .001, 'rope joins the rotated box top');
+    assert(Math.abs(end.args[1] - (box.position.y + Math.cos(angle) * 62 * box.scale.y)) < .001, 'rotated top attachment height matches');
+    assert(v.c.truck.position.x + 320 * v.c.truck.scale.x <= 367, 'entire truck fits inside right edge');
+    assert(v.c.truck.position.x - 320 * v.c.truck.scale.x >= -367, 'entire truck fits inside left edge');
+    for (let i = 0; i < 24; i++) land(v.c);
+    assert.equal(v.c.round.height, 25);
+    assert(v.c.boxNodes.length === 18 && v.c.boxNodes.filter(n => n.active).length <= 18);
+    assert(v.c.heldBox.position.y < height / 2 - 110, 'held box remains below the raised pivot');
+    assert(v.c.heldBox.position.y > -height / 2 + 300, 'new box stays above bottom control');
+    const pivot = v.c.rope.commands.find(command => command.name === 'moveTo');
+    assert(height / 2 - pivot.args[1] <= -15, 'the rope remains offscreen after the camera follows the stack');
+    v.c.onDestroy();
+  }
+  console.log('PASS truck controller: preview/ready, first touch, non-pausing interstitial, record, pause, reward outcomes/stale callbacks, replay and both portrait sizes');
+})().catch(error => {console.error(error); process.exitCode = 1;});
