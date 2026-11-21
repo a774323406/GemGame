@@ -160,12 +160,12 @@ async function main() {
       ['CONTENT14893670402', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
       ['CONTENT15319004674', 'GameScene'],
-      ['CONTENT15926045186', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT16010996738', 'DuckGrabFeedGameScene'],
-      ['CONTENT15865085442', 'BrickChopFeedGameScene'],
-      ['CONTENT15865085186', 'RopeDuckFeedGameScene'],
-      ['CONTENT16010997250', 'TruckStackFeedGameScene'],
-      ['CONTENT15865084930', 'JellyCrushFeedGameScene'],
+      ['CONTENT16499561730', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT16499561986', 'DuckGrabFeedGameScene'],
+      ['CONTENT16684492802', 'BrickChopFeedGameScene'],
+      ['CONTENT16429216514', 'RopeDuckFeedGameScene'],
+      ['CONTENT16375606274', 'TruckStackFeedGameScene'],
+      ['CONTENT16431822082', 'JellyCrushFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
     ];
     // Replaced primary and extra IDs must no longer launch the retired entry.

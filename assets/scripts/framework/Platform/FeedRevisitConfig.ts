@@ -15,10 +15,10 @@ export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
 export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
 /** 抓鸭子挑战推荐流方案，直接进入 DuckGrabFeedGameScene。 */
-export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT16010996738";
+export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT16499561986";
 
 /** 外卖精准投送推荐流方案，直接进入 FoodDeliveryFeedGameScene。 */
-export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT15926045186";
+export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT16499561730";
 
 /** 复访方案已在抖音后台下线：暂停订阅、排期上报与奖励；获客直玩不受影响。 */
 export const FEED_REVISIT_ENABLED = false;
@@ -88,13 +88,13 @@ export function createFeedRevisitExtra(readyAt: number): string {
 }
 
 /** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
-export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT15865085442";
+export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16684492802";
 
 /** 双鸭跳跃推荐流方案，直接进入 RopeDuckFeedGameScene。 */
-export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT15865085186";
+export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT16429216514";
 
 /** 货车叠叠高推荐流方案。 */
-export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16010997250";
+export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16375606274";
 
 /** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */
-export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT15865084930";
+export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16431822082";

@@ -123,13 +123,13 @@ async function main() {
   test('feed markers still activate when a new preview uses another scene and encoded query data', () => {
     const f = fixture(undefined, undefined, {
       scene: '999999',
-      query: 'feed_game_scene=0&feed_game_channel=2&feed_game_content_id=CONTENT15865084930',
+      query: 'feed_game_scene=0&feed_game_channel=2&feed_game_content_id=CONTENT16431822082',
     });
     const service = f.load('framework/Platform/FeedAcquisitionService.ts').FeedAcquisitionService;
     const state = service.getState();
     assert.equal(state.active, true);
     assert.equal(state.mode, 'acquisition');
-    assert.equal(state.contentId, 'CONTENT15865084930');
+    assert.equal(state.contentId, 'CONTENT16431822082');
   });
   test('fallback lobby reports ready once for retired feed entries', () => {
     const f = fixture(), Main = f.load('newMainScene.ts').newMainScene;
