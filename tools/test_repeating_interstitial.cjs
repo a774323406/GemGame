@@ -90,7 +90,7 @@ function fixture() {
 }
 const tests = [];
 const test = (name, run) => tests.push([name, run]);
-for(const [name,contentId] of [['TruckStackFeedGameScene','CONTENT16234306818'],['BrickChopFeedGameScene','CONTENT16397114370'],['RopeDuckFeedGameScene','CONTENT16072636674']])
+for(const [name,contentId] of [['TruckStackFeedGameScene','CONTENT16375606786'],['BrickChopFeedGameScene','CONTENT16429217026'],['RopeDuckFeedGameScene','CONTENT16684493058']])
 test(`${name} ${contentId} waits for readiness, repeats, retries after 60s and stops on exit`, () => {
   const f=fixture();f.scene({name,isValid:true});
   Object.assign(f.feed,{active:true,contentId,sceneReadyReported:false});
