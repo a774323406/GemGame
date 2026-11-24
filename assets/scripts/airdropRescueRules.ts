@@ -51,6 +51,7 @@ export class AirdropRescueRound {
 
   private readonly random: () => number;
   private accumulator = 0;
+  private previewAccumulator = 0;
   private nextTargetId = 1;
   private spawnCooldown = 0;
   private events: AirdropEvent[] = [];
@@ -75,8 +76,23 @@ export class AirdropRescueRound {
     }
   }
 
+  previewStep(deltaSeconds: number): void {
+    if (this.phase !== 'playing' || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
+    this.previewAccumulator += Math.min(deltaSeconds, MAX_FRAME_SECONDS);
+    while (this.previewAccumulator + EPSILON >= STEP) {
+      this.previewAccumulator = Math.max(0, this.previewAccumulator - STEP);
+      for (const target of [...this.targets]) {
+        if (target.state !== 'suspended') continue;
+        target.x += target.vx * STEP;
+        if (target.x < -SCREEN_HALF_WIDTH - 90 || target.x > SCREEN_HALF_WIDTH + 90) this.recycle(target, 'recycle');
+      }
+      this.spawnCooldown = Math.max(0, this.spawnCooldown - STEP);
+      this.trySpawnTargets();
+    }
+  }
+
   spawnTarget(overrides: Partial<AirdropTarget> = {}): number {
-    const side = overrides.side ?? (overrides.vx ?? 1) >= 0 ? 1 : -1;
+    const side = overrides.side ?? ((overrides.vx ?? 1) >= 0 ? 1 : -1);
     const target: AirdropTarget = {
       id: this.nextTargetId++,
       x: overrides.x ?? side * (SCREEN_HALF_WIDTH + 70),

@@ -98,3 +98,6 @@ export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16375606274";
 
 /** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */
 export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16431822082";
+
+/** 空投救援推荐流方案，真实 Content_ID 补入后再开启正式路由。 */
+export const FEED_AIRDROP_RESCUE_CONTENT_ID = "xx";

@@ -56,6 +56,9 @@ export class newMainScene extends Component {
   @property(Button)
   jellyCrushButton: Button = null;
 
+  @property(Button)
+  airdropRescueButton: Button = null;
+
   private navigating = false;
   private shareInFlight = false;
 
@@ -73,6 +76,7 @@ export class newMainScene extends Component {
     this.duckGrabButton?.node?.on(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.jellyCrushButton?.node?.on(Button.EventType.CLICK, this.openJellyCrush, this);
+    this.airdropRescueButton?.node?.on(Button.EventType.CLICK, this.openAirdropRescue, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     SidebarRewardService.addListener(this.onSidebarStateChanged);
@@ -103,6 +107,7 @@ export class newMainScene extends Component {
     this.duckGrabButton?.node?.off(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.jellyCrushButton?.node?.off(Button.EventType.CLICK, this.openJellyCrush, this);
+    this.airdropRescueButton?.node?.off(Button.EventType.CLICK, this.openAirdropRescue, this);
   }
 
   private openSettings(): void {
@@ -121,6 +126,7 @@ export class newMainScene extends Component {
   private openDuckGrab(): void { void this.enterGame(GameSceneName.DuckGrabFeedGame); }
   private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
   private openJellyCrush(): void { void this.enterGame(GameSceneName.JellyCrushFeedGame); }
+  private openAirdropRescue(): void { void this.enterGame(GameSceneName.AirdropRescueFeedGame); }
 
   private async enterGame(sceneName: GameSceneName): Promise<void> {
     if (this.navigating || GameSceneBundle.isLoadingScene) return;
@@ -154,6 +160,7 @@ export class newMainScene extends Component {
       this.truckStackButton,
       this.foodDeliveryButton,
       this.jellyCrushButton,
+      this.airdropRescueButton,
     ].filter(Boolean);
   }
 

@@ -27,6 +27,7 @@ import {
   FEED_TRUCK_STACK_CONTENT_ID,
   FEED_HEART_CONTENT_ID,
   FEED_JELLY_CRUSH_CONTENT_ID,
+  FEED_AIRDROP_RESCUE_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { adc } from "./framework/Platform/ADController";
@@ -240,6 +241,13 @@ export class loadScene extends Component {
       return {
         sceneName: GameSceneName.FoodDeliveryFeedGame,
         reason: "外卖精准投送获客玩法",
+      };
+    }
+
+    if (FEED_AIRDROP_RESCUE_CONTENT_ID && FEED_AIRDROP_RESCUE_CONTENT_ID !== "xx" && contentId === FEED_AIRDROP_RESCUE_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.AirdropRescueFeedGame,
+        reason: `推荐流空投救援（${contentId}）`,
       };
     }
 

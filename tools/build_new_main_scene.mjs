@@ -16,6 +16,7 @@ import {
 import { appendSceneGlobals } from './feed_result_layout.mjs';
 import { appendFoodDeliveryCard } from './food_delivery_authoring.mjs';
 import { appendJellyCrushCard } from './jelly_crush_authoring.mjs';
+import { appendAirdropRescueCard } from './airdrop_rescue_authoring.mjs';
 import { standardizeAllLobbyCards } from './lobby_card_style.mjs';
 
 const SCENE_NAME = 'NewMainScene';
@@ -548,6 +549,7 @@ if (process.argv.includes('--write')) {
   appendRopeDuckCard(outputObjects);
   appendTruckStackCard(outputObjects);
   appendJellyCrushCard(outputObjects);
+  appendAirdropRescueCard(outputObjects);
   standardizeAllLobbyCards(outputObjects);
   writeJson(SCENE_FILE, outputObjects);
   if (!fs.existsSync(`${SCENE_FILE}.meta`)) {

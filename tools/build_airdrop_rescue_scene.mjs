@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import { appendAirdropRescueCard, buildAirdropRescueScene, SCENE_UUID, uuid } from './airdrop_rescue_authoring.mjs';
 
 const write = (path, value) => fs.writeFileSync(path, JSON.stringify(value, null, 2) + '\n');
-write('assets/scripts/airdropRescueFeedGameScene.ts.meta', { ver: '4.0.24', importer: 'typescript', imported: true, uuid: uuid('airdropRescueFeedGameScene.ts'), files: [], subMetas: {}, userData: {} });
+for (const name of ['airdropRescueFeedGameScene.ts', 'airdropRescueRules.ts']) {
+  write(`assets/scripts/${name}.meta`, { ver: '4.0.24', importer: 'typescript', imported: true, uuid: uuid(name), files: [], subMetas: {}, userData: {} });
+}
 const index = process.argv.indexOf('--output-dir');
 const directory = index < 0 ? 'assets/gamescene' : process.argv[index + 1];
 fs.mkdirSync(directory, { recursive: true });
