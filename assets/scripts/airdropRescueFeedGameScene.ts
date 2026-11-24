@@ -236,6 +236,7 @@ export class airdropRescueFeedGameScene extends Component {
   }
 
   private async reward(kind: 'jump' | 'addTime' | 'hint' | 'revive'): Promise<void> {
+    this.activateTouch();
     if (this.adInFlight || this.disposed || this.leaving) return;
     const token = ++this.serial;
     this.adInFlight = true;
