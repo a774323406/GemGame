@@ -125,7 +125,7 @@ export function appendAirdropRescueCard(objects) {
     const chrome = author.sprite(name, card, shared('newMain/card_round.png'), { x, y, w, h, color });
     component(objects, chrome, 'cc.Sprite')._type = 1;
   }
-  author.sprite('Preview', card, art('background.png'), { y: 25, w: 218, h: 177 });
+  author.sprite('Preview', card, art('preview.jpg'), { y: 25, w: 218, h: 177 });
   author.label('Title', card, '空投救援', { y: -94, w: 230, h: 60, size: 31 });
   controller.airdropRescueButton = ref(author.button(card));
   const contentTransform = component(objects, parent, 'cc.UITransform');
