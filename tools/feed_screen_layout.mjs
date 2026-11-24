@@ -12,4 +12,5 @@ export function fitFeedScreenControls(objects, sceneName) {
   Object.assign(w,{_enabled:true,_alignFlags:flags,_alignMode:2,...offsets});
  };
  if(sceneName==='JellyCrushFeedGameScene')anchor('BackButton',9,{_top:105,_left:24},true);
+ if(sceneName==='AirdropRescueFeedGameScene')anchor('BackButton',9,{_top:80,_left:24},true);
 }

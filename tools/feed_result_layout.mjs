@@ -167,6 +167,9 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     JellyCrushFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],
       ["ResultDetail",125,660,240,42],["ReviveButton",-180,470,138],
       ["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
+    AirdropRescueFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],
+      ["ResultDetail",125,660,240,42],["ReviveButton",-180,470,138],
+      ["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
     JuggleBallGameScene: [["ResultTitle",395,620,165,104],["ResultDetail",185,650,190,44],
       ["ResultHomeButton",-300,470,138],["ResultActionButton",-465,470,138]],
   };
@@ -235,6 +238,7 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     JuggleBallGameScene:['HeaderPanel','GoalPanel','LevelLabel','GoalLabel','ChanceLabel','BackButton','ScoreLabel','StatusLabel','ReadyArrow','MoveHint','SlowdownButton','ExtraChanceButton'],
     FoodDeliveryFeedGameScene:['SafeArea','SlowdownButton','ChanceLabel','TapHint'],
     JellyCrushFeedGameScene:['HUD','HitMessage'],
+    AirdropRescueFeedGameScene:['HUD'],
   };
   const scriptUuid=JSON.parse(fs.readFileSync(new URL('../assets/scripts/feedResultPresentation.ts.meta',import.meta.url))).uuid;
   const fields={successLift:0.075,successButtons:[],titles:titleIds.map(id=>ref(objects[id]._components.find(r=>objects[r.__id__].__type__==='cc.Label').__id__)),artworks,

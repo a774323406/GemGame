@@ -1,0 +1,32 @@
+{
+  "ver": "2.0.2",
+  "importer": "texture",
+  "imported": true,
+  "uuid": "1cd4f710-0127-565b-a76c-b1f1d428a02c",
+  "files": {},
+  "subMetas": {
+    "0": {
+      "ver": "1.0.1",
+      "importer": "sprite-frame",
+      "imported": true,
+      "uuid": "1cd4f710-0127-565b-a76c-b1f1d428a02c@f9941",
+      "rawTextureUuid": "1cd4f710-0127-565b-a76c-b1f1d428a02c",
+      "trimType": "auto",
+      "trimThreshold": 1,
+      "rotated": false,
+      "offsetX": 0,
+      "offsetY": 0,
+      "trimX": 0,
+      "trimY": 0,
+      "width": 0,
+      "height": 0,
+      "rawWidth": 0,
+      "rawHeight": 0,
+      "borderTop": 0,
+      "borderBottom": 0,
+      "borderLeft": 0,
+      "borderRight": 0
+    }
+  },
+  "userData": {}
+}
