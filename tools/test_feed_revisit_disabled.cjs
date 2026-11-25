@@ -80,7 +80,7 @@ async function main() {
     assert.equal(config.FEED_SHOOTING_CONTENT_ID, undefined, 'retired bottle feed must not be registered');
     assert.equal(config.FEED_REVISIT_CONTENT_ID, '', 'retired revisit ID must be cleared');
     assert.equal(config.FEED_NAIL_HAMMER_CONTENT_ID, undefined, 'retired nail feed must not be registered');
-    assert.equal(config.FEED_JUGGLE_CONTENT_ID, 'CONTENT14893670402');
+    assert.equal(config.FEED_JUGGLE_CONTENT_ID, 'CONTENT16944249346');
     assert.equal(config.FEED_JUGGLE_LEVEL2_CONTENT_ID, 'CONTENT14759731202');
   });
   test('repeated home initialization makes no revisit API or storage calls', async () => {

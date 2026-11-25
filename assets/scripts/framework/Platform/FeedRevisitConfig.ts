@@ -6,7 +6,7 @@ export const FEED_HEART_LEVEL = 8;
  * 颠球挑战推荐流方案 ID。
  * 加载页会根据该 ID 自动路由到 JuggleBallGameScene。
  */
-export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
+export const FEED_JUGGLE_CONTENT_ID = "CONTENT16944249346";
 
 /**
  * 颠球挑战第二关推荐流方案 ID。
@@ -121,13 +121,13 @@ export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16375606786";
 export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16684493314";
 
 /** 空投救援推荐流方案，直接进入 AirdropRescueFeedGameScene。 */
-export const FEED_AIRDROP_RESCUE_CONTENT_ID: string = "xx";
+export const FEED_AIRDROP_RESCUE_CONTENT_ID: string = "CONTENT16613389570";
 
 /** 弹珠入瓶推荐流方案，直接进入 MarbleBottleFeedGameScene。 */
-export const FEED_MARBLE_BOTTLE_CONTENT_ID: string = "xx";
+export const FEED_MARBLE_BOTTLE_CONTENT_ID: string = "CONTENT16952697602";
 
 /** 绝不落地推荐流方案，直接进入 KnifeClimbFeedGameScene。 */
-export const FEED_KNIFE_CLIMB_CONTENT_ID: string = "xx";
+export const FEED_KNIFE_CLIMB_CONTENT_ID: string = "CONTENT16988333058";
 
 /** 正在使用的获客入口；供缺少渠道字段的推荐流预览识别，排除占位及已停用 ID。 */
 export function isConfiguredFeedAcquisitionContentId(contentId: string): boolean {
