@@ -27,7 +27,7 @@ function test(name, fn) { tests.push({ name, fn }); }
 
 test('starts with the video counters and a playable phase', () => {
   const round = new AirdropRescueRound({ random: () => 0.2 });
-  assert.equal(round.timeRemaining, 300);
+  assert.equal(round.elapsedSeconds, 0);
   assert.equal(round.food, 0);
   assert.equal(round.chances, 25);
   assert.equal(round.phase, 'ready');
@@ -82,7 +82,7 @@ test('unreleased helicopters can leave the screen without costing a chance and m
   assert(round.targets.length < 3, 'at least one off-screen target is recycled');
 });
 
-test('food target, chance exhaustion and timeout end the round', () => {
+test('food target and chance exhaustion end the round, elapsed time does not', () => {
   const success = new AirdropRescueRound({ random: () => 0.2 });
   success.start();
   for (let i = 0; i < 5; i++) {
@@ -103,10 +103,11 @@ test('food target, chance exhaustion and timeout end the round', () => {
   assert.equal(failure.chances, 0);
   assert.equal(failure.phase, 'failure');
 
-  const timeout = new AirdropRescueRound({ random: () => 0.2 });
-  timeout.start();
-  advance(timeout, 300.1);
-  assert.equal(timeout.phase, 'failure');
+  const untimed = new AirdropRescueRound({ random: () => 0.2 });
+  untimed.start();
+  advance(untimed, 300.1);
+  assert.equal(untimed.phase, 'playing');
+  assert.equal(untimed.chances, 25);
 });
 
 test('revive is repeatable, preserves food and restores five chances', () => {

@@ -119,7 +119,7 @@ async function main() {
     const { fitFeedResultOverlay, appendSceneGlobals } = await import('./feed_result_layout.mjs');
     const names = ['JuggleBallGameScene',
       'FoodDeliveryFeedGameScene', 'DuckGrabFeedGameScene',
-      'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene', 'JellyCrushFeedGameScene'];
+      'BrickChopFeedGameScene', 'RopeDuckFeedGameScene', 'TruckStackFeedGameScene', 'JellyCrushFeedGameScene', 'MarbleBottleFeedGameScene', 'KnifeClimbFeedGameScene'];
     for (const name of names) {
       const data = JSON.parse(fs.readFileSync(`assets/gamescene/${name}.scene`, 'utf8'));
       const component = (node, type) => node._components.map(ref => data[ref.__id__]).find(x => x.__type__ === type);
@@ -157,7 +157,7 @@ async function main() {
     const loader = new (f.load('loadScene.ts').loadScene)();
     const juggle = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)(); juggle.feedMode = true;
     const cases = [
-      ['CONTENT14893670402', 'JuggleBallGameScene', 1],
+      ['CONTENT16792957954', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
       ['CONTENT15319004674', 'GameScene'],
       ['CONTENT16499561730', 'FoodDeliveryFeedGameScene'],
@@ -181,6 +181,14 @@ async function main() {
       f.setState({ contentId }); assert.equal(loader.resolveFeedEntry().sceneName, scene, contentId);
       if (level) assert.equal(juggle.resolveEntryLevel(), level);
     }
+    f.setState({ contentId: 'xx' });
+    assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene', 'shared placeholder must not route');
+    config.FEED_MARBLE_BOTTLE_CONTENT_ID = 'CONTENT_MARBLE_TEST';
+    f.setState({ contentId: 'CONTENT_MARBLE_TEST' });
+    assert.equal(loader.resolveFeedEntry().sceneName, 'MarbleBottleFeedGameScene');
+    config.FEED_KNIFE_CLIMB_CONTENT_ID = 'CONTENT_KNIFE_TEST';
+    f.setState({ contentId: 'CONTENT_KNIFE_TEST' });
+    assert.equal(loader.resolveFeedEntry().sceneName, 'KnifeClimbFeedGameScene');
     f.setState({ contentId: 'unknown' }); assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene');
     f.setState({ mode: 'revisit', contentId: 'CONTENT14868790274' }); assert.equal(loader.resolveFeedEntry().sceneName, 'NewMainScene');
   });

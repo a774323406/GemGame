@@ -112,6 +112,10 @@ const expectedCards = [
   'RopeDuckCard',
   'JellyCrushCard',
   'TruckStackCard',
+  'AirdropRescueCard',
+  'MarbleBottleCard',
+  'KnifeClimbCard',
+  'JuggleBallCard',
 ];
 const contentChildren = content.entry._children.map(object).map(node => node._name);
 assert.deepEqual(contentChildren, expectedCards, 'game cards/order changed');
@@ -138,8 +142,9 @@ for (const oldTitle of ['奶茶接接乐', '神箭手', '气球转盘']) {
     `old lobby title remains: ${oldTitle}`);
 }
 
+const sharedStyleCards = expectedCards;
 const artworkMasks = nodes.filter(({ entry }) => entry._name === 'ArtworkMask');
-assert.equal(artworkMasks.length, expectedCards.length, 'each card needs one artwork mask');
+assert.equal(artworkMasks.length, sharedStyleCards.length, 'each shared-style card needs one artwork mask');
 for (const { id } of artworkMasks) {
   const transform = component(id, 'cc.UITransform');
   assert.deepEqual(
@@ -150,7 +155,7 @@ for (const { id } of artworkMasks) {
 }
 
 const artworkOutlines = nodes.filter(({ entry }) => entry._name === 'ArtworkOutline');
-assert.equal(artworkOutlines.length, expectedCards.length, 'each card needs one artwork outline');
+assert.equal(artworkOutlines.length, sharedStyleCards.length, 'each shared-style card needs one artwork outline');
 for (const { id } of artworkOutlines) {
   assert.equal(
     component(id, 'cc.Sprite')._spriteFrame.__uuid__,
@@ -167,21 +172,23 @@ const buttonProperties = [
   'ropeDuckButton',
   'jellyCrushButton',
   'truckStackButton',
+  'airdropRescueButton',
+  'marbleBottleButton',
+  'knifeClimbButton',
+  'juggleButton',
 ];
 buttonProperties.forEach((property, index) => {
   const button = object(controller[property]);
   assert.equal(button.__type__, 'cc.Button', `${property} is not a Button`);
   assert.equal(scene[button.node.__id__]._name, expectedCards[index]);
 });
-assert(!('juggleButton' in controller), 'new lobby must not bind a juggle entry');
-assert(!scene.some(item => item?._name === 'JuggleBallCard'), 'new lobby must not contain a juggle card');
 const foodCard = nodeByName('FoodDeliveryCard');
 const foodPlaque = foodCard.entry._children.map(object).find(child => child._name === 'TitlePlaque');
 assert(foodPlaque, 'FoodDeliveryCard title plaque is missing');
 const sharedTitleMeta = JSON.parse(read('assets/res/newMain/card_title_blank.png.meta'));
 assert.equal(component(scene.indexOf(foodPlaque), 'cc.Sprite')._spriteFrame.__uuid__,
   `${sharedTitleMeta.uuid}@f9941`);
-for (const cardName of expectedCards) {
+for (const cardName of sharedStyleCards) {
   const card = nodeByName(cardName);
   const plaque = card.entry._children.map(object).find(child => child._name === 'TitlePlaque');
   assert(plaque, `${cardName} title plaque is missing`);

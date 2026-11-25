@@ -28,7 +28,7 @@ assert(fs.existsSync('assets/scripts/airdropRescueFeedGameScene.ts.meta'), 'aird
   assert.equal(scene.filter(item => item.__type__ === 'cc.Node' && /^Target\d+$/.test(item._name)).length, 12);
   assert.equal(component(node('ResultOverlay'), 'cc.BlockInputEvents').__type__, 'cc.BlockInputEvents');
   assert.equal(component(node('ResultDim'), 'cc.Sprite')._color.a, 145);
-  for (const name of ['BackButton', 'JumpButton', 'AddTimeButton', 'HintButton', 'ReviveButton', 'ReplayButton', 'HomeButton']) {
+  for (const name of ['BackButton', 'SlowdownButton', 'ReviveButton', 'ReplayButton', 'HomeButton']) {
     assert.equal(component(node(name), 'cc.Button').__type__, 'cc.Button', name + ' is clickable');
   }
   for (const height of [1334, 1624]) {

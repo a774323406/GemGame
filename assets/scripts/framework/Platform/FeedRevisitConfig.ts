@@ -6,7 +6,7 @@ export const FEED_HEART_LEVEL = 8;
  * 颠球挑战推荐流方案 ID。
  * 加载页会根据该 ID 自动路由到 JuggleBallGameScene。
  */
-export const FEED_JUGGLE_CONTENT_ID = "CONTENT14893670402";
+export const FEED_JUGGLE_CONTENT_ID = "CONTENT16792957954";
 
 /**
  * 颠球挑战第二关推荐流方案 ID。
@@ -99,5 +99,31 @@ export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16375606274";
 /** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */
 export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16431822082";
 
-/** 空投救援推荐流方案，真实 Content_ID 补入后再开启正式路由。 */
-export const FEED_AIRDROP_RESCUE_CONTENT_ID = "xx";
+/** 空投救援推荐流方案，直接进入 AirdropRescueFeedGameScene。 */
+export const FEED_AIRDROP_RESCUE_CONTENT_ID: string = "CONTENT16988333314";
+
+/** 弹珠入瓶推荐流方案，直接进入 MarbleBottleFeedGameScene。 */
+export const FEED_MARBLE_BOTTLE_CONTENT_ID: string = "CONTENT16916447490";
+
+/** 绝不落地推荐流方案，直接进入 KnifeClimbFeedGameScene。 */
+export const FEED_KNIFE_CLIMB_CONTENT_ID: string = "CONTENT16988333570";
+
+/** 正在使用的获客入口；供缺少渠道字段的推荐流预览识别，排除占位及已停用 ID。 */
+export function isConfiguredFeedAcquisitionContentId(contentId: string): boolean {
+  if (!contentId || contentId === "xx") return false;
+  const configuredIds: readonly string[] = [
+    FEED_HEART_CONTENT_ID,
+    FEED_JUGGLE_CONTENT_ID,
+    FEED_JUGGLE_LEVEL2_CONTENT_ID,
+    FEED_DUCK_GRAB_CONTENT_ID,
+    FEED_FOOD_DELIVERY_CONTENT_ID,
+    FEED_BRICK_CHOP_CONTENT_ID,
+    FEED_ROPE_DUCK_CONTENT_ID,
+    FEED_TRUCK_STACK_CONTENT_ID,
+    FEED_JELLY_CRUSH_CONTENT_ID,
+    FEED_AIRDROP_RESCUE_CONTENT_ID,
+    FEED_MARBLE_BOTTLE_CONTENT_ID,
+    FEED_KNIFE_CLIMB_CONTENT_ID,
+  ];
+  return configuredIds.indexOf(contentId) >= 0;
+}

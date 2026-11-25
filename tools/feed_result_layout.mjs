@@ -119,7 +119,7 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
   const asset = name => JSON.parse(fs.readFileSync(new URL('../assets/res/feedResult/'+name+'.png.meta', import.meta.url))).uuid + '@f9941';
   const whiteFrame=JSON.parse(fs.readFileSync(new URL('../assets/res/foodDeliveryFeed/white.png.meta',import.meta.url))).uuid+'@f9941';
   const videoFrame=JSON.parse(fs.readFileSync(new URL('../assets/res/feedShared/video-badge.png.meta',import.meta.url))).uuid+'@f9941';
-  const buttonFrame = () => asset('button-orange');
+  const buttonFrame = name => asset(sceneName === 'KnifeClimbFeedGameScene' && name === 'NextButton' ? 'button-green' : 'button-orange');
   for(const id of descendants) {
     const n=objects[id], name=n._name;
     if(["ResultPanel","CuteResultPanel","Panel","SuccessActions","FailureActions"].includes(name)) {
@@ -158,9 +158,11 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
   }
   const layouts = {
     TruckStackFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",140,660,240,40],["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
+    KnifeClimbFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",140,660,240,40],["NextButton",-180,470,138],["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
     RopeDuckFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",140,660,240,40],["ReviveButton",-180,470,138],["ReplayButton",-345,470,138],["HomeButton",-510,470,138]],
     BrickChopFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
     DuckGrabFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
+    MarbleBottleFeedGameScene: [["Kicker",550,650,60,42],["ResultTitle",400,620,165,104],["ResultDetail",120,650,230,42],["ReplayButton",-270,470,138],["HomeButton",-445,470,138]],
     FoodDeliveryFeedGameScene: [["ResultGameTitle",550,650,60,42],["SuccessTitle",405,620,165,104],
       ["FailureTitle",405,620,165,104],["SuccessContent",170,660,210],["FailureContent",170,660,210],
       ["HomeButton",-260,470,138],["RetryButton",-425,470,138],["NextButton",-425,470,138]],
@@ -179,7 +181,11 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
     objects[row]._lpos.x=0; objects[row]._lpos.y=0; stretch(row);
     const layout=component(row,"cc.Layout");if(layout)layout._enabled=false;
     const badge=find("ad_badge_cartoon_red");
-    if(badge!==undefined) {objects[badge]._lpos.x=-145;objects[badge]._lpos.y=0;}
+    if(badge!==undefined) {
+      // The old half-scale/TRIMMED badge shrank the shared 72×52 video icon.
+      objects[badge]._lscale={__type__:'cc.Vec3',x:1,y:1,z:1};
+      const sprite=component(badge,'cc.Sprite');if(sprite)sprite._sizeMode=0;
+    }
 
   }
   for(const id of descendants) {
@@ -232,9 +238,11 @@ function styleFullscreenResult(objects, sceneName, overlayId, component, addComp
   }
   const hudNames={
     TruckStackFeedGameScene:["HUD"],
+    KnifeClimbFeedGameScene:["HUD"],
     RopeDuckFeedGameScene:["HUD"],
     BrickChopFeedGameScene:["HUD","HitMessage"],
     DuckGrabFeedGameScene:["HUD"],
+    MarbleBottleFeedGameScene:["HUD"],
     JuggleBallGameScene:['HeaderPanel','GoalPanel','LevelLabel','GoalLabel','ChanceLabel','BackButton','ScoreLabel','StatusLabel','ReadyArrow','MoveHint','SlowdownButton','ExtraChanceButton'],
     FoodDeliveryFeedGameScene:['SafeArea','SlowdownButton','ChanceLabel','TapHint'],
     JellyCrushFeedGameScene:['HUD','HitMessage'],

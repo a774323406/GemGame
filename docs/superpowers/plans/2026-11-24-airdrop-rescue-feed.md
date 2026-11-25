@@ -12,11 +12,11 @@
 
 ## Global Constraints
 
-- 规则为 300 秒倒计时、食物 `0/5`、机会 `25/25`，首次触摸后开始计时。
-- 接满 5 份食物成功，机会归零或倒计时结束失败。
+- 规则为本关不限时、食物 `0/5`、机会 `25/25`，实际游玩时长只用于难度提升。
+- 接满 5 份食物成功，机会归零失败。
 - 未点击直升机飞出屏幕直接回收，已释放蔬菜落空才扣机会。
 - 失败后可无限次看激励视频复活，保留食物并恢复 5 次机会。
-- 底部保留“跳关、加时、提示”广告按钮，奖励分别为完成本关、增加 60 秒、短暂标出易接目标。
+- 底部仅保留“减速”广告按钮，默认 20 秒内所有直升机速度降低 50%，场景组件可调整时长。
 - 推荐流 ID 只保留 `xx` 源码占位，未知或占位值不正式路由。
 - 结算使用全屏黑色 145/255 遮罩和共享结果布局，不使用弹窗卡片。
 - 不修改拼豆 `GameScene`，不执行 Cocos 构建。
@@ -25,9 +25,21 @@
 
 - 多架直升机和多颗蔬菜同帧运行，验证对象池不会复用仍在下落的对象。测试归属 Task 1。
 - 瓶口边界和跨屏下落判定，验证同一帧只结算一次。测试归属 Task 1。
-- 首次触摸计时、暂停/广告回调和无限复活，验证不重复扣机会或重复发奖。测试归属 Task 3。
+- 首次触摸激活、暂停/广告回调和无限复活，验证不重复扣机会或重复发奖。测试归属 Task 3。
 - `xx` 或未知 Content_ID，验证不会误路由到新场景。测试归属 Task 4。
 - 750×1334 与 750×1624 的结果遮罩、按钮底边距和主界面卡片布局。测试归属 Task 5。
+
+## 2026-11-25 本轮：不限时、减速与随机加速
+
+本轮沿用用户已授权的玩法修改，在当前工作区就地更新，不执行以下历史任务中的构建、测试或提交步骤；用户自行构建试玩。20 秒减速、速度降低 50% 已由用户确认；加速概率、倍率与难度曲线为实现默认值。
+
+- [x] 在 `airdropRescueRules.ts` 删除倒计时和加时/加机会接口，新增 `elapsedSeconds`、`slowRemaining` 和 `slowDown(seconds = 20)`；失败仅由机会耗尽触发。
+- [x] 飞机分别保存巡航速度、随机加速位置/倍率和提速进度，统一计算当前速度；预览不提升难度，剪下蔬菜后不再施加飞行调速。
+- [x] 控制器只绑定减速与复活奖励，新增可编辑 `slowdownSeconds`；效果期间禁用减速按钮，结束后恢复。
+- [x] Authoring 删除 Timer 与旧按钮，复用已有减速贴图及广告标识，居中且底部留出 108 设计单位；只重新生成空投场景。
+- [x] 同步旧检查脚本中已经改变的时间/按钮约定，不运行游戏测试；静态核对 TypeScript 语法、序列化引用和差异。
+
+静态核对结果：两份 TypeScript 文件均无语法诊断；authoring 与现有检查脚本语法有效；场景无悬空引用或过期组件字段；只保留一个减速按钮，底边距 108；剪绳、接取、落空音效引用均保持一致。未执行游戏测试或 Cocos 构建。
 
 ---
 
@@ -39,20 +51,20 @@
 
 **Interfaces:**
 - Produces `AirdropRescueRound`, `AirdropTarget`, `AirdropTargetState`, `AirdropEvent`。
-- `start(): void`、`step(deltaSeconds: number): void`、`releaseTarget(id: number): boolean`、`revive(): boolean`、`addTime(seconds: number): boolean`、`completeLevel(): void`、`getSnapshot(): AirdropSnapshot`。
+- `start(): void`、`step(deltaSeconds: number): void`、`releaseTarget(id: number): boolean`、`revive(): boolean`、`slowDown(seconds?: number): boolean`、`completeLevel(): void`、`getSnapshot(): AirdropSnapshot`。
 
 - [ ] **Step 1: Write the failing rule tests**
-  - 断言初始 `timeRemaining=300`、`food=0`、`chances=25`。
+  - 断言初始 `elapsedSeconds=0`、`food=0`、`chances=25`。
   - 断言释放对象保留水平速度并进入下落状态。
   - 断言瓶口命中只加一份食物，越底只扣一次机会。
   - 断言未释放目标离屏不扣机会，多目标可并存。
-  - 断言食物达到 5 为 success，机会归零或时间归零为 failure。
+  - 断言食物达到 5 为 success、机会归零为 failure，游玩时长本身不会结束本局。
   - 断言无限次 `revive()` 保留 food，并把 chances 恢复为 5。
 - [ ] **Step 2: Run `node tools/test_airdrop_rescue_rules.cjs` and verify it fails**
 - [ ] **Step 3: Implement fixed-step state transitions in `airdropRescueRules.ts`**
   - 使用固定步长累计时间，目标由 `spawnAt`, `x`, `y`, `vx`, `vy`, `state` 描述。
-  - 生成点在左右屏外，按阶段随机生成 1～3 架，释放后只更新蔬菜对象。
-  - 同帧事件顺序固定为释放、移动、瓶口命中、越底回收、计时与终局。
+  - 生成点在左右屏外，按阶段随机生成 1～2 架，部分飞机途中突然加速，释放后蔬菜保留当时惯性。
+  - 同帧事件顺序固定为释放、移动、瓶口命中、越底回收与终局。
 - [ ] **Step 4: Run the rule tests and verify PASS**
 - [ ] **Step 5: Commit `feat: add airdrop rescue rules`**
 
@@ -67,7 +79,7 @@
 - Test: `tools/test_airdrop_rescue_scene.cjs`。
 
 **Interfaces:**
-- Scene controller exposes serialized nodes for `backButton`, `title`, `timerLabel`, `foodLabel`, `chanceLabel`, `bottle`, `targetPool`, `jumpButton`, `addTimeButton`, `hintButton`, `hud`, `resultOverlay`。
+- Scene controller exposes serialized nodes for `backButton`, `titleLabel`, `foodLabel`, `chanceLabel`, `bottle`, `targetPool`, `slowdownButton`, `hud`, `resultOverlay`。
 - Authoring exports `buildAirdropRescueScene()`, `appendAirdropRescueCard()`, `SCENE_UUID`, `uuid()`。
 
 - [ ] **Step 1: Write scene contract tests**
@@ -101,7 +113,7 @@
 - [ ] **Step 2: Run `node tools/test_airdrop_rescue_controller.cjs` and verify it fails**
 - [ ] **Step 3: Implement the controller**
   - 用对象池把规则目标同步到直升机/蔬菜节点，使用场景坐标映射和固定瓶口判定区。
-  - 将三种奖励动作接到 `SdkUtils.showRewardedVideo()`，广告期间只锁定奖励按钮，不暂停游戏。
+  - 将减速和复活接到 `SdkUtils.showRewardedVideo()`，激励视频保留现有暂停保护；插屏不主动暂停游戏。
   - 用 `ADController.onEnter`, `scheduleFeedEntryInterstitial`, `cancelFeedEntryInterstitial`, `onLevelResult` 接入统一插屏流程。
   - 按现有场景模式在 `onDestroy` 成对解绑 game/input/feed 监听并停止音效。
 - [ ] **Step 4: Run controller tests and verify PASS**
