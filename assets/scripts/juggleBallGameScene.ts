@@ -11,6 +11,7 @@ import {
   HorizontalTextAlignment,
   input,
   Input,
+  isValid,
   Label,
   Node,
   ResolutionPolicy,
@@ -22,6 +23,7 @@ import {
   Vec3,
   VerticalTextAlignment,
   view,
+  Widget,
 } from "cc";
 import AudioManager from "./framework/AudioManager";
 import { GameSceneBundle, GameSceneName } from "./framework/GameSceneBundle";
@@ -42,6 +44,8 @@ type JuggleLevel = 1 | 2;
 
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
+// Fill the taller UI reference without changing the original playfield physics.
+const SCREEN_REFERENCE_HEIGHT = 1624;
 const BALL_RADIUS = 28;
 const PADDLE_Y = -390;
 const PADDLE_HALF_WIDTH = 112;
@@ -149,6 +153,18 @@ export class juggleBallGameScene extends Component {
   @property(Button)
   sceneResultHomeButton: Button | null = null;
 
+  @property(Node)
+  scenePauseOverlay: Node | null = null;
+
+  @property(Button)
+  sceneContinueButton: Button | null = null;
+
+  @property(Button)
+  sceneRestartButton: Button | null = null;
+
+  @property(Button)
+  sceneExitButton: Button | null = null;
+
   private state: JuggleState = "ready";
   private score = 0;
   /** 额外重玩次数；首次挑战本身不计入。 */
@@ -172,23 +188,28 @@ export class juggleBallGameScene extends Component {
   private nativeTouchApi: any | null = null;
   private nativeTouchBound = false;
   private resultSucceeded = false;
-  private artworkReadyPromise: Promise<void> = Promise.resolve();
+  private artworkReadyPromise: Promise<void> | null = null;
   private currentLevel: JuggleLevel = 1;
   private pendingTopDrop = false;
   private readyTriangleCount = 0;
+  private menuPaused = false;
+  private stateBeforePause: "ready" | "playing" = "ready";
+  private pauseHud: Array<{ node: Node; active: boolean }> = [];
 
   protected onLoad(): void {
-    view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
+    view.setDesignResolutionSize(DESIGN_WIDTH, SCREEN_REFERENCE_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
     FeedAcquisitionService.init();
     this.feedMode = FeedAcquisitionService.isActive();
     this.currentLevel = this.resolveEntryLevel();
     this.buildEditorNodesIfNeeded();
     this.ensureLevelSpecificNodes();
+    this.fitBackgroundsToCanvas();
     this.bindEvents();
     this.drawSceneArtwork();
     this.applyLevelPresentation();
     this.artworkReadyPromise = this.loadArtwork();
     if (this.sceneResultOverlay) this.sceneResultOverlay.active = false;
+    if (this.scenePauseOverlay) this.scenePauseOverlay.active = false;
   }
 
   protected start(): void {
@@ -201,13 +222,18 @@ export class juggleBallGameScene extends Component {
       AudioManager.playMusic(soundName.getUserBgm);
     }
     this.startChallenge();
-    void this.artworkReadyPromise.then(() => adc.onEnterGame(this.node));
     if (this.feedMode) {
-      void this.reportFeedSceneAfterArtworkReady();
+      console.log(`[JuggleFeed] 场景已启动: contentId=${FeedAcquisitionService.getContentId()}, artwork=${this.artworkReadyPromise ? "fallback-loading" : "scene-ready"}`);
     }
+    // Like the other feed games, an authored scene is ready without another
+    // bundle.load round trip. Only legacy/generated nodes need the fallback.
+    if (this.artworkReadyPromise) {
+      void this.artworkReadyPromise.then(() => this.onSceneArtworkReady());
+    } else this.onSceneArtworkReady();
   }
 
   protected update(deltaTime: number): void {
+    if (this.menuPaused || this.leaving) return;
     if (this.feedMode && this.feedExited) return;
     const dt = Math.min(0.035, Math.max(0, deltaTime));
     this.updatePaddle(dt);
@@ -221,6 +247,8 @@ export class juggleBallGameScene extends Component {
   }
 
   protected onDestroy(): void {
+    this.unscheduleAllCallbacks();
+    director.getScheduler().resumeTarget(this);
     adc.cancelFeedEntryInterstitial();
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     if (this.feedMode && !this.feedExperienceFinished) {
@@ -233,22 +261,40 @@ export class juggleBallGameScene extends Component {
     input.off(Input.EventType.TOUCH_MOVE, this.onTouchMove, this);
     input.off(Input.EventType.TOUCH_END, this.onTouchEnd, this);
     input.off(Input.EventType.TOUCH_CANCEL, this.onTouchEnd, this);
-    this.sceneBackButton?.node?.off(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneSlowdownButton?.node?.off(Button.EventType.CLICK, this.onSlowdownPressed, this);
-    this.sceneExtraChanceButton?.node?.off(Button.EventType.CLICK, this.onExtraChancePressed, this);
-    this.sceneResultActionButton?.node?.off(Button.EventType.CLICK, this.onResultAction, this);
-    this.sceneResultHomeButton?.node?.off(Button.EventType.CLICK, this.onResultRevive, this);
-    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    for (const [button, callback] of this.buttonActions()) {
+      this.safeNodeOff(button?.node, Button.EventType.CLICK, callback);
+    }
+    this.safeNodeOff(this.node, Node.EventType.TOUCH_START, this.onFeedFallbackTouch, true);
     this.unbindNativeFeedTouchFallback();
-    this.unscheduleAllCallbacks();
+  }
+
+  private safeNodeOff(node: Node | null | undefined, event: string, callback: () => void, useCapture = false): void {
+    if (!node || !isValid(node, true)) return;
+    try {
+      node.off(event, callback, this, useCapture);
+    } catch {
+      // Parent-driven destruction can clear the event processor before onDestroy,
+      // while isValid still returns true for this node.
+    }
+  }
+
+  private buttonActions(): Array<[Button | null, () => void]> {
+    return [
+      [this.sceneBackButton, this.openPauseMenu],
+      [this.sceneSlowdownButton, this.onSlowdownPressed],
+      [this.sceneExtraChanceButton, this.onExtraChancePressed],
+      [this.sceneResultActionButton, this.onResultAction],
+      [this.sceneResultHomeButton, this.onResultRevive],
+      [this.sceneContinueButton, this.continueFromPause],
+      [this.sceneRestartButton, this.restartFromPause],
+      [this.sceneExitButton, this.returnToMain],
+    ];
   }
 
   private bindEvents(): void {
-    this.sceneBackButton?.node?.on(Button.EventType.CLICK, this.returnToMain, this);
-    this.sceneSlowdownButton?.node?.on(Button.EventType.CLICK, this.onSlowdownPressed, this);
-    this.sceneExtraChanceButton?.node?.on(Button.EventType.CLICK, this.onExtraChancePressed, this);
-    this.sceneResultActionButton?.node?.on(Button.EventType.CLICK, this.onResultAction, this);
-    this.sceneResultHomeButton?.node?.on(Button.EventType.CLICK, this.onResultRevive, this);
+    for (const [button, callback] of this.buttonActions()) {
+      button?.node?.on(Button.EventType.CLICK, callback, this);
+    }
     game.on(Game.EVENT_HIDE, this.onGameHide, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
     input.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
@@ -392,6 +438,26 @@ export class juggleBallGameScene extends Component {
     return contentId === FEED_JUGGLE_LEVEL2_CONTENT_ID ? 2 : 1;
   }
 
+  private fitBackgroundsToCanvas(): void {
+    const size = view.getVisibleSize();
+    for (const background of [this.node.getChildByName("JuggleBackground"), this.sceneLevel2Background]) {
+      if (!background?.isValid) continue;
+      background.setPosition(0, 0, 0);
+      background.setScale(1, 1, 1);
+      background.getComponent(UITransform)?.setContentSize(size.width, size.height);
+      const sprite = background.getComponent(Sprite);
+      if (sprite) sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+      const widget = background.getComponent(Widget) ?? background.addComponent(Widget);
+      widget.alignMode = Widget.AlignMode.ON_WINDOW_RESIZE;
+      widget.isAlignHorizontalCenter = false;
+      widget.isAlignVerticalCenter = false;
+      widget.isAlignLeft = widget.isAlignRight = widget.isAlignTop = widget.isAlignBottom = true;
+      widget.isAbsoluteLeft = widget.isAbsoluteRight = widget.isAbsoluteTop = widget.isAbsoluteBottom = true;
+      widget.left = widget.right = widget.top = widget.bottom = 0;
+      widget.updateAlignment();
+    }
+  }
+
   /** 广告按当前关卡打点，支持主页顺序通关及推荐流直接进入第二关。 */
   public get adAnalyticsFeedType(): string {
     return this.currentLevel === 2 ? "乒乓球第二关" : "乒乓球第一关";
@@ -491,7 +557,7 @@ export class juggleBallGameScene extends Component {
     return button;
   }
 
-  private async loadArtwork(): Promise<void> {
+  private loadArtwork(): Promise<void> | null {
     const entries: Array<[Node | null | undefined, string]> = [
       [this.node.getChildByName("JuggleBackground"), "juggleBallGame/sky-background/spriteFrame"],
       // Level2Background 的 SpriteFrame 已固化在场景中，避免编辑器预览时重复请求
@@ -503,24 +569,49 @@ export class juggleBallGameScene extends Component {
       [this.sceneExtraChanceButton?.node, "juggleBallGame/extra-chance-button/spriteFrame"],
     ];
 
-    await Promise.all(entries.map(([node, path]) => this.loadSprite(node, path)));
+    const missingArtwork = entries.filter(([node]) => {
+      const sprite = node?.getComponent(Sprite);
+      return !!sprite && !sprite.spriteFrame?.isValid;
+    });
+    if (missingArtwork.length === 0) return null;
+    if (this.feedMode) {
+      console.warn("[JuggleFeed] 场景图片缺失，启用旧场景补载", missingArtwork.map(([node, path]) => `${node?.name}:${path}`));
+    }
+    return Promise.all(missingArtwork.map(([node, path]) => this.loadSprite(node, path)))
+      .then(() => undefined);
   }
 
-  private async reportFeedSceneAfterArtworkReady(): Promise<void> {
-    await this.artworkReadyPromise;
-    if (!this.node?.isValid || !this.feedMode) return;
+  private onSceneArtworkReady(): void {
+    if (!isValid(this.node, true) || this.leaving) return;
+    adc.onEnterGame(this.node);
+    if (this.feedMode) {
+      void this.reportFeedSceneReady().catch(error => {
+        console.error("[JuggleFeed] 推荐流就绪上报异常", error);
+      });
+    }
+  }
 
+  private async reportFeedSceneReady(): Promise<void> {
+    if (!isValid(this.node, true) || !this.feedMode || this.leaving) return;
     const background = this.getCurrentBackground();
-    await FeedAcquisitionService.reportSceneReadyAfterStableRender({
+    console.log("[JuggleFeed] 初始画面已准备，开始等待稳定渲染");
+    const reported = await FeedAcquisitionService.reportSceneReadyAfterStableRender({
       owner: this.node,
       requiredVisibleNodes: [background, this.scenePaddle, this.sceneBall],
-      isReady: () => this.state === "playing" && !this.leaving,
+      stableFrameCount: 3,
+      surfaceDelayMs: 180,
+      // The host may send feedEnter before start(), leaving the first ball in
+      // its launch delay. A rendered ready state must still report 7001.
+      isReady: () => !this.leaving && !this.feedExited,
     });
+    if (isValid(this.node, true) && this.feedMode && !this.leaving) {
+      console.log(`[JuggleFeed] 稳定渲染检查结束: reported=${reported}, entered=${this.feedEntered}, exited=${this.feedExited}`);
+    }
   }
 
   private async loadSprite(node: Node | null | undefined, path: string): Promise<void> {
     const sprite = node?.getComponent(Sprite);
-    if (!sprite) return;
+    if (!sprite || sprite.spriteFrame?.isValid) return;
     try {
       const frame = await ResourceManager.ins.loadBundleAsset("res", path, SpriteFrame);
       if (!node?.isValid) return;
@@ -532,6 +623,7 @@ export class juggleBallGameScene extends Component {
   }
 
   private startChallenge(): void {
+    this.closePauseMenu();
     this.unschedule(this.launchBall);
     this.unschedule(this.tickReadyCountdown);
     this.pendingTopDrop = false;
@@ -980,8 +1072,58 @@ export class juggleBallGameScene extends Component {
     this.prepareTopDropRevive();
   }
 
+  private openPauseMenu(): void {
+    this.activateFeedFromGesture();
+    if (this.leaving || this.menuPaused || this.adInFlight || SdkUtils.isRewardedVideoBusy()
+      || !this.isFeedInteractionEnabled() || !this.scenePauseOverlay?.isValid
+      || (this.state !== "ready" && this.state !== "playing")) return;
+    AudioManager.playEffect(soundName.buttonClick);
+    this.stateBeforePause = this.state;
+    this.menuPaused = true;
+    this.state = "paused";
+    this.isDragging = false;
+    // Preserve the remaining launch/countdown delay; never pause the engine or ads.
+    director.getScheduler().pauseTarget(this);
+    const hud = [
+      this.sceneHeaderPanel, this.sceneGoalPanel, this.sceneLevelLabel?.node,
+      this.sceneGoalLabel?.node, this.sceneChanceLabel?.node, this.sceneBackButton?.node,
+      this.sceneScoreLabel?.node, this.sceneStatusLabel?.node, this.sceneReadyArrow,
+      this.sceneMoveHint, this.sceneSlowdownButton?.node, this.sceneExtraChanceButton?.node,
+    ];
+    this.pauseHud = hud.filter((node): node is Node => !!node?.isValid)
+      .map(node => ({ node, active: node.active }));
+    for (const { node } of this.pauseHud) node.active = false;
+    this.scenePauseOverlay.active = true;
+    AudioManager.pauseBgmForVideo();
+  }
+
+  private closePauseMenu(): void {
+    if (!this.menuPaused) return;
+    this.menuPaused = false;
+    this.state = this.stateBeforePause;
+    this.isDragging = false;
+    if (this.scenePauseOverlay?.isValid) this.scenePauseOverlay.active = false;
+    for (const { node, active } of this.pauseHud) if (node.isValid) node.active = active;
+    this.pauseHud = [];
+    director.getScheduler().resumeTarget(this);
+  }
+
+  private continueFromPause(): void {
+    if (!this.menuPaused || this.leaving) return;
+    AudioManager.playEffect(soundName.buttonClick);
+    this.closePauseMenu();
+    if (!this.appHidden) AudioManager.restartMusic(soundName.getUserBgm);
+  }
+
+  private restartFromPause(): void {
+    if (!this.menuPaused || this.leaving) return;
+    AudioManager.playEffect(soundName.buttonClick);
+    this.startChallenge();
+    if (!this.appHidden) AudioManager.restartMusic(soundName.getUserBgm);
+  }
+
   private returnToMain(): void {
-    if (this.leaving) return;
+    if (this.leaving || this.adInFlight) return;
     this.leaving = true;
     this.finishFeedExperience();
     AudioManager.playDefaultBgm();
@@ -989,6 +1131,7 @@ export class juggleBallGameScene extends Component {
     void GameSceneBundle.loadScene(GameSceneName.Main).catch((err) => {
       console.error("[juggleBallGameScene] 返回主页失败", err);
       this.leaving = false;
+      if (this.menuPaused) AudioManager.pauseBgmForVideo();
     });
   }
 
@@ -1140,7 +1283,7 @@ export class juggleBallGameScene extends Component {
     this.feedExited = state.exited;
 
     // 展示阶段也播放 BGM，不提前启动正式挑战或插屏。
-    if (!this.appHidden && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
+    if (!this.appHidden && !this.menuPaused && !this.adInFlight && !SdkUtils.isRewardedVideoBusy()) {
       if (!this.feedAudioForeground) {
         this.feedAudioForeground = true;
         AudioManager.restartMusic(soundName.getUserBgm);
@@ -1172,6 +1315,7 @@ export class juggleBallGameScene extends Component {
   };
 
   private activateFeedFromGesture(): void {
+    if (this.menuPaused || this.leaving) return;
     if (FeedAcquisitionService.isActive()) {
       FeedAcquisitionService.activateFromFirstTouch();
     }
@@ -1194,7 +1338,7 @@ export class juggleBallGameScene extends Component {
     if (!this.feedMode || this.feedExperienceFinished) return;
     this.feedExperienceFinished = true;
     adc.cancelFeedEntryInterstitial();
-    this.node?.off(Node.EventType.TOUCH_START, this.onFeedFallbackTouch, this, true);
+    this.safeNodeOff(this.node, Node.EventType.TOUCH_START, this.onFeedFallbackTouch, true);
     this.unbindNativeFeedTouchFallback();
     FeedAcquisitionService.removeListener(this.onFeedStateChanged);
     FeedAcquisitionService.completeSession();
@@ -1212,7 +1356,7 @@ export class juggleBallGameScene extends Component {
 
   private onGameShow = (): void => {
     this.appHidden = false;
-    if (!this.feedMode || this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
+    if (!this.feedMode || this.menuPaused || this.adInFlight || SdkUtils.isRewardedVideoBusy()) return;
     this.feedAudioForeground = true;
     AudioManager.restartMusic(soundName.getUserBgm);
   };

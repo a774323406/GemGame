@@ -129,12 +129,69 @@ async function main() {
   const serializedFoodCardId = serializedMenu.findIndex(item =>
     item?.__type__ === 'cc.Node' && item._name === 'FoodDeliveryCard');
   assert(serializedFoodCardId > 0, 'the formal scene must serialize the food-delivery card');
-  const buttonId = appendFoodDeliveryCard(serializedMenu);
-  assert.equal(serializedMenu[buttonId].__type__, 'cc.Button');
-  const migrated = JSON.stringify(serializedMenu);
-  assert.equal(appendFoodDeliveryCard(serializedMenu), buttonId,
+  const menuScene = structuredClone(serializedMenu.slice(0, serializedFoodCardId));
+  const nodeId = name => menuScene.findIndex(item => item?.__type__ === 'cc.Node' && item._name === name);
+  const contentId = nodeId('Content');
+  const content = menuScene[contentId];
+  const transformId = content._components
+    .map(reference => reference.__id__)
+    .find(id => menuScene[id].__type__ === 'cc.UITransform');
+  const controllerId = menuScene.findIndex(item =>
+    item?.puzzleButton && item?.duckGrabButton && item?.gameList);
+  content._children = content._children.filter(reference => reference.__id__ < serializedFoodCardId);
+  menuScene[transformId]._contentSize.height = 888;
+  delete menuScene[controllerId].foodDeliveryButton;
+  const originalLength = menuScene.length;
+  const allowedMutations = new Set([contentId, transformId, controllerId]);
+  const untouchedBefore = menuScene.slice(0, originalLength).map((item, id) =>
+    allowedMutations.has(id) ? null : JSON.stringify(item));
+
+  const buttonId = appendFoodDeliveryCard(menuScene);
+  assert(buttonId >= originalLength, 'homepage append must return the new serialized Button index');
+  assert.equal(menuScene[buttonId].__type__, 'cc.Button');
+  assert.equal(content._children.length, 3);
+  const cardId = content._children.at(-1).__id__;
+  assert.equal(menuScene[cardId]._name, 'FoodDeliveryCard');
+  assert.deepEqual(
+    [menuScene[cardId]._lpos.x, menuScene[cardId]._lpos.y],
+    [-139, -446],
+    'the third card must start the second row without moving existing cards',
+  );
+  assert.equal(menuScene[transformId]._contentSize.height, 594);
+  assert.equal(menuScene[controllerId].foodDeliveryButton.__id__, buttonId);
+  const titlePlaqueId = menuScene[cardId]._children
+    .map(reference => reference.__id__)
+    .find(id => menuScene[id]?._name === 'TitlePlaque');
+  const titleSpriteId = menuScene[titlePlaqueId]._components
+    .map(reference => reference.__id__)
+    .find(id => menuScene[id]?.__type__ === 'cc.Sprite');
+  assert.equal(
+    menuScene[titleSpriteId]._spriteFrame.__uuid__,
+    'a21b33ea-e748-44dd-a2af-092a25be28fa@f9941',
+    'the homepage card must use the common baked-title-image style',
+  );
+  assert.equal(menuScene[titlePlaqueId]._children.length, 0,
+    'the baked title must not retain a mismatched runtime label');
+  const courierPreviewId = menuScene.findIndex(item =>
+    item?.__type__ === 'cc.Node' && item._name === 'CourierPreview');
+  const courierPreviewTransform = menuScene[menuScene[courierPreviewId]._components
+    .map(reference => reference.__id__)
+    .find(id => menuScene[id].__type__ === 'cc.UITransform')];
+  assert.deepEqual(
+    [courierPreviewTransform._contentSize.width, courierPreviewTransform._contentSize.height],
+    [96, 101],
+    'the homepage courier preview must preserve the rider artwork aspect ratio',
+  );
+  for (let id = 0; id < originalLength; id += 1) {
+    if (!allowedMutations.has(id)) {
+      assert.equal(JSON.stringify(menuScene[id]), untouchedBefore[id],
+        `existing serialized object ${id} changed while appending the card`);
+    }
+  }
+  const appendedLength = menuScene.length;
+  assert.equal(appendFoodDeliveryCard(menuScene), buttonId,
     'rebuilding an already-migrated scene must return the existing button');
-  assert.equal(JSON.stringify(serializedMenu), migrated, 'homepage migration must be idempotent');
+  assert.equal(menuScene.length, appendedLength, 'homepage migration must be idempotent');
 
   const requests = [];
   let rejectNext = true;

@@ -98,6 +98,9 @@ async function main() {
       TruckStackFeedGameScene: '货车叠叠高',
       FoodDeliveryFeedGameScene: '外卖精准投送',
       JellyCrushFeedGameScene: '果冻压压乐',
+      AirdropRescueFeedGameScene: '空投救援',
+      MarbleBottleFeedGameScene: '弹珠入瓶',
+      KnifeClimbFeedGameScene: '绝不落地',
     };
     const sceneNames = Object.values(f.load('framework/GameSceneBundle.ts').GameSceneName);
     assert.deepEqual(sceneNames.sort(), Object.keys(cases).sort(), 'new scenes need an analytics name');

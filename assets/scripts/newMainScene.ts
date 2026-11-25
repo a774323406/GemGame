@@ -56,6 +56,18 @@ export class newMainScene extends Component {
   @property(Button)
   jellyCrushButton: Button = null;
 
+  @property(Button)
+  airdropRescueButton: Button = null;
+
+  @property(Button)
+  marbleBottleButton: Button = null;
+
+  @property(Button)
+  knifeClimbButton: Button = null;
+
+  @property(Button)
+  juggleButton: Button = null;
+
   private navigating = false;
   private shareInFlight = false;
 
@@ -73,6 +85,10 @@ export class newMainScene extends Component {
     this.duckGrabButton?.node?.on(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.on(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.jellyCrushButton?.node?.on(Button.EventType.CLICK, this.openJellyCrush, this);
+    this.airdropRescueButton?.node?.on(Button.EventType.CLICK, this.openAirdropRescue, this);
+    this.marbleBottleButton?.node?.on(Button.EventType.CLICK, this.openMarbleBottle, this);
+    this.knifeClimbButton?.node?.on(Button.EventType.CLICK, this.openKnifeClimb, this);
+    this.juggleButton?.node?.on(Button.EventType.CLICK, this.openJuggle, this);
     game.on(Game.EVENT_SHOW, this.onGameShow, this);
 
     SidebarRewardService.addListener(this.onSidebarStateChanged);
@@ -103,6 +119,10 @@ export class newMainScene extends Component {
     this.duckGrabButton?.node?.off(Button.EventType.CLICK, this.openDuckGrab, this);
     this.foodDeliveryButton?.node?.off(Button.EventType.CLICK, this.openFoodDelivery, this);
     this.jellyCrushButton?.node?.off(Button.EventType.CLICK, this.openJellyCrush, this);
+    this.airdropRescueButton?.node?.off(Button.EventType.CLICK, this.openAirdropRescue, this);
+    this.marbleBottleButton?.node?.off(Button.EventType.CLICK, this.openMarbleBottle, this);
+    this.knifeClimbButton?.node?.off(Button.EventType.CLICK, this.openKnifeClimb, this);
+    this.juggleButton?.node?.off(Button.EventType.CLICK, this.openJuggle, this);
   }
 
   private openSettings(): void {
@@ -121,6 +141,10 @@ export class newMainScene extends Component {
   private openDuckGrab(): void { void this.enterGame(GameSceneName.DuckGrabFeedGame); }
   private openFoodDelivery(): void { void this.enterGame(GameSceneName.FoodDeliveryFeedGame); }
   private openJellyCrush(): void { void this.enterGame(GameSceneName.JellyCrushFeedGame); }
+  private openAirdropRescue(): void { void this.enterGame(GameSceneName.AirdropRescueFeedGame); }
+  private openMarbleBottle(): void { void this.enterGame(GameSceneName.MarbleBottleFeedGame); }
+  private openKnifeClimb(): void { void this.enterGame(GameSceneName.KnifeClimbFeedGame); }
+  private openJuggle(): void { void this.enterGame(GameSceneName.JuggleBallGame); }
 
   private async enterGame(sceneName: GameSceneName): Promise<void> {
     if (this.navigating || GameSceneBundle.isLoadingScene) return;
@@ -154,6 +178,10 @@ export class newMainScene extends Component {
       this.truckStackButton,
       this.foodDeliveryButton,
       this.jellyCrushButton,
+      this.airdropRescueButton,
+      this.marbleBottleButton,
+      this.knifeClimbButton,
+      this.juggleButton,
     ].filter(Boolean);
   }
 

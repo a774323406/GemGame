@@ -14,6 +14,9 @@ export enum GameSceneName {
   DuckGrabFeedGame = "DuckGrabFeedGameScene",
   FoodDeliveryFeedGame = "FoodDeliveryFeedGameScene",
   JellyCrushFeedGame = "JellyCrushFeedGameScene",
+  AirdropRescueFeedGame = "AirdropRescueFeedGameScene",
+  MarbleBottleFeedGame = "MarbleBottleFeedGameScene",
+  KnifeClimbFeedGame = "KnifeClimbFeedGameScene",
 }
 
 const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
@@ -26,6 +29,9 @@ const GAME_SCENE_UUIDS: Record<GameSceneName, string> = {
   [GameSceneName.DuckGrabFeedGame]: "2bd73f08-2520-51f8-ae71-abb501645730",
   [GameSceneName.FoodDeliveryFeedGame]: "fccc8a6c-9bab-5757-a411-a8bf4c40935b",
   [GameSceneName.JellyCrushFeedGame]: "da36427c-0c6e-504e-a0f7-1db5ce7b2342",
+  [GameSceneName.AirdropRescueFeedGame]: "ebc8b234-afc1-5bbb-a741-17d4c251dfd8",
+  [GameSceneName.MarbleBottleFeedGame]: "d4c65195-d6af-592d-a729-43934d9d090b",
+  [GameSceneName.KnifeClimbFeedGame]: "d8ed0e37-bbcd-5992-a390-fbe2dfb13e21",
 };
 
 /**

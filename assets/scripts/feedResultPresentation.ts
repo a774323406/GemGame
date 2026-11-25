@@ -19,7 +19,8 @@ export class FeedResultPresentation extends Component {
     this.previousHud = this.gameplayHud.filter(node => node?.isValid)
       .map(node => ({ node, active: node.active }));
     for (const { node } of this.previousHud) node.active = false;
-    // Some controllers activate the overlay before assigning its result text.
+    this.syncTitle();
+    // Recheck after controllers that assign the result text later in this frame.
     this.scheduleOnce(this.syncTitle, 0);
   }
 

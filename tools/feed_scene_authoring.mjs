@@ -14,6 +14,34 @@ export function compressUuid(uuid) {
   return out;
 }
 
+// Keep the source subtree's button targets, children, components and artwork together.
+export function copySubtree(source, author, parent, rootName) {
+  const root = source.findIndex(o => o.__type__ === 'cc.Node' && o._name === rootName);
+  if (root < 0) throw new Error('Missing source subtree ' + rootName);
+  const ids = [];
+  function visit(id) {
+    ids.push(id, ...source[id]._components.map(r => r.__id__));
+    source[id]._children.forEach(r => visit(r.__id__));
+  }
+  visit(root);
+  const mapped = new Map(ids.map((id, i) => [id, author.objects.length + i]));
+  function copy(value) {
+    if (Array.isArray(value)) return value.map(copy);
+    if (!value || typeof value !== 'object') return value;
+    if (Number.isInteger(value.__id__)) return mapped.has(value.__id__) ? ref(mapped.get(value.__id__)) : null;
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, copy(entry)]));
+  }
+  for (const id of ids) {
+    const item = copy(source[id]);
+    item._id = author.id(item._name || item.__type__.replace(/[^a-z0-9]/gi, ''));
+    author.add(item);
+  }
+  const node = mapped.get(root);
+  author.objects[node]._parent = ref(parent);
+  author.objects[parent]._children.push(ref(node));
+  return node;
+}
+
 export class SceneAuthor {
   constructor(objects = [], prefix = 'feed') {
     this.objects = objects;

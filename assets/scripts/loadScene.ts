@@ -27,6 +27,9 @@ import {
   FEED_TRUCK_STACK_CONTENT_ID,
   FEED_HEART_CONTENT_ID,
   FEED_JELLY_CRUSH_CONTENT_ID,
+  FEED_AIRDROP_RESCUE_CONTENT_ID,
+  FEED_MARBLE_BOTTLE_CONTENT_ID,
+  FEED_KNIFE_CLIMB_CONTENT_ID,
 } from "./framework/Platform/FeedRevisitConfig";
 import { SdkUtils } from "./framework/Platform/sdk/SdkUtils";
 import { adc } from "./framework/Platform/ADController";
@@ -241,6 +244,21 @@ export class loadScene extends Component {
         sceneName: GameSceneName.FoodDeliveryFeedGame,
         reason: "外卖精准投送获客玩法",
       };
+    }
+
+    if (FEED_AIRDROP_RESCUE_CONTENT_ID && FEED_AIRDROP_RESCUE_CONTENT_ID !== "xx" && contentId === FEED_AIRDROP_RESCUE_CONTENT_ID) {
+      return {
+        sceneName: GameSceneName.AirdropRescueFeedGame,
+        reason: `推荐流空投救援（${contentId}）`,
+      };
+    }
+
+    if (contentId && contentId !== "xx" && contentId === FEED_MARBLE_BOTTLE_CONTENT_ID) {
+      return { sceneName: GameSceneName.MarbleBottleFeedGame, reason: `推荐流弹珠入瓶（${contentId}）` };
+    }
+
+    if (contentId && contentId !== "xx" && contentId === FEED_KNIFE_CLIMB_CONTENT_ID) {
+      return { sceneName: GameSceneName.KnifeClimbFeedGame, reason: `推荐流绝不落地（${contentId}）` };
     }
 
     this.warnUnknownFeedContentId(state.mode, contentId);

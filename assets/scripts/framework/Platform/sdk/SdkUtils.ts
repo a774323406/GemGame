@@ -26,6 +26,9 @@ const AD_FEED_TYPES: Readonly<Record<string, string>> = {
   DuckGrabFeedGameScene: "抓鸭子挑战",
   FoodDeliveryFeedGameScene: "外卖精准投送",
   JellyCrushFeedGameScene: "果冻压压乐",
+  AirdropRescueFeedGameScene: "空投救援",
+  MarbleBottleFeedGameScene: "弹珠入瓶",
+  KnifeClimbFeedGameScene: "绝不落地",
 };
 
 export class SdkUtils {

@@ -1,5 +1,6 @@
 import { director, Director, Node, Sprite, UITransform } from "cc";
 import { EnvTool } from "./sdk/EnvTool";
+import { isConfiguredFeedAcquisitionContentId } from "./FeedRevisitConfig";
 
 export interface FeedAcquisitionState {
   active: boolean;
@@ -33,8 +34,9 @@ export interface FeedStableRenderOptions {
 /**
  * 抖音推荐流直玩模式。
  *
- * - 获客：scene 后四位 3041、feed_game_scene=0、feed_game_channel=2；
- * - 复访：scene 后四位 3041、feed_game_scene=3、feed_game_channel=1。
+ * - 获客：feed_game_scene=0、feed_game_channel=2；
+ *   已配置 Content_ID 的预览入口允许缺少上述字段，不限制宿主 scene 值。
+ * - 复访：feed_game_scene=3、feed_game_channel=1。
  * 其他启动方式和其他渠道不会绑定 Feed API，也不会改变原游戏流程。
  */
 export class FeedAcquisitionService {
@@ -346,30 +348,15 @@ export class FeedAcquisitionService {
   private static readLaunchContext(options: any) {
     const scene = String(options?.scene ?? "");
     const query = this.getFeedLaunchQuery(options);
-    const feedScene = Number(
-      query.feed_game_scene ?? query.feedGameScene ?? query.feedScene,
-    );
-    const feedChannel = Number(
-      query.feed_game_channel ?? query.feedGameChannel ?? query.feedChannel,
-    );
-
-    // 3041 is the production scene used by the original integration. New
-    // feed previews can carry the same feed markers with a different scene
-    // value, so the markers are the source of truth when they are present.
-    const hasFeedMarkers = Number.isFinite(feedScene) && Number.isFinite(feedChannel);
-    if (!hasFeedMarkers && scene.slice(-4) !== "3041") return;
-
-    if (feedScene === 0 && feedChannel === 2) {
-      this.mode = "acquisition";
-    } else if (feedScene === 3 && feedChannel === 1) {
-      this.mode = "revisit";
-    } else {
-      return;
-    }
-
-    this.active = true;
-    this.feedScene = feedScene;
-    this.contentId = this.normalizeContentId(
+    const feedSceneText = String(
+      query.feed_game_scene ?? query.feedGameScene ?? query.feedScene ?? "",
+    ).trim();
+    const feedChannelText = String(
+      query.feed_game_channel ?? query.feedGameChannel ?? query.feedChannel ?? "",
+    ).trim();
+    const feedScene = feedSceneText ? Number(feedSceneText) : NaN;
+    const feedChannel = feedChannelText ? Number(feedChannelText) : NaN;
+    const contentId = this.normalizeContentId(
       query.feed_game_content_id ??
         query.feedGameContentId ??
         query.feed_game_contentID ??
@@ -377,11 +364,32 @@ export class FeedAcquisitionService {
         query.content_id ??
         query.contentID,
     );
+    const hasAcquisitionMarkers = feedScene === 0 && feedChannel === 2;
+    // Only infer missing fields for a live, configured acquisition ID. Explicit
+    // revisit markers or another channel retain their original interpretation.
+    const hasConfiguredAcquisitionId = isConfiguredFeedAcquisitionContentId(contentId);
+    const canInferAcquisition = hasConfiguredAcquisitionId &&
+      (!feedSceneText || feedScene === 0) && (!feedChannelText || feedChannel === 2);
+
+    if (hasAcquisitionMarkers || canInferAcquisition) {
+      this.mode = "acquisition";
+    } else if (feedScene === 3 && feedChannel === 1) {
+      this.mode = "revisit";
+    } else {
+      console.log(
+        `[FeedDirectPlay] 未激活推荐流: scene=${scene || "empty"}, feedScene=${feedSceneText || "missing"}, feedChannel=${feedChannelText || "missing"}, contentId=${contentId || "empty"}, configuredId=${hasConfiguredAcquisitionId}`,
+      );
+      return;
+    }
+
+    this.active = true;
+    this.feedScene = this.mode === "acquisition" ? 0 : feedScene;
+    this.contentId = contentId;
     this.extra = String(
       query.feed_game_extra ?? query.feedGameExtra ?? "",
     );
     console.log(
-      `[FeedDirectPlay] 启动参数已识别: scene=${scene || "empty"}, feedScene=${feedScene}, feedChannel=${feedChannel}, contentId=${this.contentId || "empty"}`,
+      `[FeedDirectPlay] 启动参数已识别: scene=${scene || "empty"}, feedScene=${feedSceneText || "missing"}, feedChannel=${feedChannelText || "missing"}, contentId=${this.contentId || "empty"}, source=${this.mode === "acquisition" && !hasAcquisitionMarkers ? "configured-content-id" : "feed-markers"}`,
     );
   }
 
