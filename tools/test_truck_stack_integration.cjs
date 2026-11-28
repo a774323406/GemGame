@@ -3,7 +3,7 @@ const ts = require('/Applications/Cocos/Creator/3.8.5/CocosCreator.app/Contents/
 const compile = file => ts.transpileModule(fs.readFileSync('assets/scripts/' + file, 'utf8'), {
   compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, experimentalDecorators: true},
 }).outputText;
-const state = {active: true, entered: false, exited: false, mode: 'acquisition', contentId: 'CONTENT16375606274'};
+const state = {active: true, entered: false, exited: false, mode: 'acquisition', contentId: 'CONTENT16792984066'};
 const cc = {_decorator: {ccclass: () => c => c, property: () => () => {}}, Component: class {}, Button: {EventType: {CLICK: 'click'}}};
 const load = (file, requireFn = () => ({})) => {
   const exports = {}; vm.runInNewContext(compile(file), {exports, require: requireFn}); return exports;
@@ -12,15 +12,15 @@ const load = (file, requireFn = () => ({})) => {
 (async () => {
   const bundle = load('framework/GameSceneBundle.ts'), config = load('framework/Platform/FeedRevisitConfig.ts');
   assert.equal(bundle.GameSceneName.TruckStackFeedGame, 'TruckStackFeedGameScene', 'new scene is registered');
-  assert.equal(config.FEED_TRUCK_STACK_CONTENT_ID, 'CONTENT16375606274');
+  assert.equal(config.FEED_TRUCK_STACK_CONTENT_ID, 'CONTENT16792984066');
   const loader = load('loadScene.ts', name => name === 'cc' ? cc : name.endsWith('GameSceneBundle') ? bundle :
     name.endsWith('FeedRevisitConfig') ? config : name.endsWith('FeedAcquisitionService') ? {FeedAcquisitionService: {getState: () => state}} : {});
   const route = new loader.loadScene();
-  for (const [id, scene] of [['CONTENT16375606274','TruckStackFeedGameScene'], [config.FEED_ROPE_DUCK_CONTENT_ID,'RopeDuckFeedGameScene'],
+  for (const [id, scene] of [['CONTENT16792984066','TruckStackFeedGameScene'], [config.FEED_ROPE_DUCK_CONTENT_ID,'RopeDuckFeedGameScene'],
     [config.FEED_BRICK_CHOP_CONTENT_ID,'BrickChopFeedGameScene'], ['unknown', 'NewMainScene']]) {
     state.contentId = id; assert.equal(route.resolveFeedEntry().sceneName, scene, id + ' routes correctly');
   }
-  state.contentId = 'CONTENT16375606274'; state.mode = 'revisit';
+  state.contentId = 'CONTENT16792984066'; state.mode = 'revisit';
   assert.equal(route.resolveFeedEntry().sceneName, 'NewMainScene', 'retired revisit still falls back');
   const {buildTruckStackScene, appendTruckStackCard, SCENE_UUID, uuid} = await import('./truck_stack_authoring.mjs');
   const scene = JSON.parse(fs.readFileSync('assets/gamescene/TruckStackFeedGameScene.scene'));

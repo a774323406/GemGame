@@ -157,15 +157,15 @@ async function main() {
     const loader = new (f.load('loadScene.ts').loadScene)();
     const juggle = new (f.load('juggleBallGameScene.ts').juggleBallGameScene)(); juggle.feedMode = true;
     const cases = [
-      ['CONTENT16792957954', 'JuggleBallGameScene', 1],
+      ['CONTENT17191543810', 'JuggleBallGameScene', 1],
       ['CONTENT14759731202', 'JuggleBallGameScene', 2],
       ['CONTENT15319004674', 'GameScene'],
-      ['CONTENT16499561730', 'FoodDeliveryFeedGameScene'],
-      ['CONTENT16499561986', 'DuckGrabFeedGameScene'],
-      ['CONTENT16684492802', 'BrickChopFeedGameScene'],
-      ['CONTENT16429216514', 'RopeDuckFeedGameScene'],
-      ['CONTENT16375606274', 'TruckStackFeedGameScene'],
-      ['CONTENT16431822082', 'JellyCrushFeedGameScene'],
+      ['CONTENT17082491906', 'FoodDeliveryFeedGameScene'],
+      ['CONTENT16976844290', 'DuckGrabFeedGameScene'],
+      ['CONTENT17042566146', 'BrickChopFeedGameScene'],
+      ['CONTENT17109526018', 'RopeDuckFeedGameScene'],
+      ['CONTENT16792984066', 'TruckStackFeedGameScene'],
+      ['CONTENT16576697090', 'JellyCrushFeedGameScene'],
       ['CONTENT14860954626', 'NewMainScene'],
     ];
     // Replaced primary and extra IDs must no longer launch the retired entry.

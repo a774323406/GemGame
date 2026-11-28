@@ -9,14 +9,14 @@ const url = process.argv[2] || 'http://127.0.0.1:8768/';
   const out = '/tmp/rope-duck-feed-cold-start'; fs.mkdirSync(out, { recursive: true });
   try {
     for (const [id, scene, activation] of [
-      ['CONTENT16429216514', 'RopeDuckFeedGameScene', 'touch'],
-      ['CONTENT16429216514', 'RopeDuckFeedGameScene', 'event'],
-      ['CONTENT16429216514', 'RopeDuckFeedGameScene', 'early'],
-      ['CONTENT16429216514', 'RopeDuckFeedGameScene', 'exit-during-load'],
-      ['CONTENT16429216514', 'RopeDuckFeedGameScene', 'exit-touch'],
-      ['CONTENT16429216514', 'RopeDuckFeedGameScene', 'return-touch'],
-      ['CONTENT16499561986', 'DuckGrabFeedGameScene', 'event'],
-      ['CONTENT16684492802', 'BrickChopFeedGameScene', 'event'],
+      ['CONTENT17109526018', 'RopeDuckFeedGameScene', 'touch'],
+      ['CONTENT17109526018', 'RopeDuckFeedGameScene', 'event'],
+      ['CONTENT17109526018', 'RopeDuckFeedGameScene', 'early'],
+      ['CONTENT17109526018', 'RopeDuckFeedGameScene', 'exit-during-load'],
+      ['CONTENT17109526018', 'RopeDuckFeedGameScene', 'exit-touch'],
+      ['CONTENT17109526018', 'RopeDuckFeedGameScene', 'return-touch'],
+      ['CONTENT16976844290', 'DuckGrabFeedGameScene', 'event'],
+      ['CONTENT17042566146', 'BrickChopFeedGameScene', 'event'],
     ]) {
       if (process.env.FEED_CASE && process.env.FEED_CASE !== activation) continue;
       const page = await browser.newPage({ viewport: { width: 750, height: 1334 }, hasTouch: true });

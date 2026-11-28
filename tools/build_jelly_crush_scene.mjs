@@ -57,7 +57,7 @@ fs.writeFileSync(bundleFile, bundleSource);
 const configFile = 'assets/scripts/framework/Platform/FeedRevisitConfig.ts';
 let configSource = fs.readFileSync(configFile, 'utf8');
 if (!configSource.includes('FEED_JELLY_CRUSH_CONTENT_ID')) {
-  configSource += '\n/** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */\nexport const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16431822082";\n';
+  configSource += '\n/** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */\nexport const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16576697090";\n';
   fs.writeFileSync(configFile, configSource);
 }
 const routeSource = fs.readFileSync('assets/scripts/loadScene.ts', 'utf8');

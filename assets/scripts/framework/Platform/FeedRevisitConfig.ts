@@ -6,7 +6,7 @@ export const FEED_HEART_LEVEL = 8;
  * 颠球挑战推荐流方案 ID。
  * 加载页会根据该 ID 自动路由到 JuggleBallGameScene。
  */
-export const FEED_JUGGLE_CONTENT_ID = "CONTENT16792957954";
+export const FEED_JUGGLE_CONTENT_ID = "CONTENT17191543810";
 
 /**
  * 颠球挑战第二关推荐流方案 ID。
@@ -15,10 +15,10 @@ export const FEED_JUGGLE_CONTENT_ID = "CONTENT16792957954";
 export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
 /** 抓鸭子挑战推荐流方案，直接进入 DuckGrabFeedGameScene。 */
-export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT16499561986";
+export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT16976844290";
 
 /** 外卖精准投送推荐流方案，直接进入 FoodDeliveryFeedGameScene。 */
-export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT16499561730";
+export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT17082491906";
 
 /** 复访方案已在抖音后台下线：暂停订阅、排期上报与奖励；获客直玩不受影响。 */
 export const FEED_REVISIT_ENABLED = false;
@@ -88,25 +88,25 @@ export function createFeedRevisitExtra(readyAt: number): string {
 }
 
 /** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
-export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16684492802";
+export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT17042566146";
 
 /** 双鸭跳跃推荐流方案，直接进入 RopeDuckFeedGameScene。 */
-export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT16429216514";
+export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT17109526018";
 
 /** 货车叠叠高推荐流方案。 */
-export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16375606274";
+export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16792984066";
 
 /** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */
-export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16431822082";
+export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16576697090";
 
 /** 空投救援推荐流方案，直接进入 AirdropRescueFeedGameScene。 */
-export const FEED_AIRDROP_RESCUE_CONTENT_ID: string = "CONTENT16988333314";
+export const FEED_AIRDROP_RESCUE_CONTENT_ID: string = "CONTENT17191544322";
 
 /** 弹珠入瓶推荐流方案，直接进入 MarbleBottleFeedGameScene。 */
-export const FEED_MARBLE_BOTTLE_CONTENT_ID: string = "CONTENT16916447490";
+export const FEED_MARBLE_BOTTLE_CONTENT_ID: string = "CONTENT17109526274";
 
 /** 绝不落地推荐流方案，直接进入 KnifeClimbFeedGameScene。 */
-export const FEED_KNIFE_CLIMB_CONTENT_ID: string = "CONTENT16988333570";
+export const FEED_KNIFE_CLIMB_CONTENT_ID: string = "CONTENT16851469826";
 
 /** 正在使用的获客入口；供缺少渠道字段的推荐流预览识别，排除占位及已停用 ID。 */
 export function isConfiguredFeedAcquisitionContentId(contentId: string): boolean {
