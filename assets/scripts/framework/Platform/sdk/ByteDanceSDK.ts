@@ -8,8 +8,8 @@ export class ByteDanceSDK extends BaseSDK {
   TAG = `ByteDanceSDK`;
   public isInited = false;
   isLogined = false;
-  adUnitId = "11f137jcg0b468apu4"; // 激励广告 ID
-  interstitialAdUnitId = "qsahumc1152g3s3gse";
+  adUnitId = "275f25jh39332eqin9"; // 激励广告 ID
+  interstitialAdUnitId = "2bbeb38hmmh12j416m";
 
   ver = "1.0.0";
 

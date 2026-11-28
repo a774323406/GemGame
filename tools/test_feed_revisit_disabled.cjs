@@ -80,7 +80,7 @@ async function main() {
     assert.equal(config.FEED_SHOOTING_CONTENT_ID, undefined, 'retired bottle feed must not be registered');
     assert.equal(config.FEED_REVISIT_CONTENT_ID, '', 'retired revisit ID must be cleared');
     assert.equal(config.FEED_NAIL_HAMMER_CONTENT_ID, undefined, 'retired nail feed must not be registered');
-    assert.equal(config.FEED_JUGGLE_CONTENT_ID, 'CONTENT17264196866');
+    assert.equal(config.FEED_JUGGLE_CONTENT_ID, 'CONTENT17042874626');
     assert.equal(config.FEED_JUGGLE_LEVEL2_CONTENT_ID, 'CONTENT14759731202');
   });
   test('repeated home initialization makes no revisit API or storage calls', async () => {
@@ -123,13 +123,13 @@ async function main() {
   test('feed markers still activate when a new preview uses another scene and encoded query data', () => {
     const f = fixture(undefined, undefined, {
       scene: '999999',
-      query: 'feed_game_scene=0&feed_game_channel=2&feed_game_content_id=CONTENT17264197634',
+      query: 'feed_game_scene=0&feed_game_channel=2&feed_game_content_id=CONTENT17082497538',
     });
     const service = f.load('framework/Platform/FeedAcquisitionService.ts').FeedAcquisitionService;
     const state = service.getState();
     assert.equal(state.active, true);
     assert.equal(state.mode, 'acquisition');
-    assert.equal(state.contentId, 'CONTENT17264197634');
+    assert.equal(state.contentId, 'CONTENT17082497538');
   });
   test('fallback lobby reports ready once for retired feed entries', () => {
     const f = fixture(), Main = f.load('newMainScene.ts').newMainScene;
