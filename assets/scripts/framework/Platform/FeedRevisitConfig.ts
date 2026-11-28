@@ -6,7 +6,7 @@ export const FEED_HEART_LEVEL = 8;
  * 颠球挑战推荐流方案 ID。
  * 加载页会根据该 ID 自动路由到 JuggleBallGameScene。
  */
-export const FEED_JUGGLE_CONTENT_ID = "CONTENT16944249346";
+export const FEED_JUGGLE_CONTENT_ID = "CONTENT17264196866";
 
 /**
  * 颠球挑战第二关推荐流方案 ID。
@@ -15,10 +15,10 @@ export const FEED_JUGGLE_CONTENT_ID = "CONTENT16944249346";
 export const FEED_JUGGLE_LEVEL2_CONTENT_ID = "CONTENT14759731202";
 
 /** 抓鸭子挑战推荐流方案，直接进入 DuckGrabFeedGameScene。 */
-export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT16465766658";
+export const FEED_DUCK_GRAB_CONTENT_ID = "CONTENT16851472386";
 
 /** 外卖精准投送推荐流方案，直接进入 FoodDeliveryFeedGameScene。 */
-export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT16499562498";
+export const FEED_FOOD_DELIVERY_CONTENT_ID = "CONTENT17042874370";
 /** 新增获客方案；保留原 ID 兼容已有推荐流入口。 */
 export const FEED_FOOD_DELIVERY_EXTRA_CONTENT_ID = "CONTENT15773045506";
 
@@ -109,25 +109,25 @@ export const FEED_DRIFT_CONTENT_ID: string = "CONTENT16146470658";
 export const FEED_DRIFT_EXTRA_CONTENT_ID = "CONTENT15644009218";
 
 /** 劈砖挑战推荐流方案，直接进入 BrickChopFeedGameScene。 */
-export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT16429217026";
+export const FEED_BRICK_CHOP_CONTENT_ID = "CONTENT17298743810";
 
 /** 双鸭跳跃推荐流方案，使用 kdzzz 专属 ID。 */
-export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT16684493058";
+export const FEED_ROPE_DUCK_CONTENT_ID = "CONTENT17191551234";
 
 /** 货车叠叠高推荐流方案，直接进入 TruckStackFeedGameScene。 */
-export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT16375606786";
+export const FEED_TRUCK_STACK_CONTENT_ID = "CONTENT17191550978";
 
 /** 果冻压压乐推荐流方案，直接进入 JellyCrushFeedGameScene。 */
-export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT16684493314";
+export const FEED_JELLY_CRUSH_CONTENT_ID = "CONTENT17264197634";
 
 /** 空投救援推荐流方案，直接进入 AirdropRescueFeedGameScene。 */
-export const FEED_AIRDROP_RESCUE_CONTENT_ID: string = "CONTENT16613389570";
+export const FEED_AIRDROP_RESCUE_CONTENT_ID: string = "CONTENT16792989698";
 
 /** 弹珠入瓶推荐流方案，直接进入 MarbleBottleFeedGameScene。 */
-export const FEED_MARBLE_BOTTLE_CONTENT_ID: string = "CONTENT16952697602";
+export const FEED_MARBLE_BOTTLE_CONTENT_ID: string = "CONTENT16792989186";
 
 /** 绝不落地推荐流方案，直接进入 KnifeClimbFeedGameScene。 */
-export const FEED_KNIFE_CLIMB_CONTENT_ID: string = "CONTENT16988333058";
+export const FEED_KNIFE_CLIMB_CONTENT_ID: string = "CONTENT17298743554";
 
 /** 正在使用的获客入口；供缺少渠道字段的推荐流预览识别，排除占位及已停用 ID。 */
 export function isConfiguredFeedAcquisitionContentId(contentId: string): boolean {

@@ -3,7 +3,7 @@ const ts = require('/Applications/Cocos/Creator/3.8.5/CocosCreator.app/Contents/
 const compile = file => ts.transpileModule(fs.readFileSync('assets/scripts/' + file, 'utf8'), {
   compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, experimentalDecorators: true},
 }).outputText;
-const state = {active: true, entered: false, exited: false, mode: 'acquisition', contentId: 'CONTENT16375606786'};
+const state = {active: true, entered: false, exited: false, mode: 'acquisition', contentId: 'CONTENT17191550978'};
 const cc = {_decorator: {ccclass: () => c => c, property: () => () => {}}, Component: class {}, Button: {EventType: {CLICK: 'click'}}};
 const load = (file, requireFn = () => ({})) => {
   const exports = {}; vm.runInNewContext(compile(file), {exports, require: requireFn}); return exports;
@@ -12,7 +12,7 @@ const load = (file, requireFn = () => ({})) => {
 (async () => {
   const bundle = load('framework/GameSceneBundle.ts'), config = load('framework/Platform/FeedRevisitConfig.ts');
   assert.equal(bundle.GameSceneName.TruckStackFeedGame, 'TruckStackFeedGameScene', 'new scene is registered');
-  assert.equal(config.FEED_TRUCK_STACK_CONTENT_ID, 'CONTENT16375606786');
+  assert.equal(config.FEED_TRUCK_STACK_CONTENT_ID, 'CONTENT17191550978');
   const loader = load('loadScene.ts', name => name === 'cc' ? cc : name.endsWith('GameSceneBundle') ? bundle :
     name.endsWith('FeedRevisitConfig') ? config : name.endsWith('FeedAcquisitionService') ? {FeedAcquisitionService: {getState: () => state}} : {});
   const route = new loader.loadScene();
